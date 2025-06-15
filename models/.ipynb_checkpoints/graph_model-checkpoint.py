@@ -108,15 +108,27 @@ class GNN(torch.nn.Module):
             return SAGEConv(in_features, out_features)
         elif self.layer_type == "FiLM":
             return FiLMConv(in_features, out_features)
+        elif self.layer_type == "MLP":  # <<< added new branch
+            # <<< begin added lines for MLP layer type
+            return nn.Sequential(
+                nn.Linear(in_features, out_features),
+                nn.ReLU(),
+            )  # <<< end added lines
+        else:
+            raise ValueError(f"Unknown layer_type: {self.layer_type}")
 
     def forward(self, graph, measure_dirichlet=False):
         x, edge_index, ptr, batch = graph.x, graph.edge_index, graph.ptr, graph.batch
         x = x.float()
         for i, layer in enumerate(self.layers):
-            if self.layer_type in ["R-GCN", "R-GAT", "R-GIN", "FiLM"]:
-                x_new = layer(x, edge_index, edge_type=graph.edge_type)
+            # MLP layers ignore graph structure
+            if self.layer_type == "MLP":  # <<< added condition
+                x_new = layer(x)  # <<< changed: MLP uses only x
             else:
-                x_new = layer(x, edge_index)
+                if self.layer_type in ["R-GCN", "R-GAT", "R-GIN", "FiLM"]:
+                    x_new = layer(x, edge_index, edge_type=graph.edge_type)
+                else:
+                    x_new = layer(x, edge_index)
             if i != self.num_layers - 1:
                 x_new = self.act_fn(x_new)
                 x_new = self.dropout(x_new)
