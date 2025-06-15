@@ -456,4 +456,3 @@ def gcn_norm(  # noqa: F811
     edge_weight = deg_inv_sqrt[row] * edge_weight * deg_inv_sqrt[col]
 
     return edge_index, edge_weight
-

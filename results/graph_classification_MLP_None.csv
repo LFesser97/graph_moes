@@ -1,0 +1,2 @@
+,dataset,encoding,layer_type,alpha,eps,test_mean,test_ci,val_mean,val_ci,train_mean,train_ci,energy_mean,energy_ci,last_layer_fa,run_duration
+0,enzymes,,MLP,0.1,0.001,22.266666666666666,0.014465284112123219,26.333333333333336,0.01550627113281734,29.033333333333328,0.020509618339804483,0.0,0.0,False,2844.6399326324463

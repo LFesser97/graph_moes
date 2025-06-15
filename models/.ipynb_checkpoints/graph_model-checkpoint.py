@@ -21,6 +21,10 @@ from torch.nn import (
 import torch_geometric.transforms as T
 from models.performer import PerformerAttention
 
+from models.layers import TaylorGCNConv, ComplexGCNConv
+from models.complex_valued_layers import UnitaryGCNConvLayer
+from models.real_valued_layers import OrthogonalGCNConvLayer
+
 
 class RGATConv(torch.nn.Module):
     def __init__(self, in_features, out_features, num_relations):
@@ -226,3 +230,65 @@ class RedrawProjection:
             self.num_last_redraw = 0
             return
         self.num_last_redraw += 1
+        
+        
+class UnitaryGCN(nn.Module):
+    def __init__(self, args):
+        super(UnitaryGCN, self).__init__()
+        self.conv_layers = nn.ModuleList()
+        input_dim = args.input_dim
+        hidden_dim = 64
+        output_dim = args.output_dim
+        num_layers = 4
+        hidden_layer_dim = 64
+        self.T = 20
+        self.dropout = Dropout(p=args.dropout)
+        self.conv_layers = nn.ModuleList()
+        self.conv_layers.append(UnitaryGCNConvLayer(input_dim, hidden_dim))
+        for _ in range(num_layers):
+            self.conv_layers.append(UnitaryGCNConvLayer(hidden_dim, hidden_dim, use_hermitian=True))
+        self.hidden_layer = nn.Linear(hidden_dim, hidden_layer_dim)
+        self.output_layer = nn.Linear(hidden_layer_dim, output_dim)
+        self.reset_parameters()
+
+    def forward(self, data):
+        for conv in self.conv_layers:
+            data = conv(data)
+        x = global_mean_pool(data.x.real, data.batch)  # Global pooling over nodes
+        x = F.relu(self.hidden_layer(x))  # Hidden layer with ReLU activation
+        x = self.output_layer(x)  # Output layer
+        return x 
+    
+    def reset_parameters(self):
+        pass
+
+
+class OrthogonalGCN(nn.Module):
+    def __init__(self, args):
+        super(OrthogonalGCN, self).__init__()
+        self.conv_layers = nn.ModuleList()
+        input_dim = args.input_dim
+        hidden_dim = 64
+        output_dim = args.output_dim
+        num_layers = 4
+        hidden_layer_dim = 64
+        self.T = 20
+        self.dropout = Dropout(p=args.dropout)
+        self.conv_layers = nn.ModuleList()
+        self.conv_layers.append(OrthogonalGCNConvLayer(input_dim, hidden_dim))
+        for _ in range(num_layers):
+            self.conv_layers.append(OrthogonalGCNConvLayer(hidden_dim, hidden_dim, use_hermitian=True))
+        self.hidden_layer = nn.Linear(hidden_dim, hidden_layer_dim)
+        self.output_layer = nn.Linear(hidden_layer_dim, output_dim)
+        self.reset_parameters()
+
+    def forward(self, data):
+        for conv in self.conv_layers:
+            data = conv(data)
+        x = global_mean_pool(data.x.real, data.batch)  # Global pooling over nodes
+        x = F.relu(self.hidden_layer(x))  # Hidden layer with ReLU activation
+        x = self.output_layer(x)  # Output layer
+        return x
+    
+    def reset_parameters(self):
+        pass

@@ -1,0 +1,8 @@
+RESULTS FOR enzymes (MLP), with None:
+average acc: 22.266666666666666
+plus/minus:  0.014465284112123219
+
+RESULTS FOR enzymes (GCN), with None:
+average acc: 21.333333333333336
+plus/minus:  0.0
+

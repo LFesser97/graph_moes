@@ -13,7 +13,7 @@ from math import inf
 import random
 from torch.utils.data import Dataset, Subset
 
-from models.graph_model import GNN, GPS
+from models.graph_model import GNN, GPS, OrthogonalGCN, UnitaryGCN
 
 default_args = AttrDict(
     {"learning_rate": 1e-3,
@@ -72,6 +72,10 @@ class Experiment:
 
         if self.args.layer_type == "GPS":
             self.model = GPS(self.args).to(self.args.device)
+        elif self.args.layer_type == "Orthogonal":
+            self.model = OrthogonalGCN(self.args).to(self.args.device)
+        elif self.args.layer_type == "Unitary":
+            self.model = UnitaryGCN(self.args).to(self.args.device)
         else:
             self.model = GNN(self.args).to(self.args.device)
        
