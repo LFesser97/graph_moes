@@ -6,3 +6,7 @@ RESULTS FOR enzymes (GCN), with None:
 average acc: 21.333333333333336
 plus/minus:  0.0
 
+RESULTS FOR enzymes (MoE), with None:
+average acc: 20.0
+plus/minus:  0.0
+
