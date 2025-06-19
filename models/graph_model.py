@@ -237,10 +237,10 @@ class UnitaryGCN(nn.Module):
         super(UnitaryGCN, self).__init__()
         self.conv_layers = nn.ModuleList()
         input_dim = args.input_dim
-        hidden_dim = 64
+        hidden_dim = args.hidden_dim
         output_dim = args.output_dim
-        num_layers = 4
-        hidden_layer_dim = 64
+        num_layers = args.num_layers
+        hidden_layer_dim = args.hidden_dim
         self.T = 20
         self.dropout = Dropout(p=args.dropout)
         self.conv_layers = nn.ModuleList()

@@ -40,7 +40,7 @@ default_args = AttrDict(
     "layer_type": "R-GCN",
     "num_relations": 2,
     "last_layer_fa": False,
-     "layer_types": ["GCN", "GIN"]
+    "layer_types": None
     }
     )
 

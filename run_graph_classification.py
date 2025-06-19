@@ -35,12 +35,12 @@ def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
 data_directory = "/n/netscratch/mweber_lab/Lab/graph_datasets"
 
 # import TU datasets
-# mutag = list(TUDataset(root=data_directory, name="MUTAG"))
+mutag = list(TUDataset(root=data_directory, name="MUTAG"))
 enzymes = list(TUDataset(root=data_directory, name="ENZYMES"))
-# proteins = list(TUDataset(root=data_directory, name="PROTEINS"))
-# imdb = list(TUDataset(root=data_directory, name="IMDB-BINARY"))
-# collab = list(TUDataset(root=data_directory, name="COLLAB"))
-# reddit = list(TUDataset(root=data_directory, name="REDDIT-BINARY"))
+proteins = list(TUDataset(root=data_directory, name="PROTEINS"))
+imdb = list(TUDataset(root=data_directory, name="IMDB-BINARY"))
+collab = list(TUDataset(root=data_directory, name="COLLAB"))
+reddit = list(TUDataset(root=data_directory, name="REDDIT-BINARY"))
 
 
 """
@@ -53,8 +53,8 @@ peptides_func = [_convert_lrgb(peptides_train[i]) for i in range(len(peptides_tr
 """
 
 
-# datasets = {"mutag": mutag, "enzymes": enzymes, "proteins": proteins, "imdb": imdb, "peptides": peptides_func}
-datasets = {"enzymes": enzymes}
+datasets = {"mutag": mutag, "enzymes": enzymes, "proteins": proteins, "imdb": imdb, "collab": collab, "reddit": reddit} #, "peptides": peptides_func}
+# datasets = {"collab": collab, "imdb": imdb, "proteins": proteins, "reddit": reddit}
 
 
 for key in datasets:
@@ -72,13 +72,13 @@ def log_to_file(message, filename="results/graph_classification.txt"):
 
 
 default_args = AttrDict({
-    "dropout": 0.5,
+    "dropout": 0.1,
     "num_layers": 4,
     "hidden_dim": 64,
     "learning_rate": 1e-3,
-    "layer_type": "MLP",
+    "layer_type": "MoE",
     "display": True,
-    "num_trials": 20,
+    "num_trials": 10,
     "eval_every": 1,
     "patience": 50,
     "output_dim": 2,
@@ -87,7 +87,8 @@ default_args = AttrDict({
     "dataset": None,
     "last_layer_fa": False,
     "encoding" : None,
-    "mlp": True
+    "mlp": True,
+    "layer_types": None
 })
 
 hyperparams = {

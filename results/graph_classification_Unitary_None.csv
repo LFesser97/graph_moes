@@ -1,0 +1,2 @@
+,dataset,encoding,layer_type,alpha,eps,test_mean,test_ci,val_mean,val_ci,train_mean,train_ci,energy_mean,energy_ci,last_layer_fa,run_duration
+0,mutag,,Unitary,0.1,0.001,77.87234042553192,0.024333580349780077,85.1063829787234,0.02251703243459226,88.82978723404256,0.0304820186848817,0.0,0.0,False,11355.806881666183
