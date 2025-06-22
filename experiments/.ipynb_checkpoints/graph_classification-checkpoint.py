@@ -15,7 +15,7 @@ from torch.utils.data import Dataset, Subset
 
 from models.graph_model import GNN, GPS, OrthogonalGCN, UnitaryGCN
 
-from models.graph_moe import MoE
+from models.graph_moe import MoE, MoE_E
 
 default_args = AttrDict(
     {"learning_rate": 1e-3,
@@ -40,7 +40,11 @@ default_args = AttrDict(
     "layer_type": "R-GCN",
     "num_relations": 2,
     "last_layer_fa": False,
-    "layer_types": None
+    "layer_types": None,
+    "router_type": "GNN",
+    "router_layer_type": "GIN",
+    "router_depth": 4,
+    "router_dropout": 0.1
     }
     )
 
@@ -81,6 +85,8 @@ class Experiment:
             self.model = UnitaryGCN(self.args).to(self.args.device)
         elif self.args.layer_type == "MoE":
             self.model = MoE(self.args).to(self.args.device)
+        elif self.args.layer_type == "MoE_E":
+            self.model = MoE_E(self.args).to(self.args.device)
         else:
             self.model = GNN(self.args).to(self.args.device)
        

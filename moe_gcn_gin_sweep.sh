@@ -5,11 +5,11 @@
 
 # List of datasets in your table
 # conv_types=(gcn dir-gcn uni dir-uni)
-datasets=(mutag enzymes proteins)
+datasets=(enzymes proteins)
 
 for dataset in "${datasets[@]}"; do
     learning_rates=(0.001 0.0001)
-    hidden_dims=(64 128 256)
+    hidden_dims=(64 128)
     num_layers=(4 5 6 7)
     dropouts=(0.0 0.1 0.2)
 

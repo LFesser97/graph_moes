@@ -138,3 +138,171 @@ RESULTS FOR mutag (MoE), with None:
 average acc: 68.29787234042553
 plus/minus:  0.04057084744358477
 
+RESULTS FOR mutag (MoE), with None:
+average acc: 71.06382978723404
+plus/minus:  0.044711235869152995
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 35.6
+plus/minus:  0.06146073724112185
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 30.866666666666664
+plus/minus:  0.04182715757867262
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 30.933333333333334
+plus/minus:  0.04259994783512716
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 28.133333333333336
+plus/minus:  0.03248521031006093
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 27.73333333333333
+plus/minus:  0.01924808792812649
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 27.799999999999997
+plus/minus:  0.02646926939343476
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 36.53333333333333
+plus/minus:  0.06348683153046604
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 25.733333333333334
+plus/minus:  0.023262750386735347
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 29.599999999999998
+plus/minus:  0.031619965563267495
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 25.0
+plus/minus:  0.037724144935453625
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 36.8
+plus/minus:  0.034024827536504695
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 27.599999999999998
+plus/minus:  0.045065877705125566
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 28.133333333333333
+plus/minus:  0.021973721679416178
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 29.46666666666666
+plus/minus:  0.1017115747810663
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 11.333333333333332
+plus/minus:  0.0
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 12.666666666666668
+plus/minus:  0.0
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 31.666666666666664
+plus/minus:  0.03588871688985271
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 29.06666666666667
+plus/minus:  0.04439018910625284
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 40.13333333333334
+plus/minus:  0.07139498893090775
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 27.866666666666667
+plus/minus:  0.0224539033973556
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 27.0
+plus/minus:  0.03638070306571267
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 30.666666666666664
+plus/minus:  0.10348590886363868
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 24.866666666666664
+plus/minus:  0.03656592220451532
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 24.73333333333333
+plus/minus:  0.022584163576374574
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 35.6
+plus/minus:  0.052337367148147594
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 27.333333333333332
+plus/minus:  0.04493946545694058
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 24.666666666666668
+plus/minus:  0.04517619825625977
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 23.133333333333333
+plus/minus:  0.03430840518978792
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 34.8
+plus/minus:  0.06459721356219632
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 20.200000000000003
+plus/minus:  0.033041388187140884
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 66.30824372759857
+plus/minus:  0.045563436794467976
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 66.4516129032258
+plus/minus:  0.013233526318812127
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 65.80645161290322
+plus/minus:  0.04817716306635634
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 62.72401433691756
+plus/minus:  0.05048549637751689
+
+RESULTS FOR mutag (GCN), with LDP:
+average acc: 69.57446808510636
+plus/minus:  0.034596555956047395
+
+RESULTS FOR mutag (GCN), with LCP:
+average acc: 82.7659574468085
+plus/minus:  0.022876051158664867
+
+RESULTS FOR mutag (MoE_E), with LDP:
+average acc: 70.2127659574468
+plus/minus:  0.0
+
+RESULTS FOR mutag (MoE_E), with LDP:
+average acc: 68.08510638297872
+plus/minus:  0.0
+
+RESULTS FOR enzymes (GCN), with LDP:
+average acc: 26.599999999999994
+plus/minus:  0.06041191935371694
+
+RESULTS FOR enzymes (GCN), with LCP:
+average acc: 37.8
+plus/minus:  0.028723973726952654
+
+RESULTS FOR proteins (GCN), with LDP:
+average acc: 71.97132616487455
+plus/minus:  0.014507940519768898
+

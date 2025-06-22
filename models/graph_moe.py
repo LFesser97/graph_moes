@@ -2,23 +2,13 @@ import copy
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch_geometric.nn import global_mean_pool
+from torch_geometric.nn import global_mean_pool, GCNConv, GINConv
 
 from models.graph_model import GNN, UnitaryGCN
 
+"""
 class MoE(nn.Module):
     def __init__(self, args):
-        """
-        args should have attributes:
-            args.layer_types:      list of two strings, e.g. ["GCN", "GIN"]
-            args.input_dim:        int, node‐feature dim
-            args.hidden_layers:    list of ints, one per hidden layer
-            args.output_dim:       int, graph‐level output dim
-            args.num_relations:    int, for relational GNNs
-            args.mlp:              bool, whether to include final MLP layer
-            args.dropout:          float, dropout probability
-            args.last_layer_fa:    bool, whether to apply FA on last layer
-        """
         super().__init__()
         assert hasattr(args, "layer_types") and len(args.layer_types) == 2, \
             "args.layer_types must be a list of two GNN type strings"
@@ -61,27 +51,11 @@ class MoE(nn.Module):
         w1 = weights[:, 1].unsqueeze(-1)          # [B,1]
         y = w0 * y0 + w1 * y1                     # [B, output_dim]
 
-        return y
-    
-    
+        return y    
 """
-import copy
-import torch
-import torch.nn.functional as F
-from torch import nn
-from torch_geometric.nn import global_mean_pool, GCNConv, GINConv
 
-from models.graph_model import GNN, UnitaryGCN
 
 class MLPRouter(nn.Module):
-    """
-    MLP-based router that pools node features and outputs expert logits.
-
-    Args:
-        input_dim: Dimensionality of node features.
-        hidden_layers: List[int] sizes for hidden MLP layers.
-        num_experts: Number of experts (output logits dimension).
-    """
     def __init__(self, input_dim: int, hidden_layers: list[int], num_experts: int):
         super().__init__()
         layers = []
@@ -98,19 +72,6 @@ class MLPRouter(nn.Module):
         return self.net(z)
 
 class GNNRouter(nn.Module):
-    """
-    GNN-based router that performs message passing, pools, and applies a 2-layer MLP.
-
-    Supports only GCN or GIN layers.
-
-    Args:
-        input_dim: Dimensionality of node features.
-        layer_type: 'GCN' or 'GIN'.
-        hidden_dim: Hidden dimensionality for GNN layers.
-        depth: Number of GNN layers.
-        dropout: Dropout probability between layers.
-        num_experts: Number of experts (output logits dimension).
-    """
     def __init__(
         self,
         input_dim: int,
@@ -163,23 +124,16 @@ class GNNRouter(nn.Module):
         return logits
 
 class Router(nn.Module):
-    """
-    Parametrizable router supporting MLP or GNN backbones.
-    """
     def __init__(self, router_type: str, input_dim: int, num_experts: int, args):
         super().__init__()
-        if router_type == 'mlp':
+        if router_type == 'MLP':
             self.model = MLPRouter(
                 input_dim,
                 args.router_hidden_layers,
                 num_experts
             )
-        elif router_type == 'gnn':
-            hidden_dim = (
-                args.router_hidden_layers[0]
-                if isinstance(args.router_hidden_layers, list)
-                else args.router_hidden_layers
-            )
+        elif router_type == 'GNN':
+            hidden_dim = 64
             self.model = GNNRouter(
                 input_dim=input_dim,
                 layer_type=args.router_layer_type,
@@ -227,4 +181,53 @@ class MoE(nn.Module):
             for i in range(len(outs))
         )  # [B, output_dim]
         return y
-"""
+    
+    
+class MoE_E(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        assert hasattr(args, 'layer_types') and len(args.layer_types) == 2, \
+            'args.layer_types must be a list of two expert type strings'
+        self.args = args
+
+        # Instantiate experts
+        self.experts = nn.ModuleList()
+        
+        # Instantiate experts
+        self.experts = nn.ModuleList()
+        for lt in args.layer_types:
+            ex_args = copy.deepcopy(args)
+            ex_args.layer_type = lt
+            self.experts.append(
+                UnitaryGCN(ex_args) if lt == 'Unitary' else GNN(ex_args)
+            )
+
+        # Instantiate router
+        self.router = Router(
+            router_type=args.router_type,
+            input_dim=args.input_dim,
+            num_experts=len(args.layer_types),
+            args=args
+        )
+
+    def forward(self, graph):
+        logits = self.router(graph)             # [B, num_experts]
+        weights = F.softmax(logits, dim=-1)     # [B, num_experts]
+
+        # mask that preserves the first F-5 dims and zeros the last 5
+        projection = torch.cat(
+            [torch.ones(graph.x.size(-1) - 5, device=graph.x.device),
+             torch.zeros(5, device=graph.x.device)]
+        )                                        # shape: [F]
+
+        outs = []
+        outs.append(self.experts[0](graph))
+
+        graph.x = graph.x * projection           # zero out last five dims
+        outs.append(self.experts[1](graph))
+        
+        y = sum(
+            weights[:, i].unsqueeze(-1) * outs[i]
+            for i in range(len(outs))
+        )  # [B, output_dim]
+        return y

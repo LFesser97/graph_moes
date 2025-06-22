@@ -198,11 +198,9 @@ for key in datasets:
     end = time.time()
     run_duration = end - start
 
-    
-    with open(f"results/{args.num_layers}_layers/{key}_{args.layer_type}_{args.encoding}_graph_dict.pickle", "wb") as f:
-        pickle.dump(graph_dict, f)
-    print(f"Graph dictionary for {key} pickled")
-
+    # with open(f"results/{args.num_layers}_layers/{key}_{args.layer_type}_{args.encoding}_graph_dict.pickle", "wb") as f:
+        # pickle.dump(graph_dict, f)
+    # print(f"Graph dictionary for {key} pickled")
     
     train_mean = 100 * np.mean(train_accuracies)
     val_mean = 100 * np.mean(validation_accuracies)
@@ -219,6 +217,8 @@ for key in datasets:
         "dataset": key,
         "encoding": args.encoding,
         "layer_type": args.layer_type,
+        "layer_types": args.layer_types,
+        "encoding": args.encoding,
         "alpha": args.alpha,
         "eps": args.eps,
         "test_mean": test_mean,
