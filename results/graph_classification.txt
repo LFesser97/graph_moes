@@ -306,3 +306,47 @@ RESULTS FOR proteins (GCN), with LDP:
 average acc: 71.97132616487455
 plus/minus:  0.014507940519768898
 
+RESULTS FOR mutag (MoE_E), with LDP:
+average acc: 71.70212765957447
+plus/minus:  0.03948514284140271
+
+RESULTS FOR mutag (MoE_E), with LCP:
+average acc: 84.25531914893615
+plus/minus:  0.03620774023180024
+
+RESULTS FOR proteins (GCN), with LCP:
+average acc: 72.07885304659499
+plus/minus:  0.01449553829687093
+
+RESULTS FOR imdb (GCN), with LDP:
+average acc: 71.48
+plus/minus:  0.01192241586256746
+
+RESULTS FOR enzymes (MoE_E), with LCP:
+average acc: 32.800000000000004
+plus/minus:  0.03243043837713781
+
+RESULTS FOR imdb (GCN), with LCP:
+average acc: 65.48
+plus/minus:  0.013436666253204338
+
+RESULTS FOR enzymes (MoE_E), with LDP:
+average acc: 33.06666666666666
+plus/minus:  0.03426433195678042
+
+RESULTS FOR proteins (MoE_E), with LDP:
+average acc: 72.00716845878136
+plus/minus:  0.015720023137772845
+
+RESULTS FOR proteins (MoE_E), with LCP:
+average acc: 72.04301075268816
+plus/minus:  0.013937076770769588
+
+RESULTS FOR imdb (MoE_E), with LDP:
+average acc: 69.96
+plus/minus:  0.01911481101135974
+
+RESULTS FOR imdb (MoE_E), with LCP:
+average acc: 63.32
+plus/minus:  0.023787055303252657
+

@@ -68,6 +68,8 @@ def get_args_from_input():
                         help='BORF batch removal size')
     parser.add_argument('--encoding', type=str,
                         help='type of encoding to use for node features')
+    parser.add_argument('--router_hidden_layers', type=list, default=[64, 64, 64],
+                        help='num. hidden layers of the router GNN')
     parser.add_argument('--layer_types', type=ast.literal_eval,
                         help='the expert GNNs to be used for an MoE')
 
