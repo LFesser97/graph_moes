@@ -1,5 +1,12 @@
 # README:
 
+
+# TODO / IDEAS:
+# Hypergraph encodings > add something to store them too
+# Not doing rewiring anymore
+
+
+
 # Graph Mixture of Experts (Graph MoE)
 
 A PyTorch implementation of Graph Neural Networks with Mixture of Experts (MoE) architectures and heterogeneous layer types for graph classification and regression tasks.
