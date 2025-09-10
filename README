@@ -4,6 +4,7 @@
 # TODO / IDEAS:
 # Hypergraph encodings > add something to store them too
 # Not doing rewiring anymore
+# Todo: lint, add mypy and pylint github action
 
 
 

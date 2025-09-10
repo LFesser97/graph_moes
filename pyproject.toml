@@ -27,8 +27,10 @@ classifiers = [
 ]
 
 dependencies = [
+    # Pin numpy to compatible version
+    "numpy>=1.23.1,<2.0",  # Fixed version constraint
+    
     # Core ML/Scientific Computing
-    "numpy>=1.23.1",
     "scipy>=1.9.1",
     "pandas>=1.4.4",
     "matplotlib>=3.5.3",
@@ -158,24 +160,4 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-addopts = "-v --cov=models --cov=experiments --cov-report=term-missing"
-
-[tool.coverage.run]
-source = ["models", "experiments"]
-omit = [
-    "*/tests/*",
-    "*/test_*",
-    "*/__pycache__/*",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "if self.debug:",
-    "if settings.DEBUG",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if 0:",
-    "if __name__ == .__main__.:",
-]
+addopts = "-v"
