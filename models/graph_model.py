@@ -6,14 +6,39 @@ support different types of graph convolutions, attention mechanisms, and pooling
 strategies.
 
 Classes:
-    RGATConv: Relational Graph Attention Network convolution layer
-    RGINConv: Relational Graph Isomorphism Network convolution layer
     GNN: Configurable multi-layer GNN supporting various convolution types
     GPS: Graph PolyNomial Sampling model with Performer attention
     UnitaryGCN: Unitary Graph Convolutional Network using complex-valued layers
     OrthogonalGCN: Orthogonal Graph Convolutional Network with real-valued constraints
-    GatedGCNConv: Gated Graph Convolutional Network layer with edge features
+
+    RGATConv: Relational Graph Attention Network convolution layer
+    RGINConv: Relational Graph Isomorphism Network convolution layer
+    ResGatedGraphConv: Gated Graph Convolutional Network layer with edge features
     RedrawProjection: Utility class for Performer attention projection matrix updates
+
+## Layers:
+From PyTorch Geometric (imported):
+GCNConv - Graph Convolutional Network layer
+RGCNConv - Relational GCN (multiple edge types)
+SAGEConv - GraphSAGE layer
+GINConv - Graph Isomorphism Network layer
+FiLMConv - Feature-wise Linear Modulation layer
+GPSConv - Graph PolyNomial Sampling layer
+
+Custom Layers (we implemented):
+RGATConv - custom Relational Graph Attention layer
+RGINConv - custom Relational Graph Isomorphism layer
+ResGatedGraphConv - Residual Gated Graph Convolution layer
+
+Pseudo-Layer:
+MLP - Multi-Layer Perceptron (ignores graph structure
+
+## MODELS (Complete Architectures)
+Main Models:
+GNN - The flexible, configurable model that can use any layer type
+GPS - model with Performer attention
+UnitaryGCN - Complex-valued unitary transformations model
+OrthogonalGCN - Real-valued orthogonal transformations model
 """
 
 import torch
@@ -61,54 +86,27 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from typing import Callable, Optional, Tuple, Union
 
-class RGATConv(torch.nn.Module):
-    def __init__(self, in_features, out_features, num_relations):
-        super(RGATConv, self).__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.num_relations = num_relations
-        self.self_loop_conv = torch.nn.Linear(in_features, out_features)
-        convs = []
-        for i in range(self.num_relations):
-            convs.append(GATConv(in_features, out_features))
-        self.convs = ModuleList(convs)
+import torch
+from torch import Tensor
+from torch.nn import Parameter, Sigmoid
 
-    def forward(self, x, edge_index, edge_type):
-        x_new = self.self_loop_conv(x)
-        for i, conv in enumerate(self.convs):
-            rel_edge_index = edge_index[:, edge_type == i]
-            x_new += conv(x, rel_edge_index)
-        return x_new
+from torch_geometric.nn.conv import MessagePassing
+from torch_geometric.nn.dense.linear import Linear
+from torch_geometric.nn.inits import zeros
+from torch_geometric.typing import Adj, OptTensor, PairTensor
 
+from typing import Callable, Optional, Tuple, Union
 
-class RGINConv(torch.nn.Module):
-    def __init__(self, in_features, out_features, num_relations):
-        super(RGINConv, self).__init__()
-        self.in_features = in_features
-        self.out_features = out_features
-        self.num_relations = num_relations
-        self.self_loop_conv = torch.nn.Linear(in_features, out_features)
-        convs = []
-        for i in range(self.num_relations):
-            convs.append(
-                GINConv(
-                    nn.Sequential(
-                        nn.Linear(in_features, out_features),
-                        nn.BatchNorm1d(out_features),
-                        nn.ReLU(),
-                        nn.Linear(out_features, out_features),
-                    )
-                )
-            )
-        self.convs = ModuleList(convs)
+import torch
+from torch import Tensor
+from torch.nn import Parameter, Sigmoid
 
-    def forward(self, x, edge_index, edge_type):
-        x_new = self.self_loop_conv(x)
-        for i, conv in enumerate(self.convs):
-            rel_edge_index = edge_index[:, edge_type == i]
-            x_new += conv(x, rel_edge_index)
-        return x_new
+from torch_geometric.nn.conv import MessagePassing
+from torch_geometric.nn.dense.linear import Linear
+from torch_geometric.nn.inits import zeros
+from torch_geometric.typing import Adj, OptTensor, PairTensor
 
 
 class GNN(torch.nn.Module):
@@ -179,12 +177,13 @@ class GNN(torch.nn.Module):
             return SAGEConv(in_features, out_features)
         elif self.layer_type == "FiLM":
             return FiLMConv(in_features, out_features)
-        elif self.layer_type == "MLP":  # <<< added new branch
-            # <<< begin added lines for MLP layer type
+        elif self.layer_type == "GatedGCN":
+            return ResGatedGraphConv(in_features, out_features)
+        elif self.layer_type == "MLP":
             return nn.Sequential(
                 nn.Linear(in_features, out_features),
                 nn.ReLU(),
-            )  # <<< end added lines
+            )
         else:
             raise ValueError(f"Unknown layer_type: {self.layer_type}")
 
@@ -193,8 +192,13 @@ class GNN(torch.nn.Module):
         x = x.float()
         for i, layer in enumerate(self.layers):
             # MLP layers ignore graph structure
-            if self.layer_type == "MLP":  # <<< added condition
-                x_new = layer(x)  # <<< changed: MLP uses only x
+            if self.layer_type == "MLP":
+                x_new = layer(x)
+            elif self.layer_type == "GatedGCN":
+                if hasattr(graph, "edge_attr") and graph.edge_attr is not None:
+                    x_new = layer(x, edge_index, graph.edge_attr)
+                else:
+                    x_new = layer(x, edge_index)  # Works without edge attributes
             else:
                 if self.layer_type in ["R-GCN", "R-GAT", "R-GIN", "FiLM"]:
                     x_new = layer(x, edge_index, edge_type=graph.edge_type)
@@ -279,28 +283,6 @@ class GPS(torch.nn.Module):
         return F.log_softmax(self.mlp(x), dim=1)
 
 
-class RedrawProjection:
-    def __init__(self, model: torch.nn.Module, redraw_interval: Optional[int] = None):
-        self.model = model
-        self.redraw_interval = redraw_interval
-        self.num_last_redraw = 0
-
-    def redraw_projections(self):
-        if not self.model.training or self.redraw_interval is None:
-            return
-        if self.num_last_redraw >= self.redraw_interval:
-            fast_attentions = [
-                module
-                for module in self.model.modules()
-                if isinstance(module, PerformerAttention)
-            ]
-            for fast_attention in fast_attentions:
-                fast_attention.redraw_projection_matrix()
-            self.num_last_redraw = 0
-            return
-        self.num_last_redraw += 1
-
-
 class UnitaryGCN(nn.Module):
     def __init__(self, args):
         super(UnitaryGCN, self).__init__()
@@ -367,167 +349,214 @@ class OrthogonalGCN(nn.Module):
         pass
 
 
-# Adding GatedGNN:
-# Source:
-# https://www.dgl.ai/dgl_docs/_modules/dgl/nn/pytorch/conv/gatedgcnconv.html
-class GatedGCNConv(nn.Module):
-    """Gated graph convolutional layer from `Benchmarking Graph Neural Networks
-    <https://arxiv.org/abs/2003.00982>`__
+##############################
+
+
+class RGATConv(torch.nn.Module):
+    def __init__(self, in_features, out_features, num_relations):
+        super(RGATConv, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.num_relations = num_relations
+        self.self_loop_conv = torch.nn.Linear(in_features, out_features)
+        convs = []
+        for i in range(self.num_relations):
+            convs.append(GATConv(in_features, out_features))
+        self.convs = ModuleList(convs)
+
+    def forward(self, x, edge_index, edge_type):
+        x_new = self.self_loop_conv(x)
+        for i, conv in enumerate(self.convs):
+            rel_edge_index = edge_index[:, edge_type == i]
+            x_new += conv(x, rel_edge_index)
+        return x_new
+
+
+class RGINConv(torch.nn.Module):
+    def __init__(self, in_features, out_features, num_relations):
+        super(RGINConv, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.num_relations = num_relations
+        self.self_loop_conv = torch.nn.Linear(in_features, out_features)
+        convs = []
+        for i in range(self.num_relations):
+            convs.append(
+                GINConv(
+                    nn.Sequential(
+                        nn.Linear(in_features, out_features),
+                        nn.BatchNorm1d(out_features),
+                        nn.ReLU(),
+                        nn.Linear(out_features, out_features),
+                    )
+                )
+            )
+        self.convs = ModuleList(convs)
+
+    def forward(self, x, edge_index, edge_type):
+        x_new = self.self_loop_conv(x)
+        for i, conv in enumerate(self.convs):
+            rel_edge_index = edge_index[:, edge_type == i]
+            x_new += conv(x, rel_edge_index)
+        return x_new
+
+
+class RedrawProjection:
+    def __init__(self, model: torch.nn.Module, redraw_interval: Optional[int] = None):
+        self.model = model
+        self.redraw_interval = redraw_interval
+        self.num_last_redraw = 0
+
+    def redraw_projections(self):
+        if not self.model.training or self.redraw_interval is None:
+            return
+        if self.num_last_redraw >= self.redraw_interval:
+            fast_attentions = [
+                module
+                for module in self.model.modules()
+                if isinstance(module, PerformerAttention)
+            ]
+            for fast_attention in fast_attentions:
+                fast_attention.redraw_projection_matrix()
+            self.num_last_redraw = 0
+            return
+        self.num_last_redraw += 1
+
+
+class ResGatedGraphConv(MessagePassing):
+    r"""The residual gated graph convolutional operator from the
+    `"Residual Gated Graph ConvNets" <https://arxiv.org/abs/1711.07553>`_
+    paper.
 
     .. math::
-        e_{ij}^{l+1}=D^l h_{i}^{l}+E^l h_{j}^{l}+C^l e_{ij}^{l}
+        \mathbf{x}^{\prime}_i = \mathbf{W}_1 \mathbf{x}_i +
+        \sum_{j \in \mathcal{N}(i)} \eta_{i,j} \odot \mathbf{W}_2 \mathbf{x}_j
 
-        norm_{ij}=\Sigma_{j\in N_{i}} \sigma\left(e_{ij}^{l+1}\right)+\varepsilon
+    where the gate :math:`\eta_{i,j}` is defined as
 
-        \hat{e}_{ij}^{l+1}=\sigma(e_{ij}^{l+1}) / norm_{ij}
+    .. math::
+        \eta_{i,j} = \sigma(\mathbf{W}_3 \mathbf{x}_i + \mathbf{W}_4
+        \mathbf{x}_j)
 
-        h_{i}^{l+1}=A^l h_{i}^{l}+\Sigma_{j \in N_{i}} \hat{e}_{ij}^{l+1} \odot B^l h_{j}^{l}
+    with :math:`\sigma` denoting the sigmoid function.
 
-    where :math:`h_{i}^{l}` is node :math:`i` feature of layer :math:`l`,
-    :math:`e_{ij}^{l}` is edge :math:`ij` feature of layer :math:`l`,
-    :math:`\sigma` is sigmoid function, :math:`\varepsilon` is a small fixed constant
-    for numerical stability, :math:`A^l, B^l, C^l, D^l, E^l` are linear layers.
+    Args:
+        in_channels (int or tuple): Size of each input sample, or :obj:`-1` to
+            derive the size from the first input(s) to the forward method.
+            A tuple corresponds to the sizes of source and target
+            dimensionalities.
+        out_channels (int): Size of each output sample.
+        act (callable, optional): Gating function :math:`\sigma`.
+            (default: :meth:`torch.nn.Sigmoid()`)
+        edge_dim (int, optional): Edge feature dimensionality (in case
+            there are any). (default: :obj:`None`)
+        bias (bool, optional): If set to :obj:`False`, the layer will not learn
+            an additive bias. (default: :obj:`True`)
+        root_weight (bool, optional): If set to :obj:`False`, the layer will
+            not add transformed root node features to the output.
+            (default: :obj:`True`)
+        **kwargs (optional): Additional arguments of
+            :class:`torch_geometric.nn.conv.MessagePassing`.
 
-    Parameters
-    ----------
-    input_feats : int
-        Input feature size; i.e, the number of dimensions of :math:`h_{i}^{l}`.
-    edge_feats: int
-        Edge feature size; i.e., the number of dimensions of :math:`e_{ij}^{l}`.
-    output_feats : int
-        Output feature size; i.e., the number of dimensions of :math:`h_{i}^{l+1}`.
-    dropout : float, optional
-        Dropout rate on node and edge feature. Default: ``0``.
-    batch_norm : bool, optional
-        Whether to include batch normalization on node and edge feature. Default: ``True``.
-    residual : bool, optional
-        Whether to include residual connections. Default: ``True``.
-    activation : callable activation function/layer or None, optional
-        If not None, apply an activation function to the updated node features.
-        Default: ``F.relu``.
-
-    Example
-    -------
-    >>> import dgl
-    >>> import torch as th
-    >>> import torch.nn.functional as F
-    >>> from dgl.nn import GatedGCNConv
-
-    >>> num_nodes, num_edges = 8, 30
-    >>> graph = dgl.rand_graph(num_nodes,num_edges)
-    >>> node_feats = th.rand(num_nodes, 20)
-    >>> edge_feats = th.rand(num_edges, 12)
-    >>> gatedGCN = GatedGCNConv(20, 12, 20)
-    >>> new_node_feats, new_edge_feats = gatedGCN(graph, node_feats, edge_feats)
-    >>> new_node_feats.shape, new_edge_feats.shape
-    (torch.Size([8, 20]), torch.Size([30, 20]))
+    Shapes:
+        - **inputs:**
+          node features :math:`(|\mathcal{V}|, F_{in})` or
+          :math:`((|\mathcal{V_s}|, F_{s}), (|\mathcal{V_t}|, F_{t}))`
+          if bipartite,
+          edge indices :math:`(2, |\mathcal{E}|)`        - **outputs:** node features :math:`(|\mathcal{V}|, F_{out})` or
+          :math:`(|\mathcal{V_t}|, F_{out})` if bipartite
     """
 
     def __init__(
         self,
-        input_feats,
-        edge_feats,
-        output_feats,
-        dropout=0,
-        batch_norm=True,
-        residual=True,
-        activation=F.relu,
+        in_channels: Union[int, Tuple[int, int]],
+        out_channels: int,
+        act: Optional[Callable] = Sigmoid(),
+        edge_dim: Optional[int] = None,
+        root_weight: bool = True,
+        bias: bool = True,
+        **kwargs,
     ):
-        super(GatedGCNConv, self).__init__()
-        self.dropout = nn.Dropout(dropout)
-        self.batch_norm = batch_norm
-        self.residual = residual
 
-        if input_feats != output_feats or edge_feats != output_feats:
-            self.residual = False
+        kwargs.setdefault("aggr", "add")
+        super().__init__(**kwargs)
 
-        # Linearly transform the node features.
-        self.A = nn.Linear(input_feats, output_feats, bias=True)
-        self.B = nn.Linear(input_feats, output_feats, bias=True)
-        self.D = nn.Linear(input_feats, output_feats, bias=True)
-        self.E = nn.Linear(input_feats, output_feats, bias=True)
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.act = act
+        self.edge_dim = edge_dim
+        self.root_weight = root_weight
 
-        # Linearly transform the edge features.
-        self.C = nn.Linear(edge_feats, output_feats, bias=True)
+        if isinstance(in_channels, int):
+            in_channels = (in_channels, in_channels)
 
-        # Batch normalization on the node/edge features.
-        self.bn_node = nn.BatchNorm1d(output_feats)
-        self.bn_edge = nn.BatchNorm1d(output_feats)
+        edge_dim = edge_dim if edge_dim is not None else 0
+        self.lin_key = Linear(in_channels[1] + edge_dim, out_channels)
+        self.lin_query = Linear(in_channels[0] + edge_dim, out_channels)
+        self.lin_value = Linear(in_channels[0] + edge_dim, out_channels)
 
-        self.activation = activation
+        if root_weight:
+            self.lin_skip = Linear(in_channels[1], out_channels, bias=False)
+        else:
+            self.register_parameter("lin_skip", None)
 
-    def forward(self, graph, feat, edge_feat):
-        """
+        if bias:
+            self.bias = Parameter(Tensor(out_channels))
+        else:
+            self.register_parameter("bias", None)
 
-        Description
-        -----------
-        Compute gated graph convolution layer.
+        self.reset_parameters()
 
-        Parameters
-        ----------
-        graph : DGLGraph
-            The graph.
-        feat : torch.Tensor
-            The input feature of shape :math:`(N, D_{in})` where :math:`N`
-            is the number of nodes of the graph and :math:`D_{in}` is the
-            input feature size.
-        edge_feat : torch.Tensor
-            The input edge feature of shape :math:`(E, D_{edge})`,
-            where :math:`E` is the number of edges and :math:`D_{edge}`
-            is the size of the edge features.
+    def reset_parameters(self):
+        super().reset_parameters()
+        self.lin_key.reset_parameters()
+        self.lin_query.reset_parameters()
+        self.lin_value.reset_parameters()
+        if self.lin_skip is not None:
+            self.lin_skip.reset_parameters()
+        if self.bias is not None:
+            zeros(self.bias)
 
-        Returns
-        -------
-        torch.Tensor
-            The output node feature of shape :math:`(N, D_{out})` where :math:`D_{out}`
-            is the output feature size.
-        torch.Tensor
-            The output edge feature of shape :math:`(E, D_{out})` where :math:`D_{out}`
-            is the output feature size.
-        """
-        with graph.local_scope():
-            # For residual connection
-            h_in = feat
-            e_in = edge_feat
+    def forward(
+        self,
+        x: Union[Tensor, PairTensor],
+        edge_index: Adj,
+        edge_attr: OptTensor = None,
+    ) -> Tensor:
 
-            graph.ndata["Ah"] = self.A(feat)
-            graph.ndata["Bh"] = self.B(feat)
-            graph.ndata["Dh"] = self.D(feat)
-            graph.ndata["Eh"] = self.E(feat)
-            graph.edata["Ce"] = self.C(edge_feat)
+        if isinstance(x, Tensor):
+            x = (x, x)
 
-            graph.apply_edges(fn.u_add_v("Dh", "Eh", "DEh"))
+        # In case edge features are not given, we can compute key, query and
+        # value tensors in node-level space, which is a bit more efficient:
+        if self.edge_dim is None:
+            k = self.lin_key(x[1])
+            q = self.lin_query(x[0])
+            v = self.lin_value(x[0])
+        else:
+            k, q, v = x[1], x[0], x[0]
 
-            # Get edge feature
-            graph.edata["e"] = graph.edata["DEh"] + graph.edata["Ce"]
-            graph.edata["sigma"] = torch.sigmoid(graph.edata["e"])
+        # propagate_type: (k: Tensor, q: Tensor, v: Tensor,
+        #                  edge_attr: OptTensor)
+        out = self.propagate(edge_index, k=k, q=q, v=v, edge_attr=edge_attr)
 
-            graph.update_all(fn.u_mul_e("Bh", "sigma", "m"), fn.sum("m", "sum_sigma_h"))
-            graph.update_all(fn.copy_e("sigma", "m"), fn.sum("m", "sum_sigma"))
-            graph.ndata["h"] = graph.ndata["Ah"] + graph.ndata["sum_sigma_h"] / (
-                graph.ndata["sum_sigma"] + 1e-6
-            )
+        if self.root_weight:
+            out = out + self.lin_skip(x[1])
 
-            # Result of graph convolution.
-            feat = graph.ndata["h"]
-            edge_feat = graph.edata["e"]
+        if self.bias is not None:
+            out = out + self.bias
 
-            # Batch normalization.
-            if self.batch_norm:
-                feat = self.bn_node(feat)
-                edge_feat = self.bn_edge(edge_feat)
+        return out
 
-            # Non-linear activation.
-            if self.activation:
-                feat = self.activation(feat)
-                edge_feat = self.activation(edge_feat)
+    def message(
+        self, k_i: Tensor, q_j: Tensor, v_j: Tensor, edge_attr: OptTensor
+    ) -> Tensor:
 
-            # Residual connection.
-            if self.residual:
-                feat = h_in + feat
-                edge_feat = e_in + edge_feat
+        assert (edge_attr is not None) == (self.edge_dim is not None)
 
-            feat = self.dropout(feat)
-            edge_feat = self.dropout(edge_feat)
+        if edge_attr is not None:
+            k_i = self.lin_key(torch.cat([k_i, edge_attr], dim=-1))
+            q_j = self.lin_query(torch.cat([q_j, edge_attr], dim=-1))
+            v_j = self.lin_value(torch.cat([v_j, edge_attr], dim=-1))
 
-            return feat, edge_feat
+        return self.act(k_i + q_j) * v_j

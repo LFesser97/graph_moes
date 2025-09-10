@@ -1,4 +1,14 @@
-"""Script to run graph regression experiments."""
+"""Script to run graph regression experiments.
+
+
+This script orchestrates comprehensive graph regression experiments on molecular datasets,
+primarily focusing on the ZINC dataset for molecular property prediction tasks. It supports
+various graph neural network architectures including GCN, GIN, SAGE, GAT, and Mixture of Experts.
+
+The script handles dataset loading, optional structural encodings (like Laplacian eigenvectors,
+random walk positional encodings, and curvature-based features), model training across multiple
+trials, and comprehensive result logging with statistical analysis of performance metrics.
+"""
 
 from attrdict import AttrDict
 from torch_geometric.datasets import ZINC

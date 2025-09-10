@@ -1,10 +1,21 @@
-"""Script to run graph classification experiments."""
+"""Script to run graph classification experiments."
+
+This script orchestrates comprehensive graph classification experiments across diverse datasets
+including molecular graphs (MUTAG, ENZYMES, PROTEINS), social networks (IMDB, COLLAB, REDDIT),
+and computer vision tasks (MNIST, CIFAR10 superpixels). It supports various GNN architectures.
+
+The script handles dataset preprocessing, optional structural encodings (Laplacian eigenvectors,
+random walk features, curvature profiles), multi-trial training with statistical analysis,
+and comprehensive result logging for benchmarking different graph neural network approaches.
+"""
 
 from attrdict import AttrDict
 from torch_geometric.datasets import TUDataset, MoleculeNet
 from torch_geometric.data import Data
 from torch_geometric.utils import to_networkx, from_networkx, to_dense_adj
 import torch_geometric.transforms as T
+
+from torch_geometric.datasets import GNNBenchmarkDataset
 
 # import custom encodings
 from torchvision.transforms import Compose
@@ -25,6 +36,8 @@ import wget
 import zipfile
 import os
 
+from torch_geometric.datasets import GNNBenchmarkDataset
+
 
 def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
     x = dataset[0]
@@ -35,7 +48,14 @@ def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
     return Data(x=x, edge_index=edge_index, y=y, edge_attr=edge_attr)
 
 
+# Use consistent data directory like other datasets
 data_directory = "/n/netscratch/mweber_lab/Lab/graph_datasets"
+
+# New datasets
+# Download/load benchmark datasets to consistent location
+mnist = list(GNNBenchmarkDataset(root=data_directory, name="MNIST"))
+cifar = list(GNNBenchmarkDataset(root=data_directory, name="CIFAR10"))
+pattern = list(GNNBenchmarkDataset(root=data_directory, name="PATTERN"))
 
 # import TU datasets
 mutag = list(TUDataset(root=data_directory, name="MUTAG"))
@@ -45,6 +65,22 @@ imdb = list(TUDataset(root=data_directory, name="IMDB-BINARY"))
 collab = list(TUDataset(root=data_directory, name="COLLAB"))
 reddit = list(TUDataset(root=data_directory, name="REDDIT-BINARY"))
 
+# Adding datastets: MNIST, CIFAR, PATTERN.
+# Download/load MNIST superpixel graph dataset
+# mnist_train = GNNBenchmarkDataset(root="data", name="MNIST", split="train")
+# mnist_test = GNNBenchmarkDataset(root="data", name="MNIST", split="test")
+# Download/load CIFAR10 superpixel graph dataset
+# cifar_train = GNNBenchmarkDataset(root="data", name="CIFAR10", split="train")
+# cifar_test = GNNBenchmarkDataset(root="data", name="CIFAR10", split="test")
+
+# Download/load PATTERN graph dataset
+# pattern_train = GNNBenchmarkDataset(root="data", name="PATTERN", split="train")
+# pattern_val = GNNBenchmarkDataset(root="data", name="PATTERN", split="val")
+# pattern_test = GNNBenchmarkDataset(root="data", name="PATTERN", split="test")
+# print(
+#     f"PATTERN dataset: {len(pattern_train)} training graphs, each with ~{pattern_train[0].num_nodes} nodes and "
+#     f"{pattern_train.num_classes} node classes."
+# )
 
 """
 # import peptides-func dataset
@@ -63,7 +99,11 @@ datasets = {
     "imdb": imdb,
     "collab": collab,
     "reddit": reddit,
-}  # , "peptides": peptides_func}
+    # New datasets:
+    "mnist": mnist,
+    "cifar": cifar,
+    "pattern": pattern,
+}
 # datasets = {"collab": collab, "imdb": imdb, "proteins": proteins, "reddit": reddit}
 
 
@@ -111,6 +151,10 @@ hyperparams = {
     "imdb": AttrDict({"output_dim": 2}),
     "reddit": AttrDict({"output_dim": 2}),
     "peptides": AttrDict({"output_dim": 10}),
+    # New datasets:
+    "mnist": AttrDict({"output_dim": 10}),
+    "cifar": AttrDict({"output_dim": 10}),
+    "pattern": AttrDict({"output_dim": 2}),  # Binary classification
 }
 
 results = []

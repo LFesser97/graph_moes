@@ -1,5 +1,7 @@
 # Gated GNN:
 
+RESIDUAL GATED GRAPH CONVNETS: This is the paper.
+
 
 Official Implementation: Gated Graph ConvNet (GatedGCN) was proposed by Bresson & Laurent (2017) as Residual Gated Graph ConvNets (ICLR 2018). The authors released an official PyTorch implementation on GitHub: https://github.com/xbresson/spatial_graph_convnets?utm_source=catalyzex.com. This original code (in Jupyter notebooks) demonstrates GatedGCN on tasks like subgraph matching and graph clustering.
 

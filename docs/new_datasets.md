@@ -9,3 +9,11 @@ Official Repository: The graph versions of MNIST and CIFAR10 (used in Dwivedi et
 # PATTERN Graph Dataset 
 
 Official Repository: The PATTERN dataset is a synthetic graph dataset introduced by Dwivedi et al. (Benchmarking GNNs) for node classification. Graphs in PATTERN are generated using a Stochastic Block Model (SBM) to create community structures. The official implementation is included in the Benchmarking GNNs GitHub repo (which provides the data generator or pre-saved dataset). PyTorch Geometric also provides PATTERN via the GNNBenchmarkDataset class, downloading it as PATTERN_v2.zip from the benchmarking dataset repository. The dataset consists of 14,000 graphs (10k train, 2k validation, 2k test) each with ~118 nodes on average, and nodes have 3-dimensional feature vectors with a binary label to predict
+
+##  Classification
+
+All three datasets should be used for CLASSIFICATION:
+
+MNIST Superpixels: Graph classification (digit recognition, 10 classes: 0-9)
+CIFAR-10 Superpixels: Graph classification (object recognition, 10 classes: airplane, car, bird, etc.)
+PATTERN: Graph classification (synthetic dataset with binary node classification, but used as graph classification in benchmarks)
