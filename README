@@ -51,16 +51,49 @@ graph_moes/
 
 ### Environment Setup
 
+
+### Option 1: Conda Environment (Recommended)
+Use the provided `environment.yml`:
+
+```bash
+conda env create -f environment.yml
+conda activate borf
+```
+
+# this one did not work for me so adding a pyproject.toml
+
+
+#### Option 2: pip with pyproject.toml
+For a modern pip-based installation:
+
 1. Create and activate the conda environment:
 ```bash
 conda create -n moe python=3.11
 conda activate moe
 ```
 
+```
+pip install -e .
+```
+
+Install these manually:
+``` 
+# PyTorch Geometric - may need manual installation
+# "torch-geometric>=2.3.1",  
+# "torch-scatter>=2.0.9",    
+# "torch-sparse>=0.6.15",   
+# "torch-cluster>=1.6.1",    
+```
+
+```
+pip install torch-geometric torch-scatter torch-sparse torch-cluster -f https://data.pyg.org/whl/torch-2.0.0+cpu.html
+```
+
 2. Verify PyTorch Geometric installation:
 ```bash
 python -c "import torch_geometric; print(torch_geometric.__version__)"
 ```
+
 
 ### Manual Installation (Alternative)
 
