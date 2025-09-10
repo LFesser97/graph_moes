@@ -199,12 +199,15 @@ for key in datasets:
             dataset = torch.load(f"data/{key}_{args.encoding}.pt")
 
         elif args.encoding == "LCP":
-            print("ENCODING STARTED...")
+            print(f"🔄 ENCODING STARTED: {args.encoding} for {key.upper()}...")
             lcp = LocalCurvatureProfile()
-            for i in range(len(dataset)):
+            for i in tqdm(
+                range(len(dataset)), desc=f"Encoding {key.upper()} with {args.encoding}"
+            ):
                 dataset[i] = lcp.compute_orc(dataset[i])
                 print(f"Graph {i} of {len(dataset)} encoded with {args.encoding}")
             torch.save(dataset, f"data/{key}_{args.encoding}.pt")
+            print(f"💾 Encoded dataset saved to: data/{key}_{args.encoding}.pt")
 
         else:
             print("ENCODING STARTED...")
@@ -212,7 +215,10 @@ for key in datasets:
             drop_datasets = []
             current_graph = 0
 
-            for i in range(org_dataset_len):
+            for i in tqdm(
+                range(org_dataset_len),
+                desc=f"Encoding {key.upper()} with {args.encoding}",
+            ):
                 if args.encoding == "LAPE":
                     num_nodes = dataset[i].num_nodes
                     eigvecs = np.min([num_nodes, 8]) - 2
@@ -238,8 +244,8 @@ for key in datasets:
                     current_graph += 1
 
                 except:
-                    print(
-                        f"Graph {current_graph} of {org_dataset_len} dropped due to encoding error"
+                    tqdm.write(
+                        f"⚠️  Graph {current_graph} dropped due to encoding error"
                     )
                     drop_datasets.append(i)
                     current_graph += 1
@@ -249,6 +255,7 @@ for key in datasets:
 
             # save the dataset to a file in the data folder
             torch.save(dataset, f"data/{key}_{args.encoding}.pt")
+            print(f"💾 Encoded dataset saved to: data/{key}_{args.encoding}.pt")
 
     # create a dictionary of the graphs in the dataset with the key being the graph index
     graph_dict = {}
@@ -256,10 +263,17 @@ for key in datasets:
         graph_dict[i] = []
     print("GRAPH DICTIONARY CREATED...")
 
-    print("TRAINING STARTED...")
+    print(f"🚀 TRAINING STARTED for {key.upper()} dataset...")
+    print(
+        f"🔧 Model: {args.layer_type} | Layers: {args.num_layers} | Hidden: {args.hidden_dim}"
+    )
     start = time.time()
-    for trial in range(args.num_trials):
-        print(f"TRIAL {trial + 1} OF {args.num_trials}")
+
+    # Add progress bar for trials
+    for trial in tqdm(
+        range(args.num_trials), desc=f"Training {key.upper()}", unit="trial"
+    ):
+        print(f"\n📊 TRIAL {trial + 1}/{args.num_trials}")
         train_acc, validation_acc, test_acc, energy, dictionary = Experiment(
             args=args, dataset=dataset
         ).run()
@@ -267,11 +281,19 @@ for key in datasets:
         validation_accuracies.append(validation_acc)
         test_accuracies.append(test_acc)
         energies.append(energy)
+
+        # Show intermediate results
+        print(
+            f"   Train: {train_acc:.3f} | Val: {validation_acc:.3f} | Test: {test_acc:.3f}"
+        )
+
         for name in dictionary.keys():
             if dictionary[name] != -1:
                 graph_dict[name].append(dictionary[name])
+
     end = time.time()
     run_duration = end - start
+    print(f"⏱️  Training completed in {run_duration:.2f} seconds")
 
     # with open(f"results/{args.num_layers}_layers/{key}_{args.layer_type}_{args.encoding}_graph_dict.pickle", "wb") as f:
     # pickle.dump(graph_dict, f)
@@ -316,3 +338,13 @@ for key in datasets:
         f"results/graph_classification_{args.layer_type}_{args.encoding}.csv", "a"
     ) as f:
         df.to_csv(f, mode="a", header=f.tell() == 0)
+
+    print(f"\n🎯 FINAL RESULTS for {key.upper()}:")
+    print(f"   📈 Test Accuracy: {test_mean:.2f}% ± {test_ci:.2f}%")
+    print(f"   📊 Validation Accuracy: {val_mean:.2f}% ± {val_ci:.2f}%")
+    print(f"   🏃 Training Accuracy: {train_mean:.2f}% ± {train_ci:.2f}%")
+    print(f"   ⚡ Energy: {energy_mean:.2f}% ± {energy_ci:.2f}%")
+    print(f"   ⏱️  Duration: {run_duration:.2f}s")
+    print(
+        f"   💾 Results saved to: results/graph_classification_{args.layer_type}_{args.encoding}.csv"
+    )
