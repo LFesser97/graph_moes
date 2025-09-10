@@ -53,34 +53,50 @@ data_directory = "/n/netscratch/mweber_lab/Lab/graph_datasets"
 
 # New datasets
 # Download/load benchmark datasets to consistent location
+print("🔄 Loading datasets...")
+print(f"📁 Data directory: {data_directory}")
+
+# New datasets
+print("📊 Loading NEW benchmark datasets...")
+print("  ⏳ Loading MNIST superpixel graphs...")
 mnist = list(GNNBenchmarkDataset(root=data_directory, name="MNIST"))
+print(f"  ✅ MNIST loaded: {len(mnist)} graphs")
+
+print("  ⏳ Loading CIFAR10 superpixel graphs...")
 cifar = list(GNNBenchmarkDataset(root=data_directory, name="CIFAR10"))
+print(f"  ✅ CIFAR10 loaded: {len(cifar)} graphs")
+
+print("  ⏳ Loading PATTERN synthetic graphs...")
 pattern = list(GNNBenchmarkDataset(root=data_directory, name="PATTERN"))
+print(f"  ✅ PATTERN loaded: {len(pattern)} graphs")
 
+print("📊 Loading existing TU datasets...")
 # import TU datasets
+print("  ⏳ Loading MUTAG...")
 mutag = list(TUDataset(root=data_directory, name="MUTAG"))
+print(f"  ✅ MUTAG loaded: {len(mutag)} graphs")
+
+print("  ⏳ Loading ENZYMES...")
 enzymes = list(TUDataset(root=data_directory, name="ENZYMES"))
+print(f"  ✅ ENZYMES loaded: {len(enzymes)} graphs")
+
+print("  ⏳ Loading PROTEINS...")
 proteins = list(TUDataset(root=data_directory, name="PROTEINS"))
+print(f"  ✅ PROTEINS loaded: {len(proteins)} graphs")
+
+print("  ⏳ Loading IMDB-BINARY...")
 imdb = list(TUDataset(root=data_directory, name="IMDB-BINARY"))
+print(f"  ✅ IMDB-BINARY loaded: {len(imdb)} graphs")
+
+print("  ⏳ Loading COLLAB...")
 collab = list(TUDataset(root=data_directory, name="COLLAB"))
+print(f"  ✅ COLLAB loaded: {len(collab)} graphs")
+
+print("  ⏳ Loading REDDIT-BINARY...")
 reddit = list(TUDataset(root=data_directory, name="REDDIT-BINARY"))
+print(f"  ✅ REDDIT-BINARY loaded: {len(reddit)} graphs")
 
-# Adding datastets: MNIST, CIFAR, PATTERN.
-# Download/load MNIST superpixel graph dataset
-# mnist_train = GNNBenchmarkDataset(root="data", name="MNIST", split="train")
-# mnist_test = GNNBenchmarkDataset(root="data", name="MNIST", split="test")
-# Download/load CIFAR10 superpixel graph dataset
-# cifar_train = GNNBenchmarkDataset(root="data", name="CIFAR10", split="train")
-# cifar_test = GNNBenchmarkDataset(root="data", name="CIFAR10", split="test")
-
-# Download/load PATTERN graph dataset
-# pattern_train = GNNBenchmarkDataset(root="data", name="PATTERN", split="train")
-# pattern_val = GNNBenchmarkDataset(root="data", name="PATTERN", split="val")
-# pattern_test = GNNBenchmarkDataset(root="data", name="PATTERN", split="test")
-# print(
-#     f"PATTERN dataset: {len(pattern_train)} training graphs, each with ~{pattern_train[0].num_nodes} nodes and "
-#     f"{pattern_train.num_classes} node classes."
-# )
+print("🎉 All datasets loaded successfully!")
 
 """
 # import peptides-func dataset

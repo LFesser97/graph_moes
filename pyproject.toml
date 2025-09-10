@@ -37,14 +37,13 @@ dependencies = [
     "numba>=0.56.4",
     
     # PyTorch ecosystem 
-    "torch>=2.0.0",  # Updated to modern PyTorch
-    "torchvision>=0.15.0",  # Updated accordingly
-    "torchaudio>=2.0.0",  # Updated accordingly
-    
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "torchaudio>=2.0.0",
     "torcheval>=0.0.7",
     
-    # Utilities
-    "attrdict>=2.0.1",
+    # Utilities - FIXED: Use attrdict3 (Python 3.10+ compatible fork)
+    "attrdict3>=2.0.2",  # Python 3.10+ compatible fork with same API
     "tqdm>=4.64.1",
     "click>=8.1.7",
     "pyyaml>=6.0.1",
@@ -146,7 +145,7 @@ strict_equality = true
 [[tool.mypy.overrides]]
 module = [
     "torch_geometric.*",
-    "attrdict.*",
+    "easydict.*",
     "numba.*",
     "GraphRicciCurvature.*",
     "networkit.*",
