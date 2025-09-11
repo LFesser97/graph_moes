@@ -1,0 +1,163 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "graph-moes"
+version = "0.1.0"
+description = "Graph Neural Networks with Mixture of Experts for Classification and Regression"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Raphael Pellegrin", email = "your-email@example.com"},
+]
+keywords = ["graph neural networks", "mixture of experts", "pytorch", "machine learning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    # Pin numpy to compatible version
+    "numpy>=1.23.1,<2.0",  # Fixed version constraint
+    
+    # Core ML/Scientific Computing
+    "scipy>=1.9.1",
+    "pandas>=1.4.4",
+    "matplotlib>=3.5.3",
+    "scikit-learn>=1.1.2",
+    "networkx>=2.8.6",
+    "numba>=0.56.4",
+    
+    # PyTorch ecosystem 
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "torchaudio>=2.0.0",
+    "torcheval>=0.0.7",
+    
+    # Utilities - FIXED: Use attrdict3 (Python 3.10+ compatible fork)
+    "attrdict3>=2.0.2",  # Python 3.10+ compatible fork with same API
+    "tqdm>=4.64.1",
+    "click>=8.1.7",
+    "pyyaml>=6.0.1",
+    "wget>=3.2",
+    "joblib>=1.1.0",
+    
+    # Graph/Geometry specific
+    "graphriccicurvature>=0.5.3.1",
+    "python-louvain>=0.16",
+    "networkit>=10.1",
+    
+    # Optimization
+    "cvxpy>=1.4.1",
+    "pot>=0.9.0",
+    "asgl>=1.0.5",
+    
+    # Development/Logging
+    "ipdb>=0.13.13",
+    "wandb>=0.18.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=22.0",
+    "isort>=5.10",
+    "flake8>=5.0",
+    "mypy>=0.991",
+    "pre-commit>=2.20",
+]
+
+jupyter = [
+    "jupyter>=1.0.0",
+    "ipykernel>=6.25.0",
+    "matplotlib-inline>=0.1.6",
+]
+
+cuda = [
+    # CUDA-specific versions - install manually based on your CUDA version
+    # These should be installed via conda or specific pip index
+]
+
+[project.urls]
+Homepage = "https://github.com/your-username/graph-moes"
+Repository = "https://github.com/your-username/graph-moes"
+Documentation = "https://github.com/your-username/graph-moes#readme"
+"Bug Tracker" = "https://github.com/your-username/graph-moes/issues"
+
+[project.scripts]
+run-graph-classification = "run_graph_classification:main"
+run-graph-regression = "run_graph_regression:main"
+
+[tool.setuptools]
+packages = ["models", "experiments", "GraphRicciCurvature"]
+
+[tool.setuptools.package-data]
+"*" = ["*.py", "*.yml", "*.md"]
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["models", "experiments", "GraphRicciCurvature"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "torch_geometric.*",
+    "easydict.*",
+    "numba.*",
+    "GraphRicciCurvature.*",
+    "networkit.*",
+    "python_louvain.*",
+    "pot.*",
+    "asgl.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-v"
