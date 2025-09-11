@@ -2,6 +2,7 @@ import torch
 import os
 import copy
 import numpy as np
+import wandb
 
 # from measure_smoothing import dirichlet_normalized
 from attrdict import AttrDict
@@ -48,6 +49,13 @@ default_args = AttrDict(
         "router_layer_type": "GIN",
         "router_depth": 4,
         "router_dropout": 0.1,
+        # WandB defaults
+        "wandb_enabled": False,
+        "wandb_project": "MOE",
+        "wandb_entity": "weber-geoml-harvard-university",
+        "wandb_name": None,
+        "wandb_dir": "./wandb",
+        "wandb_tags": None,
     }
 )
 
@@ -68,6 +76,7 @@ class Experiment:
         self.test_dataset = test_dataset
         self.loss_fn = torch.nn.CrossEntropyLoss()
         self.categories = None
+        self.wandb_active = wandb.run is not None
 
         if self.args.device is None:
             self.args.device = torch.device(
@@ -183,6 +192,17 @@ class Experiment:
 
             new_best_str = ""
             scheduler.step(total_loss)
+
+            # Log training loss to wandb
+            if self.wandb_active:
+                wandb.log(
+                    {
+                        "epoch": epoch,
+                        "train/loss": total_loss.item(),
+                        "train/lr": optimizer.param_groups[0]["lr"],
+                    }
+                )
+
             if epoch % self.args.eval_every == 0:
                 if self.args.output_dim == 10:  # peptides-func
                     train_acc = self.test(loader=train_loader)
@@ -193,6 +213,17 @@ class Experiment:
                     validation_acc = self.eval(loader=validation_loader)
                     test_acc = self.eval(loader=test_loader)
 
+                # Log accuracies to wandb
+                if self.wandb_active:
+                    wandb.log(
+                        {
+                            "epoch": epoch,
+                            "train/acc": train_acc,
+                            "val/acc": validation_acc,
+                            "test/acc": test_acc,
+                        }
+                    )
+
                 if self.args.stopping_criterion == "train":
                     if train_acc > train_goal:
                         best_train_acc = train_acc
@@ -201,6 +232,17 @@ class Experiment:
                         epochs_no_improve = 0
                         train_goal = train_acc * self.args.stopping_threshold
                         new_best_str = " (new best train)"
+
+                        # Log new best to wandb
+                        if self.wandb_active:
+                            wandb.log(
+                                {
+                                    "best/train_acc": best_train_acc,
+                                    "best/val_acc": best_validation_acc,
+                                    "best/test_acc": best_test_acc,
+                                    "best/epoch": epoch,
+                                }
+                            )
                     elif train_acc > best_train_acc:
                         best_train_acc = train_acc
                         best_validation_acc = validation_acc
@@ -217,6 +259,17 @@ class Experiment:
                         validation_goal = validation_acc * self.args.stopping_threshold
                         new_best_str = " (new best validation)"
                         best_model = copy.deepcopy(self.model)
+
+                        # Log new best to wandb
+                        if self.wandb_active:
+                            wandb.log(
+                                {
+                                    "best/train_acc": best_train_acc,
+                                    "best/val_acc": best_validation_acc,
+                                    "best/test_acc": best_test_acc,
+                                    "best/epoch": epoch,
+                                }
+                            )
                     elif validation_acc > best_validation_acc:
                         best_train_acc = train_acc
                         best_validation_acc = validation_acc
@@ -236,6 +289,19 @@ class Experiment:
                         print(
                             f"Best train acc: {best_train_acc}, Best validation acc: {best_validation_acc}, Best test acc: {best_test_acc}"
                         )
+
+                        # Log final results to wandb
+                        if self.wandb_active:
+                            wandb.log(
+                                {
+                                    "final/train_acc": best_train_acc,
+                                    "final/val_acc": best_validation_acc,
+                                    "final/test_acc": best_test_acc,
+                                    "final/epoch": epoch,
+                                    "final/early_stopped": True,
+                                }
+                            )
+
                         energy = 0
 
                         # evaluate the model on all graphs in the dataset
@@ -272,6 +338,18 @@ class Experiment:
             print("Reached max epoch count, stopping training")
             print(
                 f"Best train acc: {best_train_acc}, Best validation acc: {best_validation_acc}, Best test acc: {best_test_acc}"
+            )
+
+        # Log final results to wandb
+        if self.wandb_active:
+            wandb.log(
+                {
+                    "final/train_acc": best_train_acc,
+                    "final/val_acc": best_validation_acc,
+                    "final/test_acc": best_test_acc,
+                    "final/epoch": self.args.max_epochs,
+                    "final/early_stopped": False,
+                }
             )
 
         energy = 0

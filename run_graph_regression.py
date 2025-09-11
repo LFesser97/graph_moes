@@ -35,6 +35,11 @@ import wget
 import zipfile
 import os
 
+# Add wandb imports
+import wandb
+from pathlib import Path
+from datetime import datetime
+
 
 def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
     x = dataset[0]
@@ -94,6 +99,13 @@ default_args = AttrDict(
         "dataset": None,
         "last_layer_fa": False,
         "encoding": None,
+        # WandB defaults
+        "wandb_enabled": False,
+        "wandb_project": "MOE",
+        "wandb_entity": "weber-geoml-harvard-university",
+        "wandb_name": None,
+        "wandb_dir": "./wandb",
+        "wandb_tags": None,
     }
 )
 
@@ -190,18 +202,71 @@ for key in datasets:
     print("TRAINING STARTED...")
     start = time.time()
 
+    # Create experiment group for wandb
+    experiment_id = None
+    if args.wandb_enabled:
+        # Create a unique experiment group ID
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        experiment_id = f"{key}_{args.layer_type}_{timestamp}"
+        if args.wandb_name:
+            experiment_id = f"{args.wandb_name}_{timestamp}"
+        print(f"🔬 WandB Experiment Group: {experiment_id}")
+
     for trial in range(args.num_trials):
         print(f"Trial {trial + 1} of {args.num_trials}")
-        train_acc, validation_acc, test_acc, energy, dictionary = Experiment(
-            args=args, dataset=dataset
-        ).run()
-        train_accuracies.append(train_acc)
-        validation_accuracies.append(validation_acc)
-        test_accuracies.append(test_acc)
-        energies.append(energy)
-        for name in dictionary.keys():
-            if dictionary[name] != -1:
-                graph_dict[name].append(dictionary[name])
+
+        # Initialize wandb for this specific trial
+        if args.wandb_enabled:
+            trial_run_name = f"trial_{trial + 1:02d}"
+            if args.wandb_name:
+                trial_run_name = f"{args.wandb_name}_trial_{trial + 1:02d}"
+
+            wandb.init(
+                project=args.wandb_project,
+                entity=args.wandb_entity,
+                name=trial_run_name,
+                group=experiment_id,  # Group all trials together
+                config={
+                    **dict(args),
+                    "trial_num": trial + 1,
+                    "dataset": key,
+                },
+                dir=args.wandb_dir,
+                tags=list(args.wandb_tags or []) + [f"trial_{trial + 1}"],
+                reinit=True,  # Allow multiple runs in same process
+            )
+            print(f"🚀 WandB Trial Run: {wandb.run.name}")
+
+        try:
+            train_acc, validation_acc, test_acc, energy, dictionary = Experiment(
+                args=args, dataset=dataset
+            ).run()
+
+            train_accuracies.append(train_acc)
+            validation_accuracies.append(validation_acc)
+            test_accuracies.append(test_acc)
+            energies.append(energy)
+
+            # Log final trial results to this trial's wandb run
+            if args.wandb_enabled:
+                wandb.log(
+                    {
+                        "final/train_mae": train_acc,
+                        "final/val_mae": validation_acc,
+                        "final/test_mae": test_acc,
+                        "final/energy": energy,
+                    }
+                )
+
+            for name in dictionary.keys():
+                if dictionary[name] != -1:
+                    graph_dict[name].append(dictionary[name])
+
+        finally:
+            # Finish this trial's wandb run
+            if args.wandb_enabled:
+                wandb.finish()
+
     end = time.time()
     run_duration = end - start
 
@@ -223,6 +288,7 @@ for key in datasets:
     log_to_file(f"RESULTS FOR {key} ({args.layer_type}), with {args.encoding}:\n")
     log_to_file(f"average mae: {test_mean}\n")
     log_to_file(f"plus/minus:  {test_ci}\n\n")
+
     results.append(
         {
             "dataset": key,
@@ -242,6 +308,66 @@ for key in datasets:
             "run_duration": run_duration,
         }
     )
+
+    # Create a summary run for the overall experiment
+    if args.wandb_enabled:
+        summary_run_name = f"SUMMARY"
+        if args.wandb_name:
+            summary_run_name = f"{args.wandb_name}_SUMMARY"
+
+        wandb.init(
+            project=args.wandb_project,
+            entity=args.wandb_entity,
+            name=summary_run_name,
+            group=experiment_id,
+            config={
+                **dict(args),
+                "dataset": key,
+                "run_type": "summary",
+                "num_trials": args.num_trials,
+            },
+            dir=args.wandb_dir,
+            tags=list(args.wandb_tags or []) + ["summary"],
+            reinit=True,
+        )
+
+        # Log aggregate statistics
+        wandb.log(
+            {
+                "summary/test_mean": test_mean,
+                "summary/test_ci": test_ci,
+                "summary/val_mean": val_mean,
+                "summary/val_ci": val_ci,
+                "summary/train_mean": train_mean,
+                "summary/train_ci": train_ci,
+                "summary/energy_mean": energy_mean,
+                "summary/energy_ci": energy_ci,
+                "summary/run_duration": run_duration,
+                # Log individual trial results for analysis
+                "trials/train_maes": train_accuracies,
+                "trials/val_maes": validation_accuracies,
+                "trials/test_maes": test_accuracies,
+                "trials/energies": energies,
+            }
+        )
+
+        # Create a summary table
+        trial_data = []
+        for i, (train_mae, val_mae, test_mae, energy) in enumerate(
+            zip(train_accuracies, validation_accuracies, test_accuracies, energies)
+        ):
+            trial_data.append([i + 1, train_mae, val_mae, test_mae, energy])
+
+        wandb.log(
+            {
+                "trials_table": wandb.Table(
+                    columns=["Trial", "Train_MAE", "Val_MAE", "Test_MAE", "Energy"],
+                    data=trial_data,
+                )
+            }
+        )
+
+        wandb.finish()
 
     # Log every time a dataset is completed
     df = pd.DataFrame(results)
