@@ -23,9 +23,9 @@ from custom_encodings import LocalCurvatureProfile, AltLocalCurvatureProfile
 
 from experiments.graph_classification import Experiment
 
+from tqdm import tqdm
 
 import time
-import tqdm
 import torch
 import numpy as np
 import pandas as pd
@@ -48,13 +48,19 @@ def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
     return Data(x=x, edge_index=edge_index, y=y, edge_attr=edge_attr)
 
 
-# Use consistent data directory like other datasets
-data_directory = "/n/netscratch/mweber_lab/Lab/graph_datasets"
+# Auto-detect if we're on cluster or local
+if os.path.exists("/n/netscratch/mweber_lab/Lab/graph_datasets"):
+    data_directory = "/n/netscratch/mweber_lab/Lab/graph_datasets"
+    print("📁 Using cluster data directory")
+else:
+    data_directory = "./graph_datasets"
+    print("📁 Using local data directory")
+    os.makedirs(data_directory, exist_ok=True)
 
-# New datasets
-# Download/load benchmark datasets to consistent location
-print("🔄 Loading datasets...")
-print(f"📁 Data directory: {data_directory}")
+# Create data subdirectory for encodings
+os.makedirs("data", exist_ok=True)
+print(f"📁 Raw datasets: {data_directory}")
+print(f"💾 Encoded datasets: ./data/")
 
 # New datasets
 print("📊 Loading NEW benchmark datasets...")
@@ -195,7 +201,7 @@ for key in datasets:
     if args.encoding in ["LAPE", "RWPE", "LCP", "LDP", "SUB", "EGO"]:
 
         if os.path.exists(f"data/{key}_{args.encoding}.pt"):
-            print("ENCODING ALREADY COMPLETED...")
+            print(f"✅ ENCODING ALREADY EXISTS: Loading {key}_{args.encoding}.pt")
             dataset = torch.load(f"data/{key}_{args.encoding}.pt")
 
         elif args.encoding == "LCP":
