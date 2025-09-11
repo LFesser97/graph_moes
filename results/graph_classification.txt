@@ -350,3 +350,27 @@ RESULTS FOR imdb (MoE_E), with LCP:
 average acc: 63.32
 plus/minus:  0.023787055303252657
 
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.32258064516131
+plus/minus:  0.015494487267218679
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 72.61648745519715
+plus/minus:  0.007477221396648191
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.03584229390681
+plus/minus:  0.022632358148439998
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.10752688172043
+plus/minus:  0.023523032891175535
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.18279569892472
+plus/minus:  0.014134775677552676
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.97132616487455
+plus/minus:  0.024782555339162043
+
