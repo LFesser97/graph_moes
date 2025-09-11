@@ -78,12 +78,14 @@ log_to_file(f"plus/minus: {test_ci}\n\n")
 
 ### Main Entry Points
 
-1. **`run_graph_classification.py`** - Generates classification results
+1. **`run_graph_classification.py`** 
+   - Generates classification results
    - CSV files: `graph_classification_{layer_type}_{encoding}.csv`
    - Text log: `graph_classification.txt`
    - Pickle files: Currently disabled (commented out)
 
-2. **`run_graph_regression.py`** - Generates regression results  
+2. **`run_graph_regression.py`** 
+   - Generates regression results  
    - CSV files: `graph_regression_{layer_type}_{encoding}.csv`
    - Text log: `graph_regression.txt`
    - Pickle files: `{num_layers}_layers/{dataset}_{layer_type}_{encoding}_graph_dict.pickle`

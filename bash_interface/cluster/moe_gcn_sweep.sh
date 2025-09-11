@@ -8,6 +8,37 @@
 #SBATCH --partition=mweber_gpu
 #SBATCH --gpus=1
 
+# WandB Environment Setup for Graph MoE Experiments
+echo "🚀 Setting up WandB environment for Graph MoE experiments..."
+
+# Set WandB environment variables
+export WANDB_API_KEY="ea7c6eeb5a095b531ef60cc784bfeb87d47ea0b0"
+export WANDB_ENTITY="weber-geoml-harvard-university"
+export WANDB_PROJECT="MOE"
+
+# Optional: Set other WandB configurations
+export WANDB_DIR="./wandb"
+export WANDB_CACHE_DIR="./wandb/.cache"
+
+# Create wandb directory if it doesn't exist
+mkdir -p ./wandb
+
+echo "✅ WandB environment configured:"
+echo "   Entity: $WANDB_ENTITY"
+echo "   Project: $WANDB_PROJECT" 
+echo "   API Key: ${WANDB_API_KEY:0:10}..."
+echo "   Directory: $WANDB_DIR"
+
+# Install wandb if not already installed
+if ! python -c "import wandb" &> /dev/null; then
+    echo "📦 Installing wandb..."
+    pip install wandb
+else
+    echo "✅ wandb already installed"
+fi
+
+echo "🎉 WandB setup complete!"
+
 # Create logs directory
 mkdir -p logs
 
@@ -67,7 +98,12 @@ dropout=${dropouts[$do_idx]}
 
 log_message "Configuration: dataset=$dataset, lr=$learning_rate, hidden_dim=$hidden_dim, num_layers=$num_layer, dropout=$dropout"
 
-# Run the experiment
+# Generate wandb run name for this specific task
+wandb_run_name="${dataset}_GCN_GIN_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
+
+log_message "WandB run name: $wandb_run_name"
+
+# Run the experiment with wandb enabled
 python run_graph_classification.py \
     --num_trials 10 \
     --dataset "$dataset" \
@@ -76,7 +112,10 @@ python run_graph_classification.py \
     --num_layers "$num_layer" \
     --dropout "$dropout" \
     --patience 50 \
-    --layer_types '["GCN", "GIN"]'
+    --layer_types '["GCN", "GIN"]' \
+    --wandb_enabled \
+    --wandb_name "$wandb_run_name" \
+    --wandb_tags '["cluster", "sweep", "gcn_gin"]'
 
 # Check exit status
 if [ $? -eq 0 ]; then

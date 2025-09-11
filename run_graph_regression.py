@@ -35,6 +35,10 @@ import wget
 import zipfile
 import os
 
+# Add wandb imports
+import wandb
+from pathlib import Path
+
 
 def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
     x = dataset[0]
@@ -94,6 +98,13 @@ default_args = AttrDict(
         "dataset": None,
         "last_layer_fa": False,
         "encoding": None,
+        # WandB defaults
+        "wandb_enabled": False,
+        "wandb_project": "MOE",
+        "wandb_entity": "weber-geoml-harvard-university",
+        "wandb_name": None,
+        "wandb_dir": "./wandb",
+        "wandb_tags": None,
     }
 )
 
@@ -190,6 +201,18 @@ for key in datasets:
     print("TRAINING STARTED...")
     start = time.time()
 
+    # Initialize wandb if enabled
+    if args.wandb_enabled:
+        wandb.init(
+            project=args.wandb_project,
+            entity=args.wandb_entity,
+            name=args.wandb_name,
+            config=dict(args),
+            dir=args.wandb_dir,
+            tags=args.wandb_tags,
+        )
+        print(f"🚀 WandB initialized: {wandb.run.name}")
+
     for trial in range(args.num_trials):
         print(f"Trial {trial + 1} of {args.num_trials}")
         train_acc, validation_acc, test_acc, energy, dictionary = Experiment(
@@ -199,9 +222,23 @@ for key in datasets:
         validation_accuracies.append(validation_acc)
         test_accuracies.append(test_acc)
         energies.append(energy)
+
+        # Log trial results to wandb
+        if args.wandb_enabled:
+            wandb.log(
+                {
+                    "trial/train_mae": train_acc,
+                    "trial/val_mae": validation_acc,
+                    "trial/test_mae": test_acc,
+                    "trial/energy": energy,
+                    "trial_num": trial + 1,
+                }
+            )
+
         for name in dictionary.keys():
             if dictionary[name] != -1:
                 graph_dict[name].append(dictionary[name])
+
     end = time.time()
     run_duration = end - start
 
@@ -223,6 +260,7 @@ for key in datasets:
     log_to_file(f"RESULTS FOR {key} ({args.layer_type}), with {args.encoding}:\n")
     log_to_file(f"average mae: {test_mean}\n")
     log_to_file(f"plus/minus:  {test_ci}\n\n")
+
     results.append(
         {
             "dataset": key,
@@ -242,6 +280,23 @@ for key in datasets:
             "run_duration": run_duration,
         }
     )
+
+    # Log final summary to wandb
+    if args.wandb_enabled:
+        wandb.log(
+            {
+                "summary/test_mean": test_mean,
+                "summary/test_ci": test_ci,
+                "summary/val_mean": val_mean,
+                "summary/val_ci": val_ci,
+                "summary/train_mean": train_mean,
+                "summary/train_ci": train_ci,
+                "summary/energy_mean": energy_mean,
+                "summary/energy_ci": energy_ci,
+                "summary/run_duration": run_duration,
+            }
+        )
+        wandb.finish()
 
     # Log every time a dataset is completed
     df = pd.DataFrame(results)

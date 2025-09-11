@@ -38,6 +38,10 @@ import os
 
 from torch_geometric.datasets import GNNBenchmarkDataset
 
+import wandb
+import os
+from pathlib import Path
+
 
 def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
     x = dataset[0]
@@ -162,6 +166,13 @@ default_args = AttrDict(
         "encoding": None,
         "mlp": True,
         "layer_types": None,
+        # WandB defaults
+        "wandb_enabled": False,
+        "wandb_project": "MOE",
+        "wandb_entity": "weber-geoml-harvard-university",
+        "wandb_name": None,
+        "wandb_dir": "./wandb",
+        "wandb_tags": None,
     }
 )
 
@@ -276,6 +287,18 @@ for key in datasets:
     start = time.time()
 
     # Add progress bar for trials
+    if args.wandb_enabled:
+        # Initialize wandb once for the entire run (all trials)
+        wandb.init(
+            project=args.wandb_project,
+            entity=args.wandb_entity,
+            name=args.wandb_name,
+            config=dict(args),
+            dir=args.wandb_dir,
+            tags=args.wandb_tags,
+        )
+        print(f"🚀 WandB initialized: {wandb.run.name}")
+
     for trial in tqdm(
         range(args.num_trials), desc=f"Training {key.upper()}", unit="trial"
     ):
@@ -292,6 +315,18 @@ for key in datasets:
         print(
             f"   Train: {train_acc:.3f} | Val: {validation_acc:.3f} | Test: {test_acc:.3f}"
         )
+
+        # Log trial results to wandb
+        if args.wandb_enabled:
+            wandb.log(
+                {
+                    "trial/train_acc": train_acc,
+                    "trial/val_acc": validation_acc,
+                    "trial/test_acc": test_acc,
+                    "trial/energy": energy,
+                    "trial_num": trial + 1,
+                }
+            )
 
         for name in dictionary.keys():
             if dictionary[name] != -1:
@@ -337,6 +372,23 @@ for key in datasets:
             "run_duration": run_duration,
         }
     )
+
+    # Log final summary to wandb
+    if args.wandb_enabled:
+        wandb.log(
+            {
+                "summary/test_mean": test_mean,
+                "summary/test_ci": test_ci,
+                "summary/val_mean": val_mean,
+                "summary/val_ci": val_ci,
+                "summary/train_mean": train_mean,
+                "summary/train_ci": train_ci,
+                "summary/energy_mean": energy_mean,
+                "summary/energy_ci": energy_ci,
+                "summary/run_duration": run_duration,
+            }
+        )
+        wandb.finish()
 
     # Log every time a dataset is completed
     df = pd.DataFrame(results)
