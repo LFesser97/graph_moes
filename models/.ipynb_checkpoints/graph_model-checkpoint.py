@@ -1,28 +1,39 @@
-import torch
-import torch.nn as nn
-from measure_smoothing import dirichlet_normalized
-from torch.nn import ModuleList, Dropout, ReLU
-from torch_geometric.nn import GCNConv, RGCNConv, SAGEConv, GatedGraphConv, GINConv, FiLMConv, global_mean_pool, GATConv, SuperGATConv, global_max_pool, GPSConv, GINEConv, global_add_pool
-
-
 import argparse
 from typing import Any, Dict, Optional
 
+import torch
+import torch.nn as nn
 import torch.nn.functional as F
+import torch_geometric.transforms as T
 from torch.nn import (
     BatchNorm1d,
+    Dropout,
     Embedding,
     Linear,
     ModuleList,
     ReLU,
     Sequential,
 )
+from torch_geometric.nn import (
+    FiLMConv,
+    GATConv,
+    GatedGraphConv,
+    GCNConv,
+    GINConv,
+    GINEConv,
+    GPSConv,
+    RGCNConv,
+    SAGEConv,
+    SuperGATConv,
+    global_add_pool,
+    global_max_pool,
+    global_mean_pool,
+)
 
-import torch_geometric.transforms as T
-from models.performer import PerformerAttention
-
-from models.layers import TaylorGCNConv, ComplexGCNConv
+from measure_smoothing import dirichlet_normalized
 from models.complex_valued_layers import UnitaryGCNConvLayer
+from models.layers import ComplexGCNConv, TaylorGCNConv
+from models.performer import PerformerAttention
 from models.real_valued_layers import OrthogonalGCNConvLayer
 
 

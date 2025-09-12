@@ -1,37 +1,35 @@
+from typing import Optional
+
 import torch
 import torch.nn as nn
-from measure_smoothing import dirichlet_normalized
+import torch.nn.functional as F
 from torch.nn import (
-    ModuleList,
-    Dropout,
-    ReLU,
     BatchNorm1d,
+    Dropout,
     Embedding,
     Linear,
     ModuleList,
+    ReLU,
     Sequential,
 )
 from torch_geometric.nn import (
+    FiLMConv,
+    GATConv,
     GCNConv,
+    GINConv,
+    GPSConv,
     RGCNConv,
     SAGEConv,
-    GatedGraphConv,
-    GINConv,
-    FiLMConv,
-    global_mean_pool,
-    GATConv,
-    GINEConv,
     global_add_pool,
-    GPSConv,
+    global_mean_pool,
 )
-import torch.nn.functional as F
-from models.graph_model import ResGatedGraphConv
 
-from typing import Any, Dict, Optional
-from models.performer import PerformerAttention
+from measure_smoothing import dirichlet_normalized
 
 # from models.layers import TaylorGCNConv, ComplexGCNConv
 from models.complex_valued_layers import UnitaryGCNConvLayer
+from models.graph_model import ResGatedGraphConv
+from models.performer import PerformerAttention
 from models.real_valued_layers import OrthogonalGCNConvLayer
 
 

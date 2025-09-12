@@ -9,39 +9,25 @@ random walk features, curvature profiles), multi-trial training with statistical
 and comprehensive result logging for benchmarking different graph neural network approaches.
 """
 
-from attrdict import AttrDict
-from torch_geometric.datasets import TUDataset, MoleculeNet
-from torch_geometric.data import Data
-from torch_geometric.utils import to_networkx, from_networkx, to_dense_adj
-import torch_geometric.transforms as T
-
-from torch_geometric.datasets import GNNBenchmarkDataset
-
-# import custom encodings
-from torchvision.transforms import Compose
-from custom_encodings import LocalCurvatureProfile, AltLocalCurvatureProfile
-
-from experiments.graph_classification import Experiment
-
-from tqdm import tqdm
-
+import os
 import time
-import torch
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
-from hyperparams import get_args_from_input
+import torch
+import torch_geometric.transforms as T
+from attrdict import AttrDict
+from torch_geometric.data import Data
+from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
 
-import pickle
-import wget
-import zipfile
-import os
-
-from torch_geometric.datasets import GNNBenchmarkDataset
+# import custom encodings
+from tqdm import tqdm
 
 import wandb
-import os
-from pathlib import Path
-from datetime import datetime
+from custom_encodings import LocalCurvatureProfile
+from experiments.graph_classification import Experiment
+from hyperparams import get_args_from_input
 
 
 def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
@@ -65,7 +51,7 @@ else:
 # Create data subdirectory for encodings
 os.makedirs("data", exist_ok=True)
 print(f"📁 Raw datasets: {data_directory}")
-print(f"💾 Encoded datasets: ./data/")
+print("💾 Encoded datasets: ./data/")
 
 # New datasets
 print("📊 Loading NEW benchmark datasets...")
@@ -402,7 +388,7 @@ for key in datasets:
 
     # Create a summary run for the overall experiment
     if args.wandb_enabled:
-        summary_run_name = f"SUMMARY"
+        summary_run_name = "SUMMARY"
         if args.wandb_name:
             summary_run_name = f"{args.wandb_name}_SUMMARY"
 

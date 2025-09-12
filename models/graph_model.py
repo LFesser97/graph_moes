@@ -41,72 +41,43 @@ UnitaryGCN - Complex-valued unitary transformations model
 OrthogonalGCN - Real-valued orthogonal transformations model
 """
 
+from typing import Callable, Optional, Tuple, Union
+
 import torch
 import torch.nn as nn
-from measure_smoothing import dirichlet_normalized
-from torch.nn import ModuleList, Dropout, ReLU
-from torch_geometric.nn import (
-    GCNConv,
-    RGCNConv,
-    SAGEConv,
-    GatedGraphConv,
-    GINConv,
-    FiLMConv,
-    global_mean_pool,
-    GATConv,
-    SuperGATConv,
-    global_max_pool,
-    GPSConv,
-    GINEConv,
-    global_add_pool,
-)
-
-
-import argparse
-from typing import Any, Dict, Optional
-
 import torch.nn.functional as F
+from torch import Tensor
 from torch.nn import (
     BatchNorm1d,
+    Dropout,
     Embedding,
     Linear,
     ModuleList,
+    Parameter,
     ReLU,
     Sequential,
+    Sigmoid,
 )
+from torch_geometric.nn import (
+    FiLMConv,
+    GATConv,
+    GCNConv,
+    GINConv,
+    GPSConv,
+    RGCNConv,
+    SAGEConv,
+    global_add_pool,
+    global_mean_pool,
+)
+from torch_geometric.nn.conv import MessagePassing
+from torch_geometric.nn.dense.linear import Linear
+from torch_geometric.nn.inits import zeros
+from torch_geometric.typing import Adj, OptTensor, PairTensor
 
-import torch_geometric.transforms as T
-from models.performer import PerformerAttention
-
-from models.layers import TaylorGCNConv, ComplexGCNConv
+from measure_smoothing import dirichlet_normalized
 from models.complex_valued_layers import UnitaryGCNConvLayer
+from models.performer import PerformerAttention
 from models.real_valued_layers import OrthogonalGCNConvLayer
-
-import torch
-import torch.nn.functional as F
-from torch import nn
-
-from typing import Callable, Optional, Tuple, Union
-
-import torch
-from torch import Tensor
-from torch.nn import Parameter, Sigmoid
-
-from torch_geometric.nn.conv import MessagePassing
-from torch_geometric.nn.dense.linear import Linear
-from torch_geometric.nn.inits import zeros
-from torch_geometric.typing import Adj, OptTensor, PairTensor
-
-from typing import Callable, Optional, Tuple, Union
-
-import torch
-from torch import Tensor
-from torch.nn import Parameter, Sigmoid
-
-from torch_geometric.nn.conv import MessagePassing
-from torch_geometric.nn.dense.linear import Linear
-from torch_geometric.nn.inits import zeros
-from torch_geometric.typing import Adj, OptTensor, PairTensor
 
 
 class GNN(torch.nn.Module):

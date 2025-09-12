@@ -10,35 +10,26 @@ random walk positional encodings, and curvature-based features), model training 
 trials, and comprehensive result logging with statistical analysis of performance metrics.
 """
 
-from attrdict import AttrDict
-from torch_geometric.datasets import ZINC
-from torch_geometric.data import Data
-from torch_geometric.utils import to_networkx, from_networkx, to_dense_adj
-import torch_geometric.transforms as T
-
-# import custom encodings
-from torchvision.transforms import Compose
-from custom_encodings import LocalCurvatureProfile, AltLocalCurvatureProfile
-
-from experiments.graph_regression import Experiment
-
-
+import os
+import pickle
 import time
-import tqdm
-import torch
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
-from hyperparams import get_args_from_input
+import torch
+import torch_geometric.transforms as T
+from attrdict import AttrDict
+from torch_geometric.data import Data
+from torch_geometric.datasets import ZINC
 
-import pickle
-import wget
-import zipfile
-import os
+# import custom encodings
 
 # Add wandb imports
 import wandb
-from pathlib import Path
-from datetime import datetime
+from custom_encodings import LocalCurvatureProfile
+from experiments.graph_regression import Experiment
+from hyperparams import get_args_from_input
 
 
 def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
@@ -311,7 +302,7 @@ for key in datasets:
 
     # Create a summary run for the overall experiment
     if args.wandb_enabled:
-        summary_run_name = f"SUMMARY"
+        summary_run_name = "SUMMARY"
         if args.wandb_name:
             summary_run_name = f"{args.wandb_name}_SUMMARY"
 

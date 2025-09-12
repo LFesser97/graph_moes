@@ -1,7 +1,7 @@
 """Measures the Dirichlet energy of a vector field on a graph."""
 
-from numba import jit
 import numpy as np
+from numba import jit
 
 
 @jit(nopython=True)
