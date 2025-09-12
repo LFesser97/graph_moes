@@ -273,11 +273,13 @@ Use provided bash scripts for systematic exploration:
 
 ```bash
 # MoE with GCN+GIN experts
-bash moe_gcn_gin_sweep.sh
+bash bash_interface/local/moe_gcn_gin_sweep.sh
 
 # MoE with Unitary+GIN experts  
-bash moe_uni_gin_sweep.sh
+bash bash_interface/local/moe_uni_gin_sweep.sh
 ```
+
+(there are sister scripts for running on the cluster).
 
 ## Experimental Results
 
