@@ -1,23 +1,18 @@
-import torch
-import os
 import copy
-import numpy as np
-import wandb
+import random
+
+# from torcheval.metrics import MultilabelAUPRC
+
+import torch
 
 # from measure_smoothing import dirichlet_normalized
 from attrdict import AttrDict
-from torch_geometric.loader import DataLoader
-from torch.utils.data import random_split
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.data import Subset, random_split
+from torch_geometric.loader import DataLoader
 
-# from torcheval.metrics import MultilabelAUPRC
-from math import inf
-
-import random
-from torch.utils.data import Dataset, Subset
-
+import wandb
 from models.graph_model import GNN, GPS, OrthogonalGCN, UnitaryGCN
-
 from models.graph_moe import MoE, MoE_E
 
 default_args = AttrDict(

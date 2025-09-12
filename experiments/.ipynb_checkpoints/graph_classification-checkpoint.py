@@ -1,20 +1,20 @@
-import torch
-import os
 import copy
-import numpy as np
-# from measure_smoothing import dirichlet_normalized
-from attrdict import AttrDict
-from torch_geometric.loader import DataLoader
-from torch.utils.data import random_split
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+import os
+import random
+
 # from torcheval.metrics import MultilabelAUPRC
 from math import inf
 
-import random
-from torch.utils.data import Dataset, Subset
+import numpy as np
+import torch
+
+# from measure_smoothing import dirichlet_normalized
+from attrdict import AttrDict
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.data import Dataset, Subset, random_split
+from torch_geometric.loader import DataLoader
 
 from models.graph_model import GNN, GPS, OrthogonalGCN, UnitaryGCN
-
 from models.graph_moe import MoE, MoE_E
 
 default_args = AttrDict(

@@ -1,10 +1,11 @@
 """File to do the Mixture of Experts models."""
 
 import copy
+
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch_geometric.nn import global_mean_pool, GCNConv, GINConv
+from torch_geometric.nn import GCNConv, GINConv, global_mean_pool
 
 from models.graph_model import GNN, UnitaryGCN
 

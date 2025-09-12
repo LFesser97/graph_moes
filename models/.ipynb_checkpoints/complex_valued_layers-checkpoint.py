@@ -1,43 +1,40 @@
+import typing
+from typing import Callable, List, Optional, Tuple, Union
+
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import torch.nn.init as init
+import torch_geometric
 import torch_geometric.nn as pyg_nn
 import torch_geometric.utils as pyg_utils
-import typing
-from typing import Callable, Optional, Union, Tuple, List
-import torch
 from torch import Tensor
 from torch.nn import Parameter
-import torch.nn.init as init
-import torch.nn.functional as F
-from torch_geometric.nn.inits import reset, glorot, zeros
-from torch_geometric.utils import (
-    add_self_loops,
-    is_torch_sparse_tensor,
-    remove_self_loops,
-    softmax,
-    to_undirected,
-)
-
-import torch_geometric
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.dense.linear import Linear
-from torch_geometric.nn.inits import zeros
-
+from torch_geometric.nn.inits import glorot, reset, zeros
 from torch_geometric.typing import (
     Adj,
     NoneType,
     OptPairTensor,
     OptTensor,
-    SparseTensor,
     Size,
+    SparseTensor,
     torch_sparse,
 )
-from torch_geometric.utils import add_remaining_self_loops
+from torch_geometric.utils import (
+    add_remaining_self_loops,
+)
+from torch_geometric.utils import add_self_loops
 from torch_geometric.utils import add_self_loops as add_self_loops_fn
 from torch_geometric.utils import (
     is_torch_sparse_tensor,
+    remove_self_loops,
     scatter,
+    softmax,
     spmm,
     to_edge_index,
+    to_undirected,
 )
 from torch_geometric.utils.num_nodes import maybe_num_nodes
 from torch_geometric.utils.sparse import set_sparse_value

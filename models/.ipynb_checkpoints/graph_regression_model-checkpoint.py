@@ -1,16 +1,38 @@
+from typing import Any, Dict, Optional
+
 import torch
 import torch.nn as nn
-from measure_smoothing import dirichlet_normalized
-from torch.nn import ModuleList, Dropout, ReLU, BatchNorm1d, Embedding, Linear, ModuleList, Sequential
-from torch_geometric.nn import GCNConv, RGCNConv, SAGEConv, GatedGraphConv, GINConv, FiLMConv, global_mean_pool, GATConv, GINEConv, global_add_pool, GPSConv
 import torch.nn.functional as F
+from torch.nn import (
+    BatchNorm1d,
+    Dropout,
+    Embedding,
+    Linear,
+    ModuleList,
+    ReLU,
+    Sequential,
+)
+from torch_geometric.nn import (
+    FiLMConv,
+    GATConv,
+    GatedGraphConv,
+    GCNConv,
+    GINConv,
+    GINEConv,
+    GPSConv,
+    RGCNConv,
+    SAGEConv,
+    global_add_pool,
+    global_mean_pool,
+)
 
-from typing import Any, Dict, Optional
-from models.performer import PerformerAttention
+from measure_smoothing import dirichlet_normalized
 
 # from models.layers import TaylorGCNConv, ComplexGCNConv
 from models.complex_valued_layers import UnitaryGCNConvLayer
+from models.performer import PerformerAttention
 from models.real_valued_layers import OrthogonalGCNConvLayer
+
 
 class RGATConv(torch.nn.Module):
     def __init__(self, in_features, out_features, num_relations):
