@@ -1,11 +1,10 @@
 # README:
 
 
-# TODO / IDEAS:
-# Hypergraph encodings > add something to store them too
-# Not doing rewiring anymore
-# Todo: lint, add mypy and pylint github action
-
+- TODO / IDEAS:
+- Hypergraph encodings > add something to store them too
+- Not doing rewiring anymore
+- Todo: lint, add mypy and pylint github action
 
 
 # Graph Mixture of Experts (Graph MoE)
@@ -68,7 +67,7 @@ conda env create -f environment.yml
 conda activate borf
 ```
 
-# this one did not work for me so adding a pyproject.toml
+this one did not work for me so adding a pyproject.toml:
 
 
 #### Option 2: pip with pyproject.toml
@@ -165,6 +164,8 @@ python run_graph_regression.py \
 ## Supported Datasets
 
 ### Classification Datasets
+
+#### TU Datasets (Traditional Graph Classification)
 | Dataset | Graphs | Classes | Description |
 |---------|---------|---------|-------------|
 | **MUTAG** | 188 | 2 | Mutagenic aromatic compounds |
@@ -174,13 +175,23 @@ python run_graph_regression.py \
 | **COLLAB** | 5,000 | 3 | Scientific collaboration networks |
 | **REDDIT-BINARY** | 2,000 | 2 | Reddit thread discussions |
 
+#### GNN Benchmark Datasets (Computer Vision)
+| Dataset | Graphs | Classes | Description |
+|---------|---------|---------|-------------|
+| **MNIST** | 70,000 | 10 | Handwritten digits as superpixel graphs |
+| **CIFAR10** | 60,000 | 10 | Natural images as superpixel graphs |
+| **PATTERN** | 14,000 | 2 | Synthetic node classification patterns |
+
+#### Long Range Graph Benchmark (LRGB) - Available
+| Dataset | Graphs | Classes | Description |
+|---------|---------|---------|-------------|
+| **PeptidesFunctional** | ~15,000 | 10 | Peptide functional prediction (commented out) |
 
 ### Regression Datasets
 | Dataset | Graphs | Task | Description |
 |---------|---------|------|-------------|
 | **ZINC** | 12,000 | Regression | Molecular solubility prediction |
-
-# TODO: Raph: to add MNIST, CIFAR, Pattern
+| **PeptidesStructural** | ~15,000 | Regression | Peptide structural prediction (commented out) |
 
 ## Model Architectures
 
@@ -191,7 +202,6 @@ python run_graph_regression.py \
 - **GAT**: Graph Attention Network - attention-based neighbor weighting
 - **MLP**: Multi-Layer Perceptron - ignores graph structure (baseline)
 
-# TODO: Raph: add GatedGCN
 
 ### Specialized Architectures
 - **Unitary**: Complex-valued transformations with unitary constraints
@@ -275,14 +285,6 @@ Results are automatically saved to:
 - **CSV files**: `results/graph_classification_{model}_{encoding}.csv`
 - **Log files**: `results/graph_classification.txt`
 - **Model checkpoints**: `results/{layers}_layers/{dataset}_{model}_{encoding}_graph_dict.pickle`
-
-### Performance Comparison (Test Accuracy %)
-
-| Dataset | GCN | GIN | MoE(GCN+GIN) | Unitary | Improvement |
-|---------|-----|-----|--------------|---------|-------------|
-| MUTAG | 85.2 | 84.1 | **87.1** | 86.3 | +1.9% |
-| ENZYMES | 59.8 | 62.3 | **65.7** | 61.2 | +3.4% |
-| PROTEINS | 75.1 | 76.8 | **78.2** | 77.5 | +1.4% |
 
 ## Implementation Details
 
