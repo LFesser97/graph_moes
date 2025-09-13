@@ -1,10 +1,12 @@
 # README:
 
+- Get parameters from the paper
+- Run on the cluster
 
 - TODO / IDEAS:
 - Hypergraph encodings > add something to store them too
 - Not doing rewiring anymore
-- Todo: lint, add mypy and pylint github action
+- Todo: add pylint github action
 
 
 # Graph Mixture of Experts (Graph MoE)
@@ -94,6 +96,42 @@ Install these manually:
 
 ```
 pip install torch-geometric torch-scatter torch-sparse torch-cluster -f https://data.pyg.org/whl/torch-2.0.0+cpu.html
+```
+
+
+On the cluser:
+
+```
+# 1. Set up environment variables for your lab space
+export CONDA_PKGS_DIRS=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/pkgs
+export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
+
+# 2. Create the directories
+mkdir -p $CONDA_PKGS_DIRS $CONDA_ENVS_PATH
+
+# 3. Load Python module (this includes mamba)
+module load python/3.10.12-fasrc01
+
+# 4. Create moe environment
+mamba create -n moe python=3.10 pip wheel -y
+
+# 5. Activate the environment
+source activate moe
+
+# 6. Install packages with mamba (faster for most packages)
+mamba install -y numpy pandas tqdm
+
+# 7. Install PyTorch and PyTorch Geometric
+mamba install -y pytorch pytorch-geometric -c pytorch -c pyg
+
+# 8. Install packages only available via pip
+pip install wandb attrdict
+
+# 9. Test everything works
+python -c "import numpy, torch, torch_geometric, wandb, attrdict; print('✅ moe environment created successfully!')"
+
+# 10. Check your new environment
+conda info --envs
 ```
 
 2. Verify PyTorch Geometric installation:

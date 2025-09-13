@@ -141,4 +141,17 @@ Where:
 - **Pickle files**: Best for detailed per-graph analysis and debugging
 - **Text logs**: Best for human-readable experiment summaries and quick results checking
 
-The results directory provides a comprehensive record of all experimental runs, organized systematically for easy analysis and comparison of different model architectures and hyperparameter configurations.
+## ⚠️ **Important: File Behavior on Re-runs**
+
+### **APPEND Behavior (CSV & Text Files):**
+- **CSV files**: `mode="a"` 
+- **New rows are ADDED** to existing files
+- **Text logs**: `open(filename, "a")` 
+- **New entries are APPENDED** 
+- **Result**: Files **grow continuously** with each experiment run
+- **Implication**: Re-running the same experiment **adds duplicate entries**
+
+### **OVERWRITE Behavior (Pickle Files):**
+- **Pickle files**: `"wb"` mode 
+- **Files are completely REPLACED**
+- **Result**: Only the **latest run's data** is kept
