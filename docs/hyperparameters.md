@@ -51,7 +51,7 @@ https://arxiv.org/pdf/2502.09263
 
 # GIN+
 
-# Table 10. Hyperparameter settings of GIN+ on benchmarks from (Dwivedi et al., 2023).
+## Table 10. Hyperparameter settings of GIN+ on benchmarks from (Dwivedi et al., 2023).
 
 | Hyperparameter        | ZINC   | MNIST  | CIFAR10 | PATTERN | CLUSTER |
 |-----------------------|--------|--------|---------|---------|---------|
@@ -63,7 +63,7 @@ https://arxiv.org/pdf/2502.09263
 | FFN                   | True   | True   | True    | True    | True    |
 | PE                    | RWSE-20| False  | False   | RWSE-32 | RWSE-20 |
 | Hidden Dim            | 80     | 60     | 60      | 100     | 90      |
-| Graph Pooling         | sum    | mean   | mean    | â       | â       |
+| Graph Pooling         | sum    | mean   | mean    | -       | -       |
 | Batch Size            | 32     | 16     | 16      | 32      | 16      |
 | Learning Rate         | 0.001  | 0.001  | 0.001   | 0.001   | 0.0005  |
 | # Epochs              | 2000   | 200    | 200     | 200     | 100     |
@@ -72,7 +72,7 @@ https://arxiv.org/pdf/2502.09263
 | # Parameters          | 477,241| 118,990| 115,450 | 511,829 | 497,594 |
 | Time (epoch)          | 9.4s   | 56.8s  | 46.3s   | 18.5s   | 20.5s   |
 
-# Table 11. Hyperparameter settings of GIN+ on LRGB and OGB datasets.
+## Table 11. Hyperparameter settings of GIN+ on LRGB and OGB datasets.
 
 | Hyperparameter        | Peptides-func | Peptides-struct | PascalVOC-SP | COCO-SP | MalNet-Tiny | ogbg-molhiv | ogbg-molpcba | ogbg-ppa | ogbg-code2 |
 |-----------------------|---------------|-----------------|--------------|---------|-------------|-------------|--------------|----------|------------|
@@ -93,7 +93,9 @@ https://arxiv.org/pdf/2502.09263
 | # Parameters          | 506,126       | 518,127         | 486,039      | 487,491 | 514,545     | 481,433     | 8,774,720    | 8,173,605| 24,338,354 |
 | Time (epoch)          | 7.4s          | 6.1s            | 14.8s        | 169.2s  | 5.9s        | 10.9s       | 89.2s        | 213.9s   | 489.8s     |
 
-# Table 12. Hyperparameter settings of GatedGCN+ on benchmarks from (Dwivedi et al., 2023).
+# GatedGCN
+
+## Table 12. Hyperparameter settings of GatedGCN+ on benchmarks from (Dwivedi et al., 2023).
 
 | Hyperparameter        | ZINC   | MNIST  | CIFAR10 | PATTERN | CLUSTER |
 |-----------------------|--------|--------|---------|---------|---------|
@@ -105,7 +107,7 @@ https://arxiv.org/pdf/2502.09263
 | FFN                   | True   | True   | True    | True    | True    |
 | PE                    | RWSE-20| False  | False   | RWSE-32 | RWSE-20 |
 | Hidden Dim            | 70     | 35     | 35      | 64      | 56      |
-| Graph Pooling         | sum    | mean   | mean    | â       | â       |
+| Graph Pooling         | sum    | mean   | mean    | -       | -       |
 | Batch Size            | 32     | 16     | 16      | 32      | 16      |
 | Learning Rate         | 0.001  | 0.001  | 0.001   | 0.0005  | 0.0005  |
 | # Epochs              | 2000   | 200    | 200     | 200     | 100     |
@@ -114,7 +116,7 @@ https://arxiv.org/pdf/2502.09263
 | # Parameters          | 413,355| 118,940| 116,490 | 466,001 | 474,574 |
 | Time (epoch)          | 10.5s  | 137.9s | 115.0s  | 32.6s   | 34.1s   |
 
-# Table 13. Hyperparameter settings of GatedGCN+ on LRGB and OGB datasets.
+## Table 13. Hyperparameter settings of GatedGCN+ on LRGB and OGB datasets.
 
 | Hyperparameter        | Peptides-func | Peptides-struct | PascalVOC-SP | COCO-SP | MalNet-Tiny | ogbg-molhiv | ogbg-molpcba | ogbg-ppa | ogbg-code2 |
 |-----------------------|---------------|-----------------|--------------|---------|-------------|-------------|--------------|----------|------------|
@@ -126,7 +128,7 @@ https://arxiv.org/pdf/2502.09263
 | FFN                   | False         | False           | False        | True    | True        | False       | True         | False    | True       |
 | PE                    | RWSE-32       | RWSE-32         | RWSE-32      | False   | False       | RWSE-20     | RWSE-16      | False    | False      |
 | Hidden Dim            | 135           | 145             | 95           | 52      | 100         | 256         | 256          | 512      | 512        |
-| Graph Pooling         | mean          | mean            | â            | â       | max         | mean        | mean         | mean     | mean       |
+| Graph Pooling         | mean          | mean            | -            | -       | max         | mean        | mean         | mean     | mean       |
 | Batch Size            | 16            | 32              | 32           | 50      | 16          | 32          | 512          | 32       | 32         |
 | Learning Rate         | 0.0005        | 0.001           | 0.001        | 0.001   | 0.0005      | 0.0001      | 0.0005       | 0.0003   | 0.0001     |
 | # Epochs              | 300           | 300             | 200          | 300     | 150         | 100         | 100          | 300      | 30         |
