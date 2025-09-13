@@ -34,7 +34,7 @@ fi
 
 echo "🎉 WandB setup complete!"
 
-# List of datasets in your table
+# List of datasets in table
 # conv_types=(gcn dir-gcn uni dir-uni)
 datasets=(enzymes proteins)
 

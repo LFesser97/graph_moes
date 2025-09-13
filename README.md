@@ -102,7 +102,7 @@ pip install torch-geometric torch-scatter torch-sparse torch-cluster -f https://
 On the cluser:
 
 ```
-# 1. Set up environment variables for your lab space
+# 1. Set up environment variables for lab space
 export CONDA_PKGS_DIRS=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/pkgs
 export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
 
@@ -130,7 +130,7 @@ pip install wandb attrdict
 # 9. Test everything works
 python -c "import numpy, torch, torch_geometric, wandb, attrdict; print('✅ moe environment created successfully!')"
 
-# 10. Check your new environment
+# 10. Check new environment
 conda info --envs
 ```
 

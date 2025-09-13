@@ -9,9 +9,6 @@ description = "Graph Neural Networks with Mixture of Experts for Classification 
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
-authors = [
-    {name = "Raphael Pellegrin", email = "your-email@example.com"},
-]
 keywords = ["graph neural networks", "mixture of experts", "pytorch", "machine learning"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -85,15 +82,10 @@ jupyter = [
 ]
 
 cuda = [
-    # CUDA-specific versions - install manually based on your CUDA version
+    # CUDA-specific versions - install manually based on CUDA version
     # These should be installed via conda or specific pip index
 ]
 
-[project.urls]
-Homepage = "https://github.com/your-username/graph-moes"
-Repository = "https://github.com/your-username/graph-moes"
-Documentation = "https://github.com/your-username/graph-moes#readme"
-"Bug Tracker" = "https://github.com/your-username/graph-moes/issues"
 
 [project.scripts]
 run-graph-classification = "run_graph_classification:main"
