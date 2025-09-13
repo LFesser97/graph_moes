@@ -51,7 +51,7 @@ log_message "Starting MoE GIN+Unitary task $SLURM_ARRAY_TASK_ID"
 
 # Set environment path and activate moe environment
 export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
-source activate /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs/moe
+source activate moe
 
 # Force check that we're in the right environment
 if [[ "$(which python)" != *"moe"* ]]; then
