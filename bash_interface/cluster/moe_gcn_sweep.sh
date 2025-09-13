@@ -55,6 +55,7 @@ module load python/3.10.12-fasrc01
 # Set environment path and activate moe environment
 export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
 source activate /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs/moe
+# install pandas and numpy using mamba
 
 # Check if environment activation was successful
 if [[ "$CONDA_DEFAULT_ENV" == "moe" ]] || [[ "$CONDA_DEFAULT_ENV" == *"moe"* ]]; then
@@ -79,20 +80,10 @@ else
     exit 1
 fi
 
-# Clean up corrupted packages and reinstall
-log_message "🧹 Cleaning up potentially corrupted packages..."
-pip uninstall -y pygments pandas numpy scipy matplotlib scikit-learn || true
-
-log_message "📦 Installing package in editable mode..."
-pip install -e . --force-reinstall --no-deps
-
-log_message "📦 Installing dependencies..."
-pip install --force-reinstall numpy pandas scipy matplotlib scikit-learn pygments
-
-# Verify critical imports work
-log_message "🔍 Testing critical imports..."
-python -c "import numpy, pandas, torch; print('✅ Core packages imported successfully')" || {
-    log_message "❌ Failed to import core packages"
+# Quick verification that packages work
+log_message "🔍 Quick package verification..."
+python -c "import numpy, pandas, torch; print('✅ Core packages available')" || {
+    log_message "❌ Core packages not available - recreate mamba environment"
     exit 1
 }
 
