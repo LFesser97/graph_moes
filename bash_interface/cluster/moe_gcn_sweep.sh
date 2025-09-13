@@ -50,11 +50,17 @@ log_message() {
 log_message "Starting MoE GCN+GIN task $SLURM_ARRAY_TASK_ID"
 
 # Load Python module and activate mamba environment
-module load python/3.10.12-fasrc01
+# module load python/3.10.12-fasrc01
 
 # Set environment path and activate moe environment
 export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
 source activate /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs/moe
+
+# Force check that we're in the right environment
+if [[ "$(which python)" != *"moe"* ]]; then
+    log_message "❌ Python not from moe environment: $(which python)"
+    exit 1
+fi
 
 # Check if environment activation was successful
 if [[ "$CONDA_DEFAULT_ENV" == "moe" ]] || [[ "$CONDA_DEFAULT_ENV" == *"moe"* ]]; then

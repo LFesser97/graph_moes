@@ -49,17 +49,45 @@ log_message() {
 
 log_message "Starting MoE GIN+Unitary task $SLURM_ARRAY_TASK_ID"
 
-# Load Python module and activate mamba environment
-module load python/3.10.12-fasrc01
-
 # Set environment path and activate moe environment
 export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
 source activate /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs/moe
 
-log_message "Using moe mamba environment"
+# Force check that we're in the right environment
+if [[ "$(which python)" != *"moe"* ]]; then
+    log_message "❌ Python not from moe environment: $(which python)"
+    exit 1
+fi
+
+# Check if environment activation was successful
+if [[ "$CONDA_DEFAULT_ENV" == "moe" ]] || [[ "$CONDA_DEFAULT_ENV" == *"moe"* ]]; then
+    log_message "✅ Successfully activated moe mamba environment: $CONDA_DEFAULT_ENV"
+    log_message "🐍 Python path: $(which python)"
+    log_message "📦 Conda environment: $CONDA_DEFAULT_ENV"
+else
+    log_message "❌ Failed to activate moe environment! Current env: $CONDA_DEFAULT_ENV"
+    log_message "🚨 This will likely cause import errors"
+    exit 1
+fi
 
 # Navigate to project directory
-cd /n/netscratch/mweber_lab/Lab/graph_moes
+cd /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes
+
+# Verify we're in the right directory
+if [[ -f "run_graph_classification.py" ]]; then
+    log_message "✅ Successfully navigated to project directory: $(pwd)"
+else
+    log_message "❌ Failed to find project files in: $(pwd)"
+    log_message "🔍 Looking for run_graph_classification.py"
+    exit 1
+fi
+
+# Quick verification that packages work
+log_message "🔍 Quick package verification..."
+python -c "import numpy, pandas, torch; print('✅ Core packages available')" || {
+    log_message "❌ Core packages not available - recreate mamba environment"
+    exit 1
+}
 
 # Define hyperparameter combinations
 datasets=(proteins mutag)
