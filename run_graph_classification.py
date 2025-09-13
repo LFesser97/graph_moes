@@ -20,6 +20,8 @@ import torch_geometric.transforms as T
 from attrdict import AttrDict
 from torch_geometric.data import Data
 from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
+from ogb.graphproppred import PygGraphPropPredDataset
+from torch_geometric.datasets import LRGBDataset
 
 # import custom encodings
 from tqdm import tqdm
@@ -93,6 +95,29 @@ print("  ⏳ Loading REDDIT-BINARY...")
 reddit = list(TUDataset(root=data_directory, name="REDDIT-BINARY"))
 print(f"  ✅ REDDIT-BINARY loaded: {len(reddit)} graphs")
 
+print("and yet more...")
+
+# Add to run_graph_classification.py
+print("  ⏳ Loading ogbg-molhiv...")
+molhiv = PygGraphPropPredDataset(name="ogbg-molhiv", root=data_directory)
+print(f"  ✅ ogbg-molhiv loaded: {len(molhiv)} graphs")
+
+print("  ⏳ Loading ogbg-molpcba...")
+molpcba = PygGraphPropPredDataset(name="ogbg-molpcba", root=data_directory)
+print(f"  ✅ ogbg-molpcba loaded: {len(molpcba)} graphs")
+
+print("  ⏳ Loading Cluster...")
+cluster = LRGBDataset(root=data_directory, name="Cluster")
+print(f"  ✅ Cluster loaded: {len(cluster)} graphs")
+
+print("  ⏳ Loading PascalVOC-SP...")
+pascalvoc = LRGBDataset(root=data_directory, name="PascalVOC-SP")
+print(f"  ✅ PascalVOC-SP loaded: {len(pascalvoc)} graphs")
+
+print("  ⏳ Loading COCO-SP...")
+coco = LRGBDataset(root=data_directory, name="COCO-SP")
+print(f"  ✅ COCO-SP loaded: {len(coco)} graphs")
+
 print("🎉 All datasets loaded successfully!")
 
 """
@@ -116,6 +141,13 @@ datasets = {
     "mnist": mnist,
     "cifar": cifar,
     "pattern": pattern,
+    # LRGB datasets:
+    "cluster": cluster,
+    "pascalvoc": pascalvoc,
+    "coco": coco,
+    # OGB datasets:
+    "molhiv": molhiv,
+    "molpcba": molpcba,
 }
 # datasets = {"collab": collab, "imdb": imdb, "proteins": proteins, "reddit": reddit}
 
@@ -175,6 +207,15 @@ hyperparams = {
     "mnist": AttrDict({"output_dim": 10}),
     "cifar": AttrDict({"output_dim": 10}),
     "pattern": AttrDict({"output_dim": 2}),  # Binary classification
+    # LRGB datasets:
+    "cluster": AttrDict({"output_dim": 6}),  # 6 clusters
+    "pascalvoc": AttrDict({"output_dim": 21}),  # 21 object classes
+    "coco": AttrDict({"output_dim": 81}),  # 81 object classes
+    # OGB datasets:
+    "molhiv": AttrDict(
+        {"output_dim": 2}
+    ),  # Binary classification (HIV active/inactive)
+    "molpcba": AttrDict({"output_dim": 128}),  # Multi-label classification (128 assays)
 }
 
 results = []
