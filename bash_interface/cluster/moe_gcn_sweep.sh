@@ -55,7 +55,6 @@ module load python/3.10.12-fasrc01
 # Set environment path and activate moe environment
 export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
 source activate /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs/moe
-# install pandas and numpy using mamba
 
 # Check if environment activation was successful
 if [[ "$CONDA_DEFAULT_ENV" == "moe" ]] || [[ "$CONDA_DEFAULT_ENV" == *"moe"* ]]; then
