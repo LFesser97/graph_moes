@@ -88,6 +88,9 @@ python -c "import numpy, pandas, torch; print('✅ Core packages available')" ||
 
 # Define hyperparameter combinations
 datasets=(enzymes proteins)
+# # All available datasets from run_graph_classification.py
+# datasets=(mutag enzymes proteins imdb collab reddit mnist cifar pattern cluster pascalvoc coco molhiv molpcba)
+
 learning_rates=(0.001 0.0001)
 hidden_dims=(64 128)
 num_layers_list=(4 5 6 7)

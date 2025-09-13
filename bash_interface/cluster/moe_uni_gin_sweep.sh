@@ -63,6 +63,9 @@ cd /n/netscratch/mweber_lab/Lab/graph_moes
 
 # Define hyperparameter combinations
 datasets=(proteins mutag)
+# # All available datasets from run_graph_classification.py
+# datasets=(mutag enzymes proteins imdb collab reddit mnist cifar pattern cluster pascalvoc coco molhiv molpcba)
+
 learning_rates=(0.001 0.0001)
 hidden_dims=(64 128)
 num_layers_list=(4 6)

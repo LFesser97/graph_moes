@@ -38,6 +38,10 @@ echo "🎉 WandB setup complete!"
 # conv_types=(gcn dir-gcn uni dir-uni)
 datasets=(enzymes proteins)
 
+# # All available datasets from run_graph_classification.py
+# datasets=(mutag enzymes proteins imdb collab reddit mnist cifar pattern cluster pascalvoc coco molhiv molpcba)
+
+
 for dataset in "${datasets[@]}"; do
     learning_rates=(0.001 0.0001)
     hidden_dims=(64 128)
