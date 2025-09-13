@@ -54,12 +54,13 @@ module load python/3.10.12-fasrc01
 
 # Set environment path and activate moe environment
 export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
-source activate moe
+source activate /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs/moe
 
 log_message "Using moe mamba environment"
 
 # Navigate to project directory
-cd /n/netscratch/mweber_lab/Lab/graph_moes
+cd /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes
+pip install -e .
 
 # Define hyperparameter combinations
 datasets=(enzymes proteins)
