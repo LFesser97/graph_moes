@@ -42,14 +42,10 @@ def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
     return Data(x=x, edge_index=edge_index, y=y, edge_attr=edge_attr)
 
 
-# Auto-detect if we're on cluster or local
-if os.path.exists("/n/netscratch/mweber_lab/Lab/graph_datasets"):
-    data_directory = "/n/netscratch/mweber_lab/Lab/graph_datasets"
-    print("📁 Using cluster data directory")
-else:
-    data_directory = "./graph_datasets"
-    print("📁 Using local data directory")
-    os.makedirs(data_directory, exist_ok=True)
+# Simple approach - always use local directory
+data_directory = "./graph_datasets"
+print("📁 Using project data directory")
+os.makedirs(data_directory, exist_ok=True)
 
 # Create data subdirectory for encodings
 os.makedirs("data", exist_ok=True)
