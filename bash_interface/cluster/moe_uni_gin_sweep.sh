@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=moe_uni_gin_array
-#SBATCH --array=1-48              # Total combinations: 2 datasets × 2 lr × 2 hidden × 2 layers × 3 dropout = 48
+## SBATCH --array=1-48              # Total combinations: 2 datasets × 2 lr × 2 hidden × 2 layers × 3 dropout = 48
 #SBATCH --ntasks=1
 #SBATCH --time=8:00:00
-#SBATCH --mem=16GB
+#SBATCH --mem=64GB
 #SBATCH --output=logs/moe_uni_gin_%A_%a.log  # %A = array job ID, %a = task ID
 #SBATCH --partition=mweber_gpu
 #SBATCH --gpus=1

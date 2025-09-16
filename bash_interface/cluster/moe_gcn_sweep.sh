@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=moe_gcn_gin_array
-#SBATCH --array=1-96              # Total combinations: 2 datasets × 2 lr × 2 hidden × 4 layers × 3 dropout = 96
+## SBATCH --array=1-96              # Total combinations: 2 datasets × 2 lr × 2 hidden × 4 layers × 3 dropout = 96
 #SBATCH --ntasks=1
 #SBATCH --time=8:00:00           # Shorter time per individual job
-#SBATCH --mem=16GB               # Less memory per job
+#SBATCH --mem=64GB               # Less memory per job
 #SBATCH --output=logs/moe_gcn_gin_%A_%a.log  # %A = array job ID, %a = task ID
 #SBATCH --partition=mweber_gpu
 #SBATCH --gpus=1

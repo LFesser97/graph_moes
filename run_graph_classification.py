@@ -57,12 +57,12 @@ print("💾 Encoded datasets: ./data/")
 # New datasets
 print("📊 Loading NEW benchmark datasets...")
 print("  ⏳ Loading MNIST superpixel graphs...")
-mnist = list(GNNBenchmarkDataset(root=data_directory, name="MNIST"))
-print(f"  ✅ MNIST loaded: {len(mnist)} graphs")
+# mnist = list(GNNBenchmarkDataset(root=data_directory, name="MNIST"))
+# print(f"  ✅ MNIST loaded: {len(mnist)} graphs")
 
 print("  ⏳ Loading CIFAR10 superpixel graphs...")
-cifar = list(GNNBenchmarkDataset(root=data_directory, name="CIFAR10"))
-print(f"  ✅ CIFAR10 loaded: {len(cifar)} graphs")
+# cifar = list(GNNBenchmarkDataset(root=data_directory, name="CIFAR10"))
+# print(f"  ✅ CIFAR10 loaded: {len(cifar)} graphs")
 
 print("  ⏳ Loading PATTERN synthetic graphs...")
 pattern = list(GNNBenchmarkDataset(root=data_directory, name="PATTERN"))
