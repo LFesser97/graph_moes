@@ -43,7 +43,9 @@ def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
 
 
 # Simple approach - always use local directory
-data_directory = "./graph_datasets"
+data_directory = (
+    "/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/graph_datasets"
+)
 print("📁 Using project data directory")
 os.makedirs(data_directory, exist_ok=True)
 
