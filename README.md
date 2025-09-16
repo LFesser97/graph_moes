@@ -1,5 +1,6 @@
 # README:
 
+- run locally again and run mamba env export > environment_SAVED.yml
 - Get parameters from the paper
 - Run on the cluster
 
