@@ -1,5 +1,6 @@
 # README:
 
+- run locally again and run mamba env export > environment_SAVED.yml
 - Get parameters from the paper
 - Run on the cluster
 
@@ -102,7 +103,7 @@ pip install torch-geometric torch-scatter torch-sparse torch-cluster -f https://
 On the cluser:
 
 ```
-# 1. Set up environment variables for your lab space
+# 1. Set up environment variables for lab space
 export CONDA_PKGS_DIRS=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/pkgs
 export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
 
@@ -130,7 +131,7 @@ pip install wandb attrdict
 # 9. Test everything works
 python -c "import numpy, torch, torch_geometric, wandb, attrdict; print('✅ moe environment created successfully!')"
 
-# 10. Check your new environment
+# 10. Check new environment
 conda info --envs
 ```
 
@@ -201,6 +202,26 @@ python run_graph_regression.py \
 
 ## Supported Datasets
 
+# Overview of the datasets used for graph-level tasks.
+
+| Dataset        | # graphs | Avg. # nodes | Avg. # edges | Task Type             |
+|----------------|----------|--------------|--------------|-----------------------|
+| ZINC           | 12,000   | 23.2         | 24.9         | Graph regression      |
+| MNIST          | 70,000   | 70.6         | 564.5        | Graph classification  |
+| CIFAR10        | 60,000   | 117.6        | 941.1        | Graph classification  |
+| PATTERN        | 14,000   | 118.9        | 3,039.3      | Inductive node cls.   |
+| CLUSTER        | 12,000   | 117.2        | 2,150.9      | Inductive node cls.   |
+| Peptides-func  | 15,535   | 150.9        | 307.3        | Graph classification  |
+| Peptides-struct| 15,535   | 150.9        | 307.3        | Graph regression      |
+| PascalVOC-SP   | 11,355   | 479.4        | 2,710.5      | Inductive node cls.   |
+| COCO-SP        | 123,286  | 476.9        | 2,693.7      | Inductive node cls.   |
+| MalNet-Tiny    | 5,000    | 1,410.3      | 2,859.9      | Graph classification  |
+| ogbg-molhiv    | 41,127   | 25.5         | 27.5         | Graph classification  |
+| ogbg-molpcba   | 437,929  | 26.0         | 28.1         | Graph classification  |
+| ogbg-ppa       | 158,100  | 243.4        | 2,266.1      | Graph classification  |
+| ogbg-code2     | 452,741  | 125.2        | 124.2        | Graph classification  |
+
+
 ### Classification Datasets
 
 #### TU Datasets (Traditional Graph Classification)
@@ -224,6 +245,13 @@ python run_graph_regression.py \
 | Dataset | Graphs | Classes | Description |
 |---------|---------|---------|-------------|
 | **PeptidesFunctional** | ~15,000 | 10 | Peptide functional prediction (commented out) |
+| **CLUSTER** | 12,000 | 2 | Inductive node classification |
+
+#### Open Graph Benchmark (OGB) - Available
+| Dataset | Graphs | Classes | Description |
+|---------|---------|---------|-------------|
+| **ogbg-molhiv** | 41,127 | 2 | HIV inhibition prediction |
+| **ogbg-molpcba** | 437,929 | 128 | Molecular bioactivity prediction |
 
 ### Regression Datasets
 | Dataset | Graphs | Task | Description |

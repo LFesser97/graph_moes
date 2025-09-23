@@ -21,6 +21,9 @@ from attrdict import AttrDict
 from torch_geometric.data import Data
 from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
 
+# from ogb.graphproppred import PygGraphPropPredDataset
+from torch_geometric.datasets import LRGBDataset
+
 # import custom encodings
 from tqdm import tqdm
 
@@ -39,14 +42,12 @@ def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
     return Data(x=x, edge_index=edge_index, y=y, edge_attr=edge_attr)
 
 
-# Auto-detect if we're on cluster or local
-if os.path.exists("/n/netscratch/mweber_lab/Lab/graph_datasets"):
-    data_directory = "/n/netscratch/mweber_lab/Lab/graph_datasets"
-    print("📁 Using cluster data directory")
-else:
-    data_directory = "./graph_datasets"
-    print("📁 Using local data directory")
-    os.makedirs(data_directory, exist_ok=True)
+# Simple approach - always use local directory
+data_directory = (
+    "/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/graph_datasets"
+)
+print("📁 Using project data directory")
+os.makedirs(data_directory, exist_ok=True)
 
 # Create data subdirectory for encodings
 os.makedirs("data", exist_ok=True)
@@ -56,12 +57,12 @@ print("💾 Encoded datasets: ./data/")
 # New datasets
 print("📊 Loading NEW benchmark datasets...")
 print("  ⏳ Loading MNIST superpixel graphs...")
-mnist = list(GNNBenchmarkDataset(root=data_directory, name="MNIST"))
-print(f"  ✅ MNIST loaded: {len(mnist)} graphs")
+# mnist = list(GNNBenchmarkDataset(root=data_directory, name="MNIST"))
+# print(f"  ✅ MNIST loaded: {len(mnist)} graphs")
 
 print("  ⏳ Loading CIFAR10 superpixel graphs...")
-cifar = list(GNNBenchmarkDataset(root=data_directory, name="CIFAR10"))
-print(f"  ✅ CIFAR10 loaded: {len(cifar)} graphs")
+# cifar = list(GNNBenchmarkDataset(root=data_directory, name="CIFAR10"))
+# print(f"  ✅ CIFAR10 loaded: {len(cifar)} graphs")
 
 print("  ⏳ Loading PATTERN synthetic graphs...")
 pattern = list(GNNBenchmarkDataset(root=data_directory, name="PATTERN"))
@@ -93,6 +94,29 @@ print("  ⏳ Loading REDDIT-BINARY...")
 reddit = list(TUDataset(root=data_directory, name="REDDIT-BINARY"))
 print(f"  ✅ REDDIT-BINARY loaded: {len(reddit)} graphs")
 
+print("and yet more...")
+
+# # Add to run_graph_classification.py
+# print("  ⏳ Loading ogbg-molhiv...")
+# molhiv = PygGraphPropPredDataset(name="ogbg-molhiv", root=data_directory)
+# print(f"  ✅ ogbg-molhiv loaded: {len(molhiv)} graphs")
+
+# print("  ⏳ Loading ogbg-molpcba...")
+# molpcba = PygGraphPropPredDataset(name="ogbg-molpcba", root=data_directory)
+# print(f"  ✅ ogbg-molpcba loaded: {len(molpcba)} graphs")
+
+# print("  ⏳ Loading Cluster...")
+# cluster = LRGBDataset(root=data_directory, name="Cluster")
+# print(f"  ✅ Cluster loaded: {len(cluster)} graphs")
+
+# print("  ⏳ Loading PascalVOC-SP...")
+# pascalvoc = LRGBDataset(root=data_directory, name="pascalvoc-sp")
+# print(f"  ✅ PascalVOC-SP loaded: {len(pascalvoc)} graphs")
+
+# print("  ⏳ Loading COCO-SP...")
+# coco = LRGBDataset(root=data_directory, name="coco-sp")
+# print(f"  ✅ COCO-SP loaded: {len(coco)} graphs")
+
 print("🎉 All datasets loaded successfully!")
 
 """
@@ -116,6 +140,13 @@ datasets = {
     "mnist": mnist,
     "cifar": cifar,
     "pattern": pattern,
+    # LRGB datasets:
+    # "cluster": cluster,
+    # "pascalvoc": pascalvoc,
+    # "coco": coco,
+    # OGB datasets:
+    # "molhiv": molhiv,
+    # "molpcba": molpcba,
 }
 # datasets = {"collab": collab, "imdb": imdb, "proteins": proteins, "reddit": reddit}
 
@@ -175,6 +206,15 @@ hyperparams = {
     "mnist": AttrDict({"output_dim": 10}),
     "cifar": AttrDict({"output_dim": 10}),
     "pattern": AttrDict({"output_dim": 2}),  # Binary classification
+    # LRGB datasets:
+    "cluster": AttrDict({"output_dim": 6}),  # 6 clusters
+    "pascalvoc": AttrDict({"output_dim": 21}),  # 21 object classes
+    "coco": AttrDict({"output_dim": 81}),  # 81 object classes
+    # OGB datasets:
+    "molhiv": AttrDict(
+        {"output_dim": 2}
+    ),  # Binary classification (HIV active/inactive)
+    "molpcba": AttrDict({"output_dim": 128}),  # Multi-label classification (128 assays)
 }
 
 results = []

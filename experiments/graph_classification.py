@@ -14,6 +14,7 @@ from torch_geometric.loader import DataLoader
 import wandb
 from models.graph_model import GNN, GPS, OrthogonalGCN, UnitaryGCN
 from models.graph_moe import MoE, MoE_E
+from tqdm import tqdm
 
 default_args = AttrDict(
     {
@@ -165,7 +166,8 @@ class Experiment:
         for i in range(len(self.dataset)):
             graph_dict[i] = -1
 
-        for epoch in range(1, 1 + self.args.max_epochs):
+        epoch_pbar = tqdm(range(self.args.max_epochs), desc="Training")
+        for epoch in epoch_pbar:
             self.model.train()
             total_loss = 0
             optimizer.zero_grad()
@@ -273,8 +275,13 @@ class Experiment:
                     else:
                         epochs_no_improve += 1
                 if self.args.display:
-                    print(
-                        f"Epoch {epoch}, Train acc: {train_acc}, Validation acc: {validation_acc}{new_best_str}, Test acc: {test_acc}"
+                    epoch_pbar.set_postfix(
+                        {
+                            "Train": f"{train_acc:.3f}",
+                            "Val": f"{validation_acc:.3f}",
+                            "Test": f"{test_acc:.3f}",
+                            "Best": f"{best_validation_acc:.3f}",
+                        }
                     )
                 if epochs_no_improve > self.args.patience:
                     if self.args.display:

@@ -42,7 +42,10 @@ def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
 
 
 # load zinc
-data_directory = "/n/netscratch/mweber_lab/Lab/graph_datasets"
+data_directory = (
+    "/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/graph_datasets"
+)
+os.makedirs(data_directory, exist_ok=True)
 train_dataset = ZINC(path=data_directory, subset=True, split="train")
 val_dataset = ZINC(path=data_directory, subset=True, split="val")
 test_dataset = ZINC(path=data_directory, subset=True, split="test")
