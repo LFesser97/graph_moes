@@ -23,13 +23,13 @@ from attrdict import AttrDict
 from torch_geometric.data import Data
 from torch_geometric.datasets import ZINC
 
-# import custom encodings
-
 # Add wandb imports
 import wandb
 from custom_encodings import LocalCurvatureProfile
 from experiments.graph_regression import Experiment
 from hyperparams import get_args_from_input
+
+# import custom encodings
 
 
 def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:

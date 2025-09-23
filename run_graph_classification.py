@@ -19,10 +19,10 @@ import torch
 import torch_geometric.transforms as T
 from attrdict import AttrDict
 from torch_geometric.data import Data
-from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
 
-# from ogb.graphproppred import PygGraphPropPredDataset
-from torch_geometric.datasets import LRGBDataset
+from ogb.graphproppred import PygGraphPropPredDataset
+from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
+from torch_geometric.datasets.lrgb import LRGBDataset
 
 # import custom encodings
 from tqdm import tqdm
@@ -57,12 +57,12 @@ print("💾 Encoded datasets: ./data/")
 # New datasets
 print("📊 Loading NEW benchmark datasets...")
 print("  ⏳ Loading MNIST superpixel graphs...")
-# mnist = list(GNNBenchmarkDataset(root=data_directory, name="MNIST"))
-# print(f"  ✅ MNIST loaded: {len(mnist)} graphs")
+mnist = list(GNNBenchmarkDataset(root=data_directory, name="MNIST"))
+print(f"  ✅ MNIST loaded: {len(mnist)} graphs")
 
 print("  ⏳ Loading CIFAR10 superpixel graphs...")
-# cifar = list(GNNBenchmarkDataset(root=data_directory, name="CIFAR10"))
-# print(f"  ✅ CIFAR10 loaded: {len(cifar)} graphs")
+cifar = list(GNNBenchmarkDataset(root=data_directory, name="CIFAR10"))
+print(f"  ✅ CIFAR10 loaded: {len(cifar)} graphs")
 
 print("  ⏳ Loading PATTERN synthetic graphs...")
 pattern = list(GNNBenchmarkDataset(root=data_directory, name="PATTERN"))
@@ -96,26 +96,26 @@ print(f"  ✅ REDDIT-BINARY loaded: {len(reddit)} graphs")
 
 print("and yet more...")
 
-# # Add to run_graph_classification.py
-# print("  ⏳ Loading ogbg-molhiv...")
-# molhiv = PygGraphPropPredDataset(name="ogbg-molhiv", root=data_directory)
-# print(f"  ✅ ogbg-molhiv loaded: {len(molhiv)} graphs")
+# Add to run_graph_classification.py
+print("  ⏳ Loading ogbg-molhiv...")
+molhiv = PygGraphPropPredDataset(name="ogbg-molhiv", root=data_directory)
+print(f"  ✅ ogbg-molhiv loaded: {len(molhiv)} graphs")
 
-# print("  ⏳ Loading ogbg-molpcba...")
-# molpcba = PygGraphPropPredDataset(name="ogbg-molpcba", root=data_directory)
-# print(f"  ✅ ogbg-molpcba loaded: {len(molpcba)} graphs")
+print("  ⏳ Loading ogbg-molpcba...")
+molpcba = PygGraphPropPredDataset(name="ogbg-molpcba", root=data_directory)
+print(f"  ✅ ogbg-molpcba loaded: {len(molpcba)} graphs")
 
-# print("  ⏳ Loading Cluster...")
-# cluster = LRGBDataset(root=data_directory, name="Cluster")
-# print(f"  ✅ Cluster loaded: {len(cluster)} graphs")
+print("  ⏳ Loading Cluster...")
+cluster = LRGBDataset(root=data_directory, name="Cluster")
+print(f"  ✅ Cluster loaded: {len(cluster)} graphs")
 
-# print("  ⏳ Loading PascalVOC-SP...")
-# pascalvoc = LRGBDataset(root=data_directory, name="pascalvoc-sp")
-# print(f"  ✅ PascalVOC-SP loaded: {len(pascalvoc)} graphs")
+print("  ⏳ Loading PascalVOC-SP...")
+pascalvoc = LRGBDataset(root=data_directory, name="pascalvoc-sp")
+print(f"  ✅ PascalVOC-SP loaded: {len(pascalvoc)} graphs")
 
-# print("  ⏳ Loading COCO-SP...")
-# coco = LRGBDataset(root=data_directory, name="coco-sp")
-# print(f"  ✅ COCO-SP loaded: {len(coco)} graphs")
+print("  ⏳ Loading COCO-SP...")
+coco = LRGBDataset(root=data_directory, name="coco-sp")
+print(f"  ✅ COCO-SP loaded: {len(coco)} graphs")
 
 print("🎉 All datasets loaded successfully!")
 
@@ -141,12 +141,12 @@ datasets = {
     "cifar": cifar,
     "pattern": pattern,
     # LRGB datasets:
-    # "cluster": cluster,
-    # "pascalvoc": pascalvoc,
-    # "coco": coco,
+    "cluster": cluster,
+    "pascalvoc": pascalvoc,
+    "coco": coco,
     # OGB datasets:
-    # "molhiv": molhiv,
-    # "molpcba": molpcba,
+    "molhiv": molhiv,
+    "molpcba": molpcba,
 }
 # datasets = {"collab": collab, "imdb": imdb, "proteins": proteins, "reddit": reddit}
 
