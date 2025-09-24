@@ -20,7 +20,7 @@ import torch_geometric.transforms as T
 from attrdict import AttrDict
 from torch_geometric.data import Data
 
-from ogb.graphproppred import PygGraphPropPredDataset
+# from ogb.graphproppred import PygGraphPropPredDataset
 from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
 from torch_geometric.datasets.lrgb import LRGBDataset
 
@@ -97,13 +97,13 @@ print(f"  ✅ REDDIT-BINARY loaded: {len(reddit)} graphs")
 print("and yet more...")
 
 # Add to run_graph_classification.py
-print("  ⏳ Loading ogbg-molhiv...")
-molhiv = PygGraphPropPredDataset(name="ogbg-molhiv", root=data_directory)
-print(f"  ✅ ogbg-molhiv loaded: {len(molhiv)} graphs")
+# print("  ⏳ Loading ogbg-molhiv...")
+# molhiv = PygGraphPropPredDataset(name="ogbg-molhiv", root=data_directory)
+# print(f"  ✅ ogbg-molhiv loaded: {len(molhiv)} graphs")
 
-print("  ⏳ Loading ogbg-molpcba...")
-molpcba = PygGraphPropPredDataset(name="ogbg-molpcba", root=data_directory)
-print(f"  ✅ ogbg-molpcba loaded: {len(molpcba)} graphs")
+# print("  ⏳ Loading ogbg-molpcba...")
+# molpcba = PygGraphPropPredDataset(name="ogbg-molpcba", root=data_directory)
+# print(f"  ✅ ogbg-molpcba loaded: {len(molpcba)} graphs")
 
 print("  ⏳ Loading Cluster...")
 cluster = LRGBDataset(root=data_directory, name="Cluster")

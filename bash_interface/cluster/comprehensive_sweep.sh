@@ -3,7 +3,7 @@
 #SBATCH --ntasks=1
 #SBATCH --time=48:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=64GB               # Sufficient memory
-#SBATCH --output=logs/comprehensive_sweep_%j.log
+#SBATCH --output=logs_comprehensiv/comprehensive_sweep_%j.log
 #SBATCH --partition=mweber_gpu
 #SBATCH --gpus=1
 
@@ -19,6 +19,20 @@ export WANDB_CACHE_DIR="./wandb/.cache"
 mkdir -p ./wandb logs
 
 echo "✅ WandB environment configured"
+echo "   Entity: $WANDB_ENTITY"
+echo "   Project: $WANDB_PROJECT" 
+echo "   API Key: ${WANDB_API_KEY:0:10}..."
+echo "   Directory: $WANDB_DIR"
+
+# Install wandb if not already installed
+if ! python -c "import wandb" &> /dev/null; then
+    echo "📦 Installing wandb..."
+    pip install wandb
+else
+    echo "✅ wandb already installed"
+fi
+
+echo "🎉 WandB setup complete!"
 echo "🎉 WandB setup complete!"
 
 # Function to log messages with timestamp
@@ -35,8 +49,12 @@ source activate moe
 # Navigate to project directory
 cd /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes
 
+# Fix SciPy compatibility with NumPy 2.x
+log_message "🔧 Upgrading SciPy for NumPy 2.x compatibility..."
+mamba install "scipy>=1.14.0" -y
+
 # Quick verification
-python -c "import numpy, pandas, torch; print('✅ Core packages available')" || {
+python -c "import numpy, pandas, torch, scipy, sklearn; print('✅ Core packages available')" || {
     log_message "❌ Core packages not available"
     exit 1
 }
@@ -60,7 +78,7 @@ declare -a moe_combinations=(
 )
 
 # Define hyperparameters
-datasets=(enzymes proteins mutag)
+datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern cluster)
 learning_rates=(0.001 0.0001)
 hidden_dims=(64 128)
 num_layers_list=(4 6)
