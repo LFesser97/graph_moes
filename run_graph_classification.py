@@ -141,12 +141,12 @@ datasets = {
     "cifar": cifar,
     "pattern": pattern,
     # LRGB datasets:
-    "cluster": cluster,
-    "pascalvoc": pascalvoc,
-    "coco": coco,
-    # OGB datasets:
-    "molhiv": molhiv,
-    "molpcba": molpcba,
+    # "cluster": cluster,
+    # "pascalvoc": pascalvoc,
+    # "coco": coco,
+    # # OGB datasets:
+    # "molhiv": molhiv,
+    # "molpcba": molpcba,
 }
 # datasets = {"collab": collab, "imdb": imdb, "proteins": proteins, "reddit": reddit}
 
