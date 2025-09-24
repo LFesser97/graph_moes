@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=moe_gcn_gin_array
-# SBATCH --array=1-10              # Total datasets: 10 datasets with optimal hyperparameters each
+#SBATCH --array=1-10              # Total datasets: 10 datasets with optimal hyperparameters each
 #SBATCH --ntasks=1
 #SBATCH --time=8:00:00           # Shorter time per individual job
 #SBATCH --mem=64GB               # Less memory per job
@@ -97,7 +97,7 @@ python -c "import numpy, pandas, torch; print('✅ Core packages available')" ||
 source /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface/cluster/hyperparams_lookup.sh
 
 # Define datasets to run experiments on
-datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern cluster)
+datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern)
 # # All available datasets from run_graph_classification.py
 # datasets=(mutag enzymes proteins imdb collab reddit mnist cifar pattern cluster pascalvoc coco molhiv molpcba)
 
