@@ -82,13 +82,9 @@ else
     exit 1
 fi
 
-# Fix SciPy compatibility with NumPy 2.x
-log_message "🔧 Upgrading SciPy for NumPy 2.x compatibility..."
-mamba install "scipy>=1.14.0" -y
-
 # Quick verification that packages work
 log_message "🔍 Quick package verification..."
-python -c "import numpy, pandas, torch, scipy, sklearn; print('✅ Core packages available')" || {
+python -c "import numpy, pandas, torch; print('✅ Core packages available')" || {
     log_message "❌ Core packages not available - recreate mamba environment"
     exit 1
 }
