@@ -374,3 +374,15 @@ RESULTS FOR proteins (MoE), with None:
 average acc: 71.97132616487455
 plus/minus:  0.024782555339162043
 
+RESULTS FOR proteins (MoE), with None:
+average acc: 69.96415770609319
+plus/minus:  0.029963814715671704
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 68.24372759856632
+plus/minus:  0.015913332674421913
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.96774193548387
+plus/minus:  0.011647366888366947
+
