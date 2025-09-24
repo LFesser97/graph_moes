@@ -374,3 +374,27 @@ RESULTS FOR proteins (MoE), with None:
 average acc: 71.97132616487455
 plus/minus:  0.024782555339162043
 
+RESULTS FOR mutag (MoE), with None:
+average acc: 83.40425531914894
+plus/minus:  0.033398156375061404
+
+RESULTS FOR imdb (MoE), with None:
+average acc: 69.76
+plus/minus:  0.020651779584336057
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 34.733333333333334
+plus/minus:  0.015826840774105518
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 36.13333333333333
+plus/minus:  0.030799711398359273
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.07168458781362
+plus/minus:  0.01880952224143646
+
+RESULTS FOR mutag (MoE), with None:
+average acc: 87.6595744680851
+plus/minus:  0.05301246468901255
+
