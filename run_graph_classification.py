@@ -343,6 +343,17 @@ for key in datasets:
                     **dict(args),
                     "trial_num": trial + 1,
                     "dataset": key,
+                    # Add grouping variables:
+                    "dataset_name": key,  # For grouping by dataset
+                    "is_moe": args.layer_types
+                    is not None,  # Boolean for MoE vs single layer
+                    "model_type": (
+                        "MoE" if args.layer_types is not None else args.layer_type
+                    ),
+                    "num_layers": args.num_layers,
+                    "layer_combination": (
+                        str(args.layer_types) if args.layer_types else args.layer_type
+                    ),
                 },
                 dir=args.wandb_dir,
                 tags=list(args.wandb_tags or []) + [f"trial_{trial + 1}"],
@@ -373,6 +384,13 @@ for key in datasets:
                         "final/val_acc": validation_acc,
                         "final/test_acc": test_acc,
                         "final/energy": energy,
+                        # Add grouping variables:
+                        "groupby/dataset": key,
+                        "groupby/model_type": (
+                            "MoE" if args.layer_types else args.layer_type
+                        ),
+                        "groupby/is_moe": args.layer_types is not None,
+                        "groupby/num_layers": args.num_layers,
                     }
                 )
 
@@ -465,6 +483,11 @@ for key in datasets:
                 "trials/val_accs": validation_accuracies,
                 "trials/test_accs": test_accuracies,
                 "trials/energies": energies,
+                # Add grouping variables:
+                "groupby/dataset": key,
+                "groupby/model_type": "MoE" if args.layer_types else args.layer_type,
+                "groupby/is_moe": args.layer_types is not None,
+                "groupby/num_layers": args.num_layers,
             }
         )
 
