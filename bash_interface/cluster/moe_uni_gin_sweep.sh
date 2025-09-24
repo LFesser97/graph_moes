@@ -40,7 +40,7 @@ fi
 echo "🎉 WandB setup complete!"
 
 # Create logs directory
-mkdir -p logs
+mkdir -p logs logs_uni_gin
 
 # Function to log messages with timestamp
 log_message() {
