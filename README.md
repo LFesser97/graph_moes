@@ -377,3 +377,8 @@ class UnitaryGCNConvLayer(nn.Module):
         x_new = unitary_transform(x_complex, self.weight)
         return x_new
 ```
+
+
+
+
+ON THE CLUSER I HAD scikit-learn==1.2.2 and this was working!
