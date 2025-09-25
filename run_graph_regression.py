@@ -117,7 +117,7 @@ if args.dataset:
     name = args.dataset
     datasets = {name: datasets[name]}
 
-for key in datasets.keys():
+for key in datasets:
     args += hyperparams[key]
     train_accuracies = []
     validation_accuracies = []

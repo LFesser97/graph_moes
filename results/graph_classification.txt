@@ -374,6 +374,162 @@ RESULTS FOR proteins (MoE), with None:
 average acc: 71.97132616487455
 plus/minus:  0.024782555339162043
 
+RESULTS FOR mutag (MoE), with None:
+average acc: 83.40425531914894
+plus/minus:  0.033398156375061404
+
+RESULTS FOR imdb (MoE), with None:
+average acc: 69.76
+plus/minus:  0.020651779584336057
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 34.733333333333334
+plus/minus:  0.015826840774105518
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 36.13333333333333
+plus/minus:  0.030799711398359273
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.07168458781362
+plus/minus:  0.01880952224143646
+
+RESULTS FOR mutag (MoE), with None:
+average acc: 87.6595744680851
+plus/minus:  0.05301246468901255
+
+RESULTS FOR enzymes (GCN), with None:
+average acc: 27.86666666666666
+plus/minus:  0.02484440469088451
+
+RESULTS FOR proteins (GCN), with None:
+average acc: 72.04301075268818
+plus/minus:  0.023294733776733908
+
+RESULTS FOR mutag (GCN), with None:
+average acc: 63.829787234042556
+plus/minus:  0.09166237969590643
+
+RESULTS FOR imdb (GCN), with None:
+average acc: 50.239999999999995
+plus/minus:  0.013689119767172771
+
+RESULTS FOR imdb (MoE), with None:
+average acc: 69.6
+plus/minus:  0.01852133904446434
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 36.266666666666666
+plus/minus:  0.016264480727442025
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 38.26666666666666
+plus/minus:  0.03448155706718851
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 72.04301075268818
+plus/minus:  0.015705306308391877
+
+RESULTS FOR reddit (MoE), with None:
+average acc: 90.78
+plus/minus:  0.007988992427083662
+
+RESULTS FOR collab (GCN), with None:
+average acc: 63.712
+plus/minus:  0.043038750911242776
+
+RESULTS FOR reddit (GCN), with None:
+average acc: 70.24
+plus/minus:  0.0030776614498674174
+
+RESULTS FOR enzymes (GIN), with None:
+average acc: 39.2
+plus/minus:  0.031416909813382694
+
+RESULTS FOR proteins (GIN), with None:
+average acc: 69.31899641577061
+plus/minus:  0.022266114590184575
+
+RESULTS FOR mutag (GIN), with None:
+average acc: 88.08510638297872
+plus/minus:  0.019407241278283183
+
+RESULTS FOR imdb (GIN), with None:
+average acc: 71.6
+plus/minus:  0.027247018185482235
+
+RESULTS FOR collab (GIN), with None:
+average acc: 71.21600000000001
+plus/minus:  0.013811253382658647
+
+RESULTS FOR reddit (GIN), with None:
+average acc: 91.00000000000001
+plus/minus:  0.021908902300206663
+
+RESULTS FOR enzymes (SAGE), with None:
+average acc: 31.73333333333333
+plus/minus:  0.07453321407265355
+
+RESULTS FOR proteins (SAGE), with None:
+average acc: 70.75268817204301
+plus/minus:  0.02949365647741656
+
+RESULTS FOR mutag (SAGE), with None:
+average acc: 68.08510638297874
+plus/minus:  0.06254016364552792
+
+RESULTS FOR imdb (SAGE), with None:
+average acc: 47.44
+plus/minus:  0.017321431811487174
+
+RESULTS FOR collab (SAGE), with None:
+average acc: 51.92
+plus/minus:  0.01014960097737836
+
+RESULTS FOR reddit (SAGE), with None:
+average acc: 50.03999999999999
+plus/minus:  0.01980383801186023
+
+RESULTS FOR enzymes (MLP), with None:
+average acc: 29.06666666666667
+plus/minus:  0.04243269179928764
+
+RESULTS FOR proteins (MLP), with None:
+average acc: 68.31541218637993
+plus/minus:  0.037528781622013244
+
+RESULTS FOR mutag (MLP), with None:
+average acc: 71.48936170212765
+plus/minus:  0.03529607038864294
+
+RESULTS FOR imdb (MLP), with None:
+average acc: 49.12
+plus/minus:  0.014733906474523327
+
+RESULTS FOR collab (MLP), with None:
+average acc: 51.632
+plus/minus:  0.00685726476082115
+
+RESULTS FOR reddit (MLP), with None:
+average acc: 49.559999999999995
+plus/minus:  0.010816284019939575
+
+RESULTS FOR enzymes (Unitary), with None:
+average acc: 31.466666666666665
+plus/minus:  0.03525652027954861
+
+RESULTS FOR proteins (Unitary), with None:
+average acc: 71.89964157706093
+plus/minus:  0.02151493216608351
+
+RESULTS FOR mutag (Unitary), with None:
+average acc: 68.08510638297872
+plus/minus:  0.04962512250932172
+
+RESULTS FOR imdb (Unitary), with None:
+average acc: 65.52
+plus/minus:  0.0264266532122401
+=======
 RESULTS FOR enzymes (MoE), with None:
 average acc: 35.66666666666667
 plus/minus:  0.007831560082980481

@@ -105,17 +105,17 @@ print("and yet more...")
 # molpcba = PygGraphPropPredDataset(name="ogbg-molpcba", root=data_directory)
 # print(f"  ✅ ogbg-molpcba loaded: {len(molpcba)} graphs")
 
-print("  ⏳ Loading Cluster...")
-cluster = LRGBDataset(root=data_directory, name="Cluster")
-print(f"  ✅ Cluster loaded: {len(cluster)} graphs")
+# print("  ⏳ Loading Cluster...")
+# cluster = LRGBDataset(root=data_directory, name="Cluster")
+# print(f"  ✅ Cluster loaded: {len(cluster)} graphs")
 
-print("  ⏳ Loading PascalVOC-SP...")
-pascalvoc = LRGBDataset(root=data_directory, name="pascalvoc-sp")
-print(f"  ✅ PascalVOC-SP loaded: {len(pascalvoc)} graphs")
+# print("  ⏳ Loading PascalVOC-SP...")
+# pascalvoc = LRGBDataset(root=data_directory, name="pascalvoc-sp")
+# print(f"  ✅ PascalVOC-SP loaded: {len(pascalvoc)} graphs")
 
-print("  ⏳ Loading COCO-SP...")
-coco = LRGBDataset(root=data_directory, name="coco-sp")
-print(f"  ✅ COCO-SP loaded: {len(coco)} graphs")
+# print("  ⏳ Loading COCO-SP...")
+# coco = LRGBDataset(root=data_directory, name="coco-sp")
+# print(f"  ✅ COCO-SP loaded: {len(coco)} graphs")
 
 print("🎉 All datasets loaded successfully!")
 
@@ -144,9 +144,9 @@ datasets = {
     "cluster": cluster,
     "pascalvoc": pascalvoc,
     "coco": coco,
-    # OGB datasets:
-    "molhiv": molhiv,
-    "molpcba": molpcba,
+    # # OGB datasets:
+    # "molhiv": molhiv,
+    # "molpcba": molpcba,
 }
 # datasets = {"collab": collab, "imdb": imdb, "proteins": proteins, "reddit": reddit}
 

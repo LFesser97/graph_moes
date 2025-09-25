@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=moe_uni_gin_array
-## SBATCH --array=1-48              # Total combinations: 2 datasets × 2 lr × 2 hidden × 2 layers × 3 dropout = 48
+#SBATCH --array=1-10              # Total datasets: 10 datasets with optimal hyperparameters each
 #SBATCH --ntasks=1
 #SBATCH --time=8:00:00
 #SBATCH --mem=64GB
@@ -40,7 +40,7 @@ fi
 echo "🎉 WandB setup complete!"
 
 # Create logs directory
-mkdir -p logs
+mkdir -p logs logs_uni_gin
 
 # Function to log messages with timestamp
 log_message() {
@@ -82,59 +82,40 @@ else
     exit 1
 fi
 
-# Fix SciPy compatibility with NumPy 2.x
-log_message "🔧 Upgrading SciPy for NumPy 2.x compatibility..."
-mamba install "scipy>=1.14.0" -y
-
 # Quick verification that packages work
 log_message "🔍 Quick package verification..."
-python -c "import numpy, pandas, torch, scipy, sklearn; print('✅ Core packages available')" || {
+python -c "import numpy, pandas, torch; print('✅ Core packages available')" || {
     log_message "❌ Core packages not available - recreate mamba environment"
     exit 1
 }
 
-# Define hyperparameter combinations
-datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern cluster)
+# Load hyperparameter lookup function
+source /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface/cluster/hyperparams_lookup.sh
+
+# Define datasets to run experiments on
+datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern)
 # # All available datasets from run_graph_classification.py
 # datasets=(mutag enzymes proteins imdb collab reddit mnist cifar pattern cluster pascalvoc coco molhiv molpcba)
 
-learning_rates=(0.001 0.0001)
-hidden_dims=(64 128)
-num_layers_list=(4 6)
-dropouts=(0.0 0.1 0.2)
+# Calculate which dataset this task should run
+# Each dataset gets optimal hyperparameters from research paper
+task_id=${SLURM_ARRAY_TASK_ID:-1}
+total_datasets=${#datasets[@]}
+dataset_idx=$((($task_id - 1) % $total_datasets))
+dataset=${datasets[$dataset_idx]}
 
-# Calculate which combination this task should run
-# Total combinations per dataset: 2 × 2 × 2 × 3 = 24
-# Task 1-24: proteins, Task 25-48: mutag
+# Get optimal hyperparameters for this dataset and model combination
+# For MoE with GIN+Unitary, use GIN+ as base
+get_hyperparams "$dataset" "GIN"
 
-task_id=$SLURM_ARRAY_TASK_ID
-if [ $task_id -le 24 ]; then
-    dataset="proteins"
-    combo_id=$((task_id - 1))
-else
-    dataset="mutag"
-    combo_id=$((task_id - 25))
-fi
-
-# Convert combo_id to specific hyperparameters
-total_lr=${#learning_rates[@]}
-total_hd=${#hidden_dims[@]}
-total_nl=${#num_layers_list[@]}
-total_do=${#dropouts[@]}
-
-# Calculate indices using modular arithmetic
-do_idx=$((combo_id % total_do))
-combo_id=$((combo_id / total_do))
-nl_idx=$((combo_id % total_nl))
-combo_id=$((combo_id / total_nl))
-hd_idx=$((combo_id % total_hd))
-lr_idx=$((combo_id / total_hd))
-
-# Get actual values
-learning_rate=${learning_rates[$lr_idx]}
-hidden_dim=${hidden_dims[$hd_idx]}
-num_layer=${num_layers_list[$nl_idx]}
-dropout=${dropouts[$do_idx]}
+# Extract hyperparameters from the lookup function
+learning_rate=$HYPERPARAM_LEARNING_RATE
+hidden_dim=$HYPERPARAM_HIDDEN_DIM
+num_layer=$HYPERPARAM_NUM_LAYERS
+dropout=$HYPERPARAM_DROPOUT
+batch_size=$HYPERPARAM_BATCH_SIZE
+epochs=$HYPERPARAM_EPOCHS
+patience=$HYPERPARAM_PATIENCE
 
 log_message "Configuration: dataset=$dataset, lr=$learning_rate, hidden_dim=$hidden_dim, num_layers=$num_layer, dropout=$dropout"
 
@@ -143,7 +124,7 @@ wandb_run_name="${dataset}_GIN_Unitary_L${num_layer}_H${hidden_dim}_lr${learning
 
 log_message "WandB run name: $wandb_run_name"
 
-# Run the experiment with wandb enabled
+# Run the experiment with wandb enabled using research-based hyperparameters
 python run_graph_classification.py \
     --num_trials 5 \
     --dataset "$dataset" \
@@ -151,11 +132,11 @@ python run_graph_classification.py \
     --hidden_dim "$hidden_dim" \
     --num_layers "$num_layer" \
     --dropout "$dropout" \
-    --patience 50 \
+    --patience "$patience" \
     --layer_types '["GIN", "Unitary"]' \
     --wandb_enabled \
     --wandb_name "$wandb_run_name" \
-    --wandb_tags '["cluster", "sweep", "gin_unitary"]'
+    --wandb_tags '["cluster", "sweep", "gin_unitary", "research_hyperparams"]'
 
 # Check exit status
 if [ $? -eq 0 ]; then

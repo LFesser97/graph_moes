@@ -14,7 +14,7 @@ import wandb
 from models.graph_model import GNN, GPS, OrthogonalGCN, UnitaryGCN
 from models.graph_moe import MoE, MoE_E
 
-# from torcheval.metrics import MultilabelAUPRC
+from torcheval.metrics import MultilabelAUPRC  # might need to comment out on cluster?
 
 
 default_args = AttrDict(

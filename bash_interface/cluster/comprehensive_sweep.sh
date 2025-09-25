@@ -16,7 +16,7 @@ export WANDB_PROJECT="MOE"
 export WANDB_DIR="./wandb"
 export WANDB_CACHE_DIR="./wandb/.cache"
 
-mkdir -p ./wandb logs
+mkdir -p ./wandb logs logs_comprehensiv
 
 echo "✅ WandB environment configured"
 echo "   Entity: $WANDB_ENTITY"
@@ -49,15 +49,7 @@ source activate moe
 # Navigate to project directory
 cd /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes
 
-# Fix SciPy compatibility with NumPy 2.x
-log_message "🔧 Upgrading SciPy for NumPy 2.x compatibility..."
-mamba install "scipy>=1.14.0" -y
 
-# Quick verification
-python -c "import numpy, pandas, torch, scipy, sklearn; print('✅ Core packages available')" || {
-    log_message "❌ Core packages not available"
-    exit 1
-}
 
 # Define all layer type combinations
 declare -a single_layer_types=(
@@ -77,12 +69,11 @@ declare -a moe_combinations=(
     '["SAGE", "Unitary"]'
 )
 
-# Define hyperparameters
+# Load hyperparameter lookup function
+source /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface/cluster/hyperparams_lookup.sh
+
+# Define datasets - each will use optimal hyperparameters from research paper
 datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern cluster)
-learning_rates=(0.001 0.0001)
-hidden_dims=(64 128)
-num_layers_list=(4 6)
-dropouts=(0.0 0.1 0.2)
 
 # Experiment counter
 experiment_id=1
@@ -92,40 +83,41 @@ log_message "🔬 Starting Single Layer Experiments..."
 # Single Layer Experiments
 for layer_type in "${single_layer_types[@]}"; do
     for dataset in "${datasets[@]}"; do
-        for lr in "${learning_rates[@]}"; do
-            for hidden_dim in "${hidden_dims[@]}"; do
-                for num_layer in "${num_layers_list[@]}"; do
-                    for dropout in "${dropouts[@]}"; do
-                        
-                        wandb_run_name="${dataset}_${layer_type}_L${num_layer}_H${hidden_dim}_lr${lr}_d${dropout}_exp${experiment_id}"
-                        
-                        log_message "🧪 Experiment $experiment_id: $wandb_run_name"
-                        
-                        # Run single layer experiment
-                        python run_graph_classification.py \
-                            --num_trials 5 \
-                            --dataset "$dataset" \
-                            --layer_type "$layer_type" \
-                            --learning_rate "$lr" \
-                            --hidden_dim "$hidden_dim" \
-                            --num_layers "$num_layer" \
-                            --dropout "$dropout" \
-                            --patience 50 \
-                            --wandb_enabled \
-                            --wandb_name "$wandb_run_name" \
-                            --wandb_tags '["cluster", "comprehensive", "single_layer"]'
-                        
-                        if [ $? -eq 0 ]; then
-                            log_message "✅ Experiment $experiment_id completed successfully"
-                        else
-                            log_message "❌ Experiment $experiment_id failed"
-                        fi
-                        
-                        experiment_id=$((experiment_id + 1))
-                    done
-                done
-            done
-        done
+        # Get optimal hyperparameters for this dataset and layer type
+        get_hyperparams "$dataset" "$layer_type"
+        
+        # Extract hyperparameters
+        learning_rate=$HYPERPARAM_LEARNING_RATE
+        hidden_dim=$HYPERPARAM_HIDDEN_DIM
+        num_layer=$HYPERPARAM_NUM_LAYERS
+        dropout=$HYPERPARAM_DROPOUT
+        patience=$HYPERPARAM_PATIENCE
+        
+        wandb_run_name="${dataset}_${layer_type}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_exp${experiment_id}"
+        
+        log_message "🧪 Experiment $experiment_id: $wandb_run_name"
+        
+        # Run single layer experiment with research-based hyperparameters
+        python run_graph_classification.py \
+            --num_trials 5 \
+            --dataset "$dataset" \
+            --layer_type "$layer_type" \
+            --learning_rate "$learning_rate" \
+            --hidden_dim "$hidden_dim" \
+            --num_layers "$num_layer" \
+            --dropout "$dropout" \
+            --patience "$patience" \
+            --wandb_enabled \
+            --wandb_name "$wandb_run_name" \
+            --wandb_tags '["cluster", "comprehensive", "single_layer", "research_hyperparams"]'
+        
+        if [ $? -eq 0 ]; then
+            log_message "✅ Experiment $experiment_id completed successfully"
+        else
+            log_message "❌ Experiment $experiment_id failed"
+        fi
+        
+        experiment_id=$((experiment_id + 1))
     done
 done
 
@@ -134,42 +126,44 @@ log_message "🔬 Starting MoE Experiments..."
 # MoE Experiments
 for layer_combo in "${moe_combinations[@]}"; do
     for dataset in "${datasets[@]}"; do
-        for lr in "${learning_rates[@]}"; do
-            for hidden_dim in "${hidden_dims[@]}"; do
-                for num_layer in "${num_layers_list[@]}"; do
-                    for dropout in "${dropouts[@]}"; do
-                        
-                        # Create a clean name from layer combination
-                        clean_combo=$(echo "$layer_combo" | tr -d '[]",' | tr ' ' '_')
-                        wandb_run_name="${dataset}_MoE_${clean_combo}_L${num_layer}_H${hidden_dim}_lr${lr}_d${dropout}_exp${experiment_id}"
-                        
-                        log_message "🧪 Experiment $experiment_id: $wandb_run_name"
-                        
-                        # Run MoE experiment
-                        python run_graph_classification.py \
-                            --num_trials 5 \
-                            --dataset "$dataset" \
-                            --layer_types "$layer_combo" \
-                            --learning_rate "$lr" \
-                            --hidden_dim "$hidden_dim" \
-                            --num_layers "$num_layer" \
-                            --dropout "$dropout" \
-                            --patience 50 \
-                            --wandb_enabled \
-                            --wandb_name "$wandb_run_name" \
-                            --wandb_tags '["cluster", "comprehensive", "moe"]'
-                        
-                        if [ $? -eq 0 ]; then
-                            log_message "✅ Experiment $experiment_id completed successfully"
-                        else
-                            log_message "❌ Experiment $experiment_id failed"
-                        fi
-                        
-                        experiment_id=$((experiment_id + 1))
-                    done
-                done
-            done
-        done
+        # For MoE, use the first layer type in combination as base for hyperparameters
+        first_layer=$(echo "$layer_combo" | grep -o '"[^"]*"' | head -1 | tr -d '"')
+        get_hyperparams "$dataset" "$first_layer"
+        
+        # Extract hyperparameters
+        learning_rate=$HYPERPARAM_LEARNING_RATE
+        hidden_dim=$HYPERPARAM_HIDDEN_DIM
+        num_layer=$HYPERPARAM_NUM_LAYERS
+        dropout=$HYPERPARAM_DROPOUT
+        patience=$HYPERPARAM_PATIENCE
+        
+        # Create a clean name from layer combination
+        clean_combo=$(echo "$layer_combo" | tr -d '[]",' | tr ' ' '_')
+        wandb_run_name="${dataset}_MoE_${clean_combo}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_exp${experiment_id}"
+        
+        log_message "🧪 Experiment $experiment_id: $wandb_run_name"
+        
+        # Run MoE experiment with research-based hyperparameters
+        python run_graph_classification.py \
+            --num_trials 5 \
+            --dataset "$dataset" \
+            --layer_types "$layer_combo" \
+            --learning_rate "$learning_rate" \
+            --hidden_dim "$hidden_dim" \
+            --num_layers "$num_layer" \
+            --dropout "$dropout" \
+            --patience "$patience" \
+            --wandb_enabled \
+            --wandb_name "$wandb_run_name" \
+            --wandb_tags '["cluster", "comprehensive", "moe", "research_hyperparams"]'
+        
+        if [ $? -eq 0 ]; then
+            log_message "✅ Experiment $experiment_id completed successfully"
+        else
+            log_message "❌ Experiment $experiment_id failed"
+        fi
+        
+        experiment_id=$((experiment_id + 1))
     done
 done
 
