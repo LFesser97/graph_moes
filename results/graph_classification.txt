@@ -529,4 +529,356 @@ plus/minus:  0.04962512250932172
 RESULTS FOR imdb (Unitary), with None:
 average acc: 65.52
 plus/minus:  0.0264266532122401
+=======
+RESULTS FOR enzymes (MoE), with None:
+average acc: 35.66666666666667
+plus/minus:  0.007831560082980481
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 36.0
+plus/minus:  0.032276582498427214
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 38.46666666666666
+plus/minus:  0.0279077846566947
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 35.666666666666664
+plus/minus:  0.022410315085295483
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 37.33333333333333
+plus/minus:  0.023475755815545347
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 36.266666666666666
+plus/minus:  0.03642709614192893
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 37.53333333333334
+plus/minus:  0.03804325024086255
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 38.0
+plus/minus:  0.027194770739161517
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 38.93333333333334
+plus/minus:  0.030995340151563286
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 37.06666666666666
+plus/minus:  0.023339046919510466
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 26.799999999999997
+plus/minus:  0.037228424027288015
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 30.733333333333334
+plus/minus:  0.031181190911616353
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 37.93333333333333
+plus/minus:  0.016378848148348727
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 30.86666666666667
+plus/minus:  0.03189148266648426
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 27.53333333333333
+plus/minus:  0.024077652155750844
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 30.933333333333334
+plus/minus:  0.03250709324303099
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 40.53333333333334
+plus/minus:  0.03062606007235595
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 38.86666666666667
+plus/minus:  0.03709687018843743
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 31.26666666666667
+plus/minus:  0.03721170664066768
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 32.86666666666667
+plus/minus:  0.02523137376803376
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 30.333333333333336
+plus/minus:  0.0306521704868604
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 39.46666666666667
+plus/minus:  0.01597776232420826
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 40.26666666666666
+plus/minus:  0.03583666651164233
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 40.666666666666664
+plus/minus:  0.017281975195754296
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 29.666666666666668
+plus/minus:  0.032944397601615556
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 38.333333333333336
+plus/minus:  0.032509827573964284
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.50537634408603
+plus/minus:  0.01564794261859718
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 26.53333333333333
+plus/minus:  0.03931864132387531
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 31.133333333333336
+plus/minus:  0.023251284313392715
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 39.13333333333333
+plus/minus:  0.02031310469185403
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 35.0
+plus/minus:  0.03201388587611458
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.36200716845879
+plus/minus:  0.015588719746922998
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 35.266666666666666
+plus/minus:  0.024690078979217538
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 36.333333333333336
+plus/minus:  0.014636332266733434
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 40.33333333333333
+plus/minus:  0.030302181806302696
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.61290322580645
+plus/minus:  0.013555781108040503
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 33.93333333333333
+plus/minus:  0.02649612130943781
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.79211469534049
+plus/minus:  0.016062787097130188
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 39.46666666666667
+plus/minus:  0.03581681789947906
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 73.40501792114695
+plus/minus:  0.013744012571993537
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 38.53333333333334
+plus/minus:  0.01975854245636555
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 35.266666666666666
+plus/minus:  0.019178691879849954
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 73.9784946236559
+plus/minus:  0.010880955389826677
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 37.26666666666666
+plus/minus:  0.02622636502114279
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.1111111111111
+plus/minus:  0.01561342324308184
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 37.2
+plus/minus:  0.02549422592579652
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 33.599999999999994
+plus/minus:  0.022643125029710696
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.61290322580645
+plus/minus:  0.009390407394301248
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 69.85663082437277
+plus/minus:  0.020463407433621645
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 72.58064516129032
+plus/minus:  0.01409290555651433
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 37.53333333333333
+plus/minus:  0.023705601775857864
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 72.22222222222221
+plus/minus:  0.014310010593316934
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 37.8
+plus/minus:  0.020660214046433412
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 39.733333333333334
+plus/minus:  0.02545235199784535
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.78853046594982
+plus/minus:  0.014129321393854494
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 69.49820788530465
+plus/minus:  0.013118475427959918
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 35.4
+plus/minus:  0.031066952788381993
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 72.11469534050178
+plus/minus:  0.012282982073464593
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.17921146953404
+plus/minus:  0.01928302087867518
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 36.666666666666664
+plus/minus:  0.020044395171163878
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.4336917562724
+plus/minus:  0.014969897810929632
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 69.82078853046596
+plus/minus:  0.021667252171828025
+
+RESULTS FOR mutag (MoE), with None:
+average acc: 81.27659574468085
+plus/minus:  0.032741079253908685
+
+RESULTS FOR mutag (MoE), with None:
+average acc: 84.25531914893615
+plus/minus:  0.028482043456479172
+
+RESULTS FOR mutag (MoE), with None:
+average acc: 88.51063829787235
+plus/minus:  0.035296070388642936
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 69.64157706093191
+plus/minus:  0.015476236004264773
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 36.733333333333334
+plus/minus:  0.028933640551364343
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.39426523297492
+plus/minus:  0.013721561134343098
+
+RESULTS FOR mutag (MoE), with None:
+average acc: 82.97872340425532
+plus/minus:  0.03806073153191131
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 68.88888888888889
+plus/minus:  0.011638539780703889
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.79211469534049
+plus/minus:  0.02080212137614876
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 34.53333333333334
+plus/minus:  0.03259447805994138
+
+RESULTS FOR mutag (MoE), with None:
+average acc: 83.82978723404256
+plus/minus:  0.04099266239588867
+
+RESULTS FOR enzymes (MoE), with None:
+average acc: 37.86666666666666
+plus/minus:  0.01826228657948153
+
+RESULTS FOR mutag (MoE), with None:
+average acc: 83.40425531914894
+plus/minus:  0.054361598034625744
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.79211469534049
+plus/minus:  0.012500690491071356
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.10752688172043
+plus/minus:  0.01423620540479588
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.21505376344086
+plus/minus:  0.012639682165385626
+
+RESULTS FOR mutag (MoE), with None:
+average acc: 86.38297872340426
+plus/minus:  0.025814044064856337
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.21505376344086
+plus/minus:  0.013157588440895616
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.96774193548387
+plus/minus:  0.013100836474908277
+
+RESULTS FOR mutag (MoE), with None:
+average acc: 86.80851063829786
+plus/minus:  0.05567805015760384
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 69.46236559139784
+plus/minus:  0.014857917027133037
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 72.75985663082436
+plus/minus:  0.01503668599527098
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 70.89605734767026
+plus/minus:  0.02082064013827446
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.86379928315412
+plus/minus:  0.021772534119695243
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.43369175627241
+plus/minus:  0.019815310967379686
+
+RESULTS FOR proteins (MoE), with None:
+average acc: 71.29032258064515
+plus/minus:  0.01727732412013504
 
