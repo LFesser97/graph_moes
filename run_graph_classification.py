@@ -141,9 +141,9 @@ datasets = {
     "cifar": cifar,
     "pattern": pattern,
     # LRGB datasets:
-    # "cluster": cluster,
-    # "pascalvoc": pascalvoc,
-    # "coco": coco,
+    "cluster": cluster,
+    "pascalvoc": pascalvoc,
+    "coco": coco,
     # # OGB datasets:
     # "molhiv": molhiv,
     # "molpcba": molpcba,
