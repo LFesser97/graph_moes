@@ -1,13 +1,20 @@
 # README:
 
 - run locally again and run mamba env export > environment_SAVED.yml
-- Get parameters from the paper
-- Run on the cluster
-
+- Get parameters from the paper [DONE]
+- Run on the cluster [ABLE!]
+ 
 - TODO / IDEAS:
 - Hypergraph encodings > add something to store them too
 - Not doing rewiring anymore
-- Todo: add pylint github action
+
+
+Immediate TODOs:
+- Reorganise the repo into src/ and scripts/ + split the scripts into smaller files?
+- Add plotting functionality
+- Fix the missing dataset (ogb causing trouble becuase of sklearn > scipy)
+- Todo: add pylint/myy github action
+- Todo: lower priority: add tests
 
 
 # Graph Mixture of Experts (Graph MoE)
