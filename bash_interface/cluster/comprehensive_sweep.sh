@@ -16,7 +16,7 @@ export WANDB_PROJECT="MOE"
 export WANDB_DIR="./wandb"
 export WANDB_CACHE_DIR="./wandb/.cache"
 
-mkdir -p ./wandb logs
+mkdir -p ./wandb logs logs_comprehensiv
 
 echo "✅ WandB environment configured"
 echo "   Entity: $WANDB_ENTITY"
@@ -49,15 +49,7 @@ source activate moe
 # Navigate to project directory
 cd /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes
 
-# Fix SciPy compatibility with NumPy 2.x
-log_message "🔧 Upgrading SciPy for NumPy 2.x compatibility..."
-mamba install "scipy>=1.14.0" -y
 
-# Quick verification
-python -c "import numpy, pandas, torch, scipy, sklearn; print('✅ Core packages available')" || {
-    log_message "❌ Core packages not available"
-    exit 1
-}
 
 # Define all layer type combinations
 declare -a single_layer_types=(
