@@ -1,3 +1,8 @@
+"""Real valued layers used to build GNN architecutes.
+
+These are building blocks of eg the OrthogonalGCN architecture.
+"""
+
 from typing import Optional
 
 import torch

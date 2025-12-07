@@ -1,3 +1,5 @@
+"""Perfomrs the training of the graph classification tasks."""
+
 import copy
 import random
 

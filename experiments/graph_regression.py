@@ -1,3 +1,5 @@
+"""Performs the training of the graph regression tasks."""
+
 import copy
 import os
 import random

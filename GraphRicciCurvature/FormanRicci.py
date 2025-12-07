@@ -1,3 +1,8 @@
+"""Scripts to compute the Forman-Ricci curvature of egdges on graph.
+
+This is less expensive that computing the Ollivier-Ricci curvature.
+"""
+
 import torch
 
 # torch.multiprocessing.set_start_method('spawn')
@@ -59,8 +64,7 @@ def _compute_afrc_edges(G: nx.Graph, weight="weight", edge_list=[]) -> dict:
 
 
 def _simple_cycles(G: nx.Graph, limit: int = 3):
-    """
-    Find simple cycles (elementary circuits) of a graph up to a given length.
+    """Find simple cycles (elementary circuits) of a graph up to a given length.
 
     Parameters
     ----------
@@ -104,8 +108,7 @@ def _simple_cycles(G: nx.Graph, limit: int = 3):
 
 
 def _compute_afrc(G: nx.Graph, weight: str = "weight") -> nx.Graph:
-    """
-    Compute Augmented Forman-Ricci curvature for a given NetworkX graph.
+    """Compute Augmented Forman-Ricci curvature for a given NetworkX graph.
 
     Parameters
     ----------
@@ -138,9 +141,7 @@ def _compute_afrc(G: nx.Graph, weight: str = "weight") -> nx.Graph:
 
 
 class FormanRicci:
-    """
-    A class to compute Forman-Ricci curvature for a given NetworkX graph.
-    """
+    """A class to compute Forman-Ricci curvature for a given NetworkX graph."""
 
     def __init__(self, G: nx.Graph, weight: str = "weight"):
         """
@@ -175,8 +176,7 @@ class FormanRicci:
             self.G.remove_edges_from(self_loop_edges)
 
     def compute_afrc_edges(self, edge_list=None):
-        """
-        Compute Augmented Forman-Ricci curvature for edges in  given edge lists.
+        """Compute Augmented Forman-Ricci curvature for edges in  given edge lists.
 
         Parameters
         ----------

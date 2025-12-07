@@ -246,7 +246,7 @@ class Router(nn.Module):
 ######################### MoE Models ###########################################
 ################################################################################
 
-# This is basically ROuters outputs + Experts outputs
+# This is basically Routers outputs + Experts outputs
 
 
 class MoE(nn.Module):

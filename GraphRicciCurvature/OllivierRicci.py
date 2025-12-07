@@ -1,3 +1,5 @@
+"""Scripts to compute the Ollivier-Ricci curvature of edges on a graph."""
+
 import heapq
 import importlib
 import math
