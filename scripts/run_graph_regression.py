@@ -298,7 +298,9 @@ for key in datasets:
     val_ci = 2 * np.std(validation_accuracies) / (args.num_trials**0.5)
     test_ci = 2 * np.std(test_accuracies) / (args.num_trials**0.5)
     energy_ci = 200 * np.std(energies) / (args.num_trials**0.5)
-    log_to_file(f"RESULTS FOR {key} ({args.layer_type}), with {args.encoding}:\n")
+    log_to_file(
+        f"RESULTS FOR dataset: {key} (model: {args.layer_type}), with encodings: {args.encoding}:\n"
+    )
     log_to_file(f"average mae: {test_mean}\n")
     log_to_file(f"plus/minus:  {test_ci}\n\n")
 
