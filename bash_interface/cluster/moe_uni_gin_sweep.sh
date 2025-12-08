@@ -74,11 +74,11 @@ fi
 cd /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes
 
 # Verify we're in the right directory
-if [[ -f "run_graph_classification.py" ]]; then
+if [[ -f "scripts/run_graph_classification.py" ]]; then
     log_message "✅ Successfully navigated to project directory: $(pwd)"
 else
     log_message "❌ Failed to find project files in: $(pwd)"
-    log_message "🔍 Looking for run_graph_classification.py"
+    log_message "🔍 Looking for scripts/run_graph_classification.py"
     exit 1
 fi
 
@@ -94,7 +94,7 @@ source /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface/clus
 
 # Define datasets to run experiments on
 datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern)
-# # All available datasets from run_graph_classification.py
+# # All available datasets from scripts/run_graph_classification.py
 # datasets=(mutag enzymes proteins imdb collab reddit mnist cifar pattern cluster pascalvoc coco molhiv molpcba)
 
 # Calculate which dataset this task should run
@@ -125,7 +125,7 @@ wandb_run_name="${dataset}_GIN_Unitary_L${num_layer}_H${hidden_dim}_lr${learning
 log_message "WandB run name: $wandb_run_name"
 
 # Run the experiment with wandb enabled using research-based hyperparameters
-python run_graph_classification.py \
+python scripts/run_graph_classification.py \
     --num_trials 5 \
     --dataset "$dataset" \
     --learning_rate "$learning_rate" \

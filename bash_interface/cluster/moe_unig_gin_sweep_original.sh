@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=moe_gcn_gin_array
-#SBATCH --array=1-10              # Total datasets: 10 datasets with optimal hyperparameters each
+#SBATCH --job-name=moe_uni_gin_array
+#SBATCH --array=1-48              # Total combinations: 2 datasets × 2 lr × 2 hidden × 2 layers × 3 dropout = 48
 #SBATCH --ntasks=1
-#SBATCH --time=8:00:00           # Shorter time per individual job
-#SBATCH --mem=64GB               # Less memory per job
-#SBATCH --output=logs_gcn_sweep/moe_gcn_gin_%A_%a.log  # %A = array job ID, %a = task ID
+#SBATCH --time=8:00:00
+#SBATCH --mem=64GB
+#SBATCH --output=logs_uni_gin/moe_uni_gin_%A_%a.log  # %A = array job ID, %a = task ID
 #SBATCH --partition=mweber_gpu
 #SBATCH --gpus=1
 
@@ -25,7 +25,7 @@ mkdir -p ./wandb
 
 echo "✅ WandB environment configured:"
 echo "   Entity: $WANDB_ENTITY"
-echo "   Project: $WANDB_PROJECT" 
+echo "   Project: $WANDB_PROJECT"
 echo "   API Key: ${WANDB_API_KEY:0:10}..."
 echo "   Directory: $WANDB_DIR"
 
@@ -40,17 +40,14 @@ fi
 echo "🎉 WandB setup complete!"
 
 # Create logs directory
-mkdir -p logs logs_gcn_sweep 
+mkdir -p logs
 
 # Function to log messages with timestamp
 log_message() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Task $SLURM_ARRAY_TASK_ID] $1"
 }
 
-log_message "Starting MoE GCN+GIN task $SLURM_ARRAY_TASK_ID"
-
-# Load Python module and activate mamba environment
-# module load python/3.10.12-fasrc01
+log_message "Starting MoE GIN+Unitary task $SLURM_ARRAY_TASK_ID"
 
 # Set environment path and activate moe environment
 export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
@@ -85,7 +82,6 @@ else
     exit 1
 fi
 
-
 # Quick verification that packages work
 log_message "🔍 Quick package verification..."
 python -c "import numpy, pandas, torch; print('✅ Core packages available')" || {
@@ -93,54 +89,69 @@ python -c "import numpy, pandas, torch; print('✅ Core packages available')" ||
     exit 1
 }
 
-# Load hyperparameter lookup function
-source /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface/cluster/hyperparams_lookup.sh
-
-# Define datasets to run experiments on
-datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern)
+# Define hyperparameter combinations
+datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern cluster)
 # # All available datasets from scripts/run_graph_classification.py
 # datasets=(mutag enzymes proteins imdb collab reddit mnist cifar pattern cluster pascalvoc coco molhiv molpcba)
 
-# Calculate which dataset this task should run
-# Each dataset gets optimal hyperparameters from research paper
-task_id=${SLURM_ARRAY_TASK_ID:-1}
-total_datasets=${#datasets[@]}
-dataset_idx=$((($task_id - 1) % $total_datasets))
-dataset=${datasets[$dataset_idx]}
+learning_rates=(0.001 0.0001)
+hidden_dims=(64 128)
+num_layers_list=(4 6)
+dropouts=(0.0 0.1 0.2)
 
-# Get optimal hyperparameters for this dataset and model combination
-# For MoE with GCN+GIN, use GCN+ as base
-get_hyperparams "$dataset" "GCN"
+# Calculate which combination this task should run
+# Total combinations per dataset: 2 × 2 × 2 × 3 = 24
+# Task 1-24: proteins, Task 25-48: mutag
 
-# Extract hyperparameters from the lookup function
-learning_rate=$HYPERPARAM_LEARNING_RATE
-hidden_dim=$HYPERPARAM_HIDDEN_DIM
-num_layer=$HYPERPARAM_NUM_LAYERS
-dropout=$HYPERPARAM_DROPOUT
-batch_size=$HYPERPARAM_BATCH_SIZE
-epochs=$HYPERPARAM_EPOCHS
-patience=$HYPERPARAM_PATIENCE
+task_id=$SLURM_ARRAY_TASK_ID
+if [ $task_id -le 24 ]; then
+    dataset="proteins"
+    combo_id=$((task_id - 1))
+else
+    dataset="mutag"
+    combo_id=$((task_id - 25))
+fi
+
+# Convert combo_id to specific hyperparameters
+total_lr=${#learning_rates[@]}
+total_hd=${#hidden_dims[@]}
+total_nl=${#num_layers_list[@]}
+total_do=${#dropouts[@]}
+
+# Calculate indices using modular arithmetic
+do_idx=$((combo_id % total_do))
+combo_id=$((combo_id / total_do))
+nl_idx=$((combo_id % total_nl))
+combo_id=$((combo_id / total_nl))
+hd_idx=$((combo_id % total_hd))
+lr_idx=$((combo_id / total_hd))
+
+# Get actual values
+learning_rate=${learning_rates[$lr_idx]}
+hidden_dim=${hidden_dims[$hd_idx]}
+num_layer=${num_layers_list[$nl_idx]}
+dropout=${dropouts[$do_idx]}
 
 log_message "Configuration: dataset=$dataset, lr=$learning_rate, hidden_dim=$hidden_dim, num_layers=$num_layer, dropout=$dropout"
 
 # Generate wandb run name for this specific task
-wandb_run_name="${dataset}_GCN_GIN_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
+wandb_run_name="${dataset}_GIN_Unitary_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
 
 log_message "WandB run name: $wandb_run_name"
 
 # Run the experiment with wandb enabled
 python scripts/run_graph_classification.py \
-    --num_trials 10 \
+    --num_trials 5 \
     --dataset "$dataset" \
     --learning_rate "$learning_rate" \
     --hidden_dim "$hidden_dim" \
     --num_layers "$num_layer" \
     --dropout "$dropout" \
-    --patience "$patience" \
-    --layer_types '["GCN", "GIN"]' \
+    --patience 50 \
+    --layer_types '["GIN", "Unitary"]' \
     --wandb_enabled \
     --wandb_name "$wandb_run_name" \
-    --wandb_tags '["cluster", "sweep", "gcn_gin"]'
+    --wandb_tags '["cluster", "sweep", "gin_unitary"]'
 
 # Check exit status
 if [ $? -eq 0 ]; then

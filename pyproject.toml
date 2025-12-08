@@ -102,7 +102,8 @@ run-graph-classification = "run_graph_classification:main"
 run-graph-regression = "run_graph_regression:main"
 
 [tool.setuptools]
-packages = ["models", "experiments", "GraphRicciCurvature"]
+packages = {find = {}}
+package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
 "*" = ["*.py", "*.yml", "*.md"]
@@ -129,7 +130,7 @@ extend-exclude = '''
 profile = "black"
 multi_line_output = 3
 line_length = 88
-known_first_party = ["models", "experiments", "GraphRicciCurvature"]
+known_first_party = ["graph_moes"]
 
 [tool.mypy]
 python_version = "3.9"

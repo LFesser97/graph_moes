@@ -174,7 +174,7 @@ pip install graphriccicurvature numba tqdm
 
 **Basic Example - MUTAG dataset:**
 ```bash
-python run_graph_classification.py \
+python scripts/run_graph_classification.py \
     --dataset mutag \
     --layer_type GCN \
     --num_trials 10 \
@@ -184,7 +184,7 @@ python run_graph_classification.py \
 
 **Mixture of Experts:**
 ```bash
-python run_graph_classification.py \
+python scripts/run_graph_classification.py \
     --dataset enzymes \
     --layer_types '["GCN", "GIN"]' \
     --num_trials 10 \
@@ -194,7 +194,7 @@ python run_graph_classification.py \
 
 **With Structural Encoding:**
 ```bash
-python run_graph_classification.py \
+python scripts/run_graph_classification.py \
     --dataset proteins \
     --layer_type GIN \
     --encoding LCP \
@@ -329,7 +329,7 @@ The Local Curvature Profile (LCP) encoding computes Ollivier-Ricci curvature sta
 
 ### Router Configuration for MoE
 ```bash
-python run_graph_classification.py \
+python scripts/run_graph_classification.py \
     --dataset proteins \
     --layer_types '["GCN", "Unitary"]' \
     --router_type GNN \
@@ -340,7 +340,7 @@ python run_graph_classification.py \
 
 ### Deep Network with Unitary Layers
 ```bash
-python run_graph_classification.py \
+python scripts/run_graph_classification.py \
     --dataset enzymes \
     --layer_type Unitary \
     --num_layers 8 \
