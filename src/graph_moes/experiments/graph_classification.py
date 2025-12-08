@@ -2,13 +2,12 @@
 
 import copy
 import random
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from attrdict import AttrDict
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset, Subset, random_split
-from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from torcheval.metrics import MultilabelAUPRC  # might need to comment out on cluster?
 from tqdm import tqdm

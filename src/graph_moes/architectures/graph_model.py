@@ -47,7 +47,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch_geometric.data import Batch, Data
 from torch.nn import (
     BatchNorm1d,
     Dropout,
@@ -59,6 +58,7 @@ from torch.nn import (
     Sequential,
     Sigmoid,
 )
+from torch_geometric.data import Batch, Data
 from torch_geometric.nn import (
     FiLMConv,
     GATConv,
