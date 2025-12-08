@@ -1,8 +1,6 @@
 import copy
 import random
 
-# from torcheval.metrics import MultilabelAUPRC
-
 import torch
 
 # from measure_smoothing import dirichlet_normalized
@@ -10,11 +8,14 @@ from attrdict import AttrDict
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Subset, random_split
 from torch_geometric.loader import DataLoader
+from tqdm import tqdm
 
 import wandb
 from models.graph_model import GNN, GPS, OrthogonalGCN, UnitaryGCN
 from models.graph_moe import MoE, MoE_E
-from tqdm import tqdm
+
+# from torcheval.metrics import MultilabelAUPRC
+
 
 default_args = AttrDict(
     {

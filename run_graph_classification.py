@@ -19,10 +19,10 @@ import torch
 import torch_geometric.transforms as T
 from attrdict import AttrDict
 from torch_geometric.data import Data
-from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
 
 # from ogb.graphproppred import PygGraphPropPredDataset
-from torch_geometric.datasets import LRGBDataset
+from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
+from torch_geometric.datasets.lrgb import LRGBDataset
 
 # import custom encodings
 from tqdm import tqdm
@@ -57,12 +57,12 @@ print("💾 Encoded datasets: ./data/")
 # New datasets
 print("📊 Loading NEW benchmark datasets...")
 print("  ⏳ Loading MNIST superpixel graphs...")
-# mnist = list(GNNBenchmarkDataset(root=data_directory, name="MNIST"))
-# print(f"  ✅ MNIST loaded: {len(mnist)} graphs")
+mnist = list(GNNBenchmarkDataset(root=data_directory, name="MNIST"))
+print(f"  ✅ MNIST loaded: {len(mnist)} graphs")
 
 print("  ⏳ Loading CIFAR10 superpixel graphs...")
-# cifar = list(GNNBenchmarkDataset(root=data_directory, name="CIFAR10"))
-# print(f"  ✅ CIFAR10 loaded: {len(cifar)} graphs")
+cifar = list(GNNBenchmarkDataset(root=data_directory, name="CIFAR10"))
+print(f"  ✅ CIFAR10 loaded: {len(cifar)} graphs")
 
 print("  ⏳ Loading PATTERN synthetic graphs...")
 pattern = list(GNNBenchmarkDataset(root=data_directory, name="PATTERN"))
@@ -96,7 +96,7 @@ print(f"  ✅ REDDIT-BINARY loaded: {len(reddit)} graphs")
 
 print("and yet more...")
 
-# # Add to run_graph_classification.py
+# Add to run_graph_classification.py
 # print("  ⏳ Loading ogbg-molhiv...")
 # molhiv = PygGraphPropPredDataset(name="ogbg-molhiv", root=data_directory)
 # print(f"  ✅ ogbg-molhiv loaded: {len(molhiv)} graphs")
@@ -144,7 +144,7 @@ datasets = {
     # "cluster": cluster,
     # "pascalvoc": pascalvoc,
     # "coco": coco,
-    # OGB datasets:
+    # # OGB datasets:
     # "molhiv": molhiv,
     # "molpcba": molpcba,
 }
@@ -343,6 +343,17 @@ for key in datasets:
                     **dict(args),
                     "trial_num": trial + 1,
                     "dataset": key,
+                    # Add grouping variables:
+                    "dataset_name": key,  # For grouping by dataset
+                    "is_moe": args.layer_types
+                    is not None,  # Boolean for MoE vs single layer
+                    "model_type": (
+                        "MoE" if args.layer_types is not None else args.layer_type
+                    ),
+                    "num_layers": args.num_layers,
+                    "layer_combination": (
+                        str(args.layer_types) if args.layer_types else args.layer_type
+                    ),
                 },
                 dir=args.wandb_dir,
                 tags=list(args.wandb_tags or []) + [f"trial_{trial + 1}"],
@@ -373,6 +384,13 @@ for key in datasets:
                         "final/val_acc": validation_acc,
                         "final/test_acc": test_acc,
                         "final/energy": energy,
+                        # Add grouping variables:
+                        "groupby/dataset": key,
+                        "groupby/model_type": (
+                            "MoE" if args.layer_types else args.layer_type
+                        ),
+                        "groupby/is_moe": args.layer_types is not None,
+                        "groupby/num_layers": args.num_layers,
                     }
                 )
 
@@ -465,6 +483,11 @@ for key in datasets:
                 "trials/val_accs": validation_accuracies,
                 "trials/test_accs": test_accuracies,
                 "trials/energies": energies,
+                # Add grouping variables:
+                "groupby/dataset": key,
+                "groupby/model_type": "MoE" if args.layer_types else args.layer_type,
+                "groupby/is_moe": args.layer_types is not None,
+                "groupby/num_layers": args.num_layers,
             }
         )
 

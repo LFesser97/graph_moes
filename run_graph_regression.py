@@ -23,13 +23,13 @@ from attrdict import AttrDict
 from torch_geometric.data import Data
 from torch_geometric.datasets import ZINC
 
-# import custom encodings
-
 # Add wandb imports
 import wandb
 from custom_encodings import LocalCurvatureProfile
 from experiments.graph_regression import Experiment
 from hyperparams import get_args_from_input
+
+# import custom encodings
 
 
 def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
@@ -224,6 +224,16 @@ for key in datasets:
                     **dict(args),
                     "trial_num": trial + 1,
                     "dataset": key,
+                    # Add grouping variables:
+                    "dataset_name": key,
+                    "is_moe": hasattr(args, "layer_types")
+                    and args.layer_types is not None,
+                    "model_type": (
+                        "MoE"
+                        if hasattr(args, "layer_types") and args.layer_types
+                        else args.layer_type
+                    ),
+                    "num_layers": args.num_layers,
                 },
                 dir=args.wandb_dir,
                 tags=list(args.wandb_tags or []) + [f"trial_{trial + 1}"],
@@ -249,6 +259,16 @@ for key in datasets:
                         "final/val_mae": validation_acc,
                         "final/test_mae": test_acc,
                         "final/energy": energy,
+                        # Add grouping variables:
+                        "groupby/dataset": key,
+                        "groupby/model_type": (
+                            "MoE"
+                            if hasattr(args, "layer_types") and args.layer_types
+                            else args.layer_type
+                        ),
+                        "groupby/is_moe": hasattr(args, "layer_types")
+                        and args.layer_types is not None,
+                        "groupby/num_layers": args.num_layers,
                     }
                 )
 
@@ -319,6 +339,16 @@ for key in datasets:
                 "dataset": key,
                 "run_type": "summary",
                 "num_trials": args.num_trials,
+                # Add grouping variables:
+                "groupby/dataset": key,
+                "groupby/model_type": (
+                    "MoE"
+                    if hasattr(args, "layer_types") and args.layer_types
+                    else args.layer_type
+                ),
+                "groupby/is_moe": hasattr(args, "layer_types")
+                and args.layer_types is not None,
+                "groupby/num_layers": args.num_layers,
             },
             dir=args.wandb_dir,
             tags=list(args.wandb_tags or []) + ["summary"],
