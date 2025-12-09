@@ -1,4 +1,22 @@
 #!/bin/bash
+# ============================================================================
+# Comprehensive Graph MoE Sweep - Parallel Array Job Version
+# ============================================================================
+# This script runs a comprehensive hyperparameter sweep for graph neural network
+# experiments using SLURM array jobs for parallel execution. It tests both single
+# layer architectures (GCN, GIN, SAGE, MLP, Unitary) and MoE (Mixture of Experts)
+# combinations across multiple datasets.
+#
+# The script uses optimal hyperparameters from research papers for each dataset
+# and model combination, loaded from hyperparams_lookup.sh.
+#
+# Total experiments: 110
+#   - 50 single layer experiments: 5 layer types × 10 datasets
+#   - 60 MoE experiments: 6 layer combinations × 10 datasets
+#
+# Usage: sbatch comprehensive_sweep_parallel.sh
+# ============================================================================
+
 #SBATCH --job-name=comprehensive_sweep
 #SBATCH --array=1-110             # Total experiments: 50 single layer + 60 MoE = 110
 #SBATCH --ntasks=1

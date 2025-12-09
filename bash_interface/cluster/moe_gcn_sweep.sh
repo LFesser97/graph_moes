@@ -1,4 +1,24 @@
 #!/bin/bash
+# ============================================================================
+# MoE GCN+GIN Sweep with Research-Based Hyperparameters
+# ============================================================================
+# This script runs MoE (Mixture of Experts) experiments combining GCN and GIN
+# layer types across multiple datasets using optimal hyperparameters from research
+# papers. It uses SLURM array jobs to run experiments in parallel.
+#
+# Each array task runs one dataset with optimal hyperparameters loaded from
+# hyperparams_lookup.sh. The hyperparameters are based on GCN settings for the
+# given dataset.
+#
+# Configuration:
+#   - Layer types: ["GCN", "GIN"] (MoE combination)
+#   - Number of trials: 10 per experiment
+#   - Hyperparameters: Research-based optimal values per dataset
+#   - Datasets: enzymes, proteins, mutag, imdb, collab, reddit, mnist, cifar, pattern
+#
+# Usage: sbatch moe_gcn_sweep.sh
+# ============================================================================
+
 #SBATCH --job-name=moe_gcn_gin_array
 #SBATCH --array=1-10              # Total datasets: 10 datasets with optimal hyperparameters each
 #SBATCH --ntasks=1

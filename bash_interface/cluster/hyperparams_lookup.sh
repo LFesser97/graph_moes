@@ -1,6 +1,27 @@
 #!/bin/bash
-# Hyperparameter lookup function based on research paper
-# https://arxiv.org/pdf/2502.09263
+# ============================================================================
+# Hyperparameter Lookup Function
+# ============================================================================
+# This script provides a function to retrieve optimal hyperparameters for graph
+# neural network experiments based on research paper findings.
+# Reference: https://arxiv.org/pdf/2502.09263
+#
+# The function get_hyperparams(dataset, model_type) returns optimal values for:
+#   - hidden_dim: Hidden dimension size
+#   - num_layers: Number of graph neural network layers
+#   - learning_rate: Learning rate for optimizer
+#   - dropout: Dropout rate
+#   - batch_size: Batch size for training
+#   - epochs: Number of training epochs
+#   - patience: Early stopping patience
+#
+# Supported datasets: mutag, enzymes, proteins, mnist, cifar, pattern, cluster,
+#                     zinc, molhiv, molpcba
+# Supported model types: GCN, GCN+, GIN, GIN+, and others (defaults for MoE)
+#
+# Usage: source this file, then call get_hyperparams "dataset" "model_type"
+#        Access results via exported variables: HYPERPARAM_HIDDEN_DIM, etc.
+# ============================================================================
 
 get_hyperparams() {
     local dataset=$1

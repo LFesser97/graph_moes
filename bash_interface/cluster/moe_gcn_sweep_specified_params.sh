@@ -1,4 +1,24 @@
 #!/bin/bash
+# ============================================================================
+# MoE GCN+GIN Hyperparameter Sweep
+# ============================================================================
+# This script runs a hyperparameter sweep for MoE (Mixture of Experts) experiments
+# combining GCN and GIN layer types. It uses SLURM array jobs to test different
+# hyperparameter combinations in parallel.
+#
+# The script sweeps over:
+#   - Datasets: enzymes, proteins (2 datasets)
+#   - Learning rates: 0.001, 0.0001 (2 values)
+#   - Hidden dimensions: 64, 128 (2 values)
+#   - Number of layers: 4, 5, 6, 7 (4 values)
+#   - Dropout rates: 0.0, 0.1, 0.2 (3 values)
+#
+# Total combinations: 2 × 2 × 2 × 4 × 3 = 96 experiments
+# Each experiment runs 10 trials.
+#
+# Usage: sbatch moe_gcn_sweep_specified_params.sh
+# ============================================================================
+
 #SBATCH --job-name=moe_gcn_gin_array
 #SBATCH --array=1-96              # Total combinations: 2 datasets × 2 lr × 2 hidden × 4 layers × 3 dropout = 96
 #SBATCH --ntasks=1

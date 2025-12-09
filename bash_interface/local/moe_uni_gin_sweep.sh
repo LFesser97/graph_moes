@@ -1,7 +1,26 @@
 #!/usr/bin/env bash
-
-# A script to sweep over specific hyperparameters for multiple datasets
-# and run: python -m src.run --num_runs 10 --model dir-uni
+# ============================================================================
+# MoE GIN+Unitary Hyperparameter Sweep - Local Execution
+# ============================================================================
+# This script runs a hyperparameter sweep for MoE (Mixture of Experts) experiments
+# combining GIN and Unitary layer types. Designed for local execution (not cluster).
+# It sequentially tests different hyperparameter combinations.
+#
+# The script sweeps over:
+#   - Datasets: proteins, mutag (2 datasets)
+#   - Learning rates: 0.001, 0.0001 (2 values)
+#   - Hidden dimensions: 64, 128 (2 values)
+#   - Number of layers: 4, 6 (2 values)
+#   - Dropout rates: 0.0, 0.1, 0.2 (3 values)
+#
+# Total combinations per dataset: 2 × 2 × 2 × 3 = 24 experiments
+# Total experiments: 2 datasets × 24 = 48 experiments
+# Each experiment runs 5 trials.
+#
+# All results are logged to WandB with tags: ["local", "sweep", "gin_unitary"]
+#
+# Usage: ./moe_uni_gin_sweep.sh
+# ============================================================================
 
 # WandB Environment Setup for Graph MoE Experiments
 echo "🚀 Setting up WandB environment for Graph MoE experiments..."
