@@ -1,4 +1,26 @@
 #!/bin/bash
+# ============================================================================
+# Comprehensive Graph MoE Sweep - Sequential Version
+# ============================================================================
+# This script runs a comprehensive hyperparameter sweep for graph neural network
+# experiments sequentially (one after another). It tests both single layer
+# architectures (GCN, GIN, SAGE, MLP, Unitary) and MoE (Mixture of Experts)
+# combinations across multiple datasets.
+#
+# Unlike the parallel version, this runs all experiments in a single job,
+# executing them one by one. This is useful when you want to ensure experiments
+# run in order or when array jobs are not available.
+#
+# The script uses optimal hyperparameters from research papers for each dataset
+# and model combination, loaded from hyperparams_lookup.sh.
+#
+# Total experiments: 110
+#   - 50 single layer experiments: 5 layer types × 10 datasets
+#   - 60 MoE experiments: 6 layer combinations × 10 datasets
+#
+# Usage: sbatch comprehensive_sweep.sh
+# ============================================================================
+
 #SBATCH --job-name=comprehensive_sweep
 #SBATCH --ntasks=1
 #SBATCH --time=48:00:00           # Long time for comprehensive sweep

@@ -1,4 +1,24 @@
 #!/bin/bash
+# ============================================================================
+# MoE GIN+Unitary Hyperparameter Sweep
+# ============================================================================
+# This script runs a hyperparameter sweep for MoE (Mixture of Experts) experiments
+# combining GIN and Unitary layer types. It uses SLURM array jobs to test different
+# hyperparameter combinations in parallel.
+#
+# The script sweeps over:
+#   - Datasets: proteins, mutag (2 datasets)
+#   - Learning rates: 0.001, 0.0001 (2 values)
+#   - Hidden dimensions: 64, 128 (2 values)
+#   - Number of layers: 4, 6 (2 values)
+#   - Dropout rates: 0.0, 0.1, 0.2 (3 values)
+#
+# Total combinations: 2 × 2 × 2 × 2 × 3 = 48 experiments
+# Each experiment runs 5 trials.
+#
+# Usage: sbatch moe_unig_gin_sweep_specified_params.sh
+# ============================================================================
+
 #SBATCH --job-name=moe_uni_gin_array
 #SBATCH --array=1-48              # Total combinations: 2 datasets × 2 lr × 2 hidden × 2 layers × 3 dropout = 48
 #SBATCH --ntasks=1
