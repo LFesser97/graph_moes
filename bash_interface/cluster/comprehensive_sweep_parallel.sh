@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --time=48:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=64GB               # Sufficient memory
-#SBATCH --output=logs_comprehensive/comprehensive_sweep_%A_%a.log  # %A = array job ID, %a = task ID
+#SBATCH --output=logs_comprehensive/Parrallel_comprehensive_sweep_%A_%a.log  # %A = array job ID, %a = task ID
 #SBATCH --partition=mweber_gpu
 #SBATCH --gpus=1
 
