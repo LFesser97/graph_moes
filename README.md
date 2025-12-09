@@ -1,24 +1,36 @@
-# README:
-
-- run locally again and run mamba env export > environment_SAVED.yml
-- Get parameters from the paper
-- Run on the cluster
-
-- TODO / IDEAS:
-- Hypergraph encodings > add something to store them too
-- Not doing rewiring anymore
-- Todo: add pylint github action
-
+# README
 
 # Graph Mixture of Experts (Graph MoE)
 
 A PyTorch implementation of Graph Neural Networks with Mixture of Experts (MoE) architectures and heterogeneous layer types for graph classification and regression tasks.
 
+## TODO
+
+- run locally again and run mamba env export > environment_SAVED.yml
+- Get parameters from the paper [DONE]
+- Run on the cluster [ABLE!]
+ 
+- TODO / IDEAS:
+- Hypergraph encodings > add something to store them too
+- Not doing rewiring anymore
+
+
+Immediate TODOs:
+- Reorganise the repo into src/ and scripts/ + split the scripts into smaller files?
+for example src/models/moe/routers, src/models/layers, src/models/architectures
+src/encodings/curtom_encodings etc. This will help make the repo much more organised and easy to use.
+- Add plotting functionality: super important. See the losses (or extract them from wandb),
+see the performance of each model of each graph (repeated ten times)
+- Fix the missing dataset (ogb causing trouble becuase of sklearn > scipy)
+- Todo: add pylint/mypy github action
+- Todo: lower priority: add tests
+
+
 ## Overview
 
 This repository implements two main research contributions:
 
-1. **Heterogeneneity in Graph Learning**: Investigation of diverse GNN architectures including complex-valued (Unitary) and orthogonal transformations alongside traditional methods
+1. **Heterogeneneity in Graph Learning**: Investigation of diverse GNN architectures including complex-valued (Unitary) and orthogonal transformations alongside traditional methods. Exploring which graph are always misclassified.
 2. **Graph Mixture of Experts (MoE)**: Dynamic routing mechanisms that select between different GNN expert architectures based on graph characteristics
 
 The codebase supports extensive experimentation with different GNN layer types, structural encodings, and curvature-based graph features.
@@ -62,7 +74,7 @@ graph_moes/
 ### Environment Setup
 
 
-### Option 1: Conda Environment (Recommended)
+#### Option 1: Conda Environment (Recommended)
 Use the provided `environment.yml`:
 
 ```bash
@@ -100,7 +112,7 @@ pip install torch-geometric torch-scatter torch-sparse torch-cluster -f https://
 ```
 
 
-On the cluser:
+### On the cluser:
 
 ```
 # 1. Set up environment variables for lab space
@@ -140,6 +152,8 @@ conda info --envs
 python -c "import torch_geometric; print(torch_geometric.__version__)"
 ```
 
+ON THE CLUSER I HAD scikit-learn==1.2.2 and this was working!
+
 
 ### Manual Installation (Alternative)
 
@@ -160,7 +174,7 @@ pip install graphriccicurvature numba tqdm
 
 **Basic Example - MUTAG dataset:**
 ```bash
-python run_graph_classification.py \
+python scripts/run_graph_classification.py \
     --dataset mutag \
     --layer_type GCN \
     --num_trials 10 \
@@ -170,7 +184,7 @@ python run_graph_classification.py \
 
 **Mixture of Experts:**
 ```bash
-python run_graph_classification.py \
+python scripts/run_graph_classification.py \
     --dataset enzymes \
     --layer_types '["GCN", "GIN"]' \
     --num_trials 10 \
@@ -180,7 +194,7 @@ python run_graph_classification.py \
 
 **With Structural Encoding:**
 ```bash
-python run_graph_classification.py \
+python scripts/run_graph_classification.py \
     --dataset proteins \
     --layer_type GIN \
     --encoding LCP \
@@ -202,7 +216,7 @@ python run_graph_regression.py \
 
 ## Supported Datasets
 
-# Overview of the datasets used for graph-level tasks.
+### Overview of the datasets used for graph-level tasks.
 
 | Dataset        | # graphs | Avg. # nodes | Avg. # edges | Task Type             |
 |----------------|----------|--------------|--------------|-----------------------|
@@ -225,38 +239,38 @@ python run_graph_regression.py \
 ### Classification Datasets
 
 #### TU Datasets (Traditional Graph Classification)
-| Dataset | Graphs | Classes | Description |
-|---------|---------|---------|-------------|
-| **MUTAG** | 188 | 2 | Mutagenic aromatic compounds |
-| **ENZYMES** | 600 | 6 | Protein tertiary structures |
-| **PROTEINS** | 1,113 | 2 | Protein structures |
-| **IMDB-BINARY** | 1,000 | 2 | Movie collaboration networks |
-| **COLLAB** | 5,000 | 3 | Scientific collaboration networks |
-| **REDDIT-BINARY** | 2,000 | 2 | Reddit thread discussions |
+| Dataset           | Graphs | Classes | Description                       |
+|-------------------|--------|---------|-----------------------------------|
+| **MUTAG**         | 188    | 2       | Mutagenic aromatic compounds      |
+| **ENZYMES**       | 600    | 6       | Protein tertiary structures       |
+| **PROTEINS**      | 1,113  | 2       | Protein structures                |
+| **IMDB-BINARY**   | 1,000  | 2       | Movie collaboration networks      |
+| **COLLAB**        | 5,000  | 3       | Scientific collaboration networks |
+| **REDDIT-BINARY** | 2,000  | 2       | Reddit thread discussions         |
 
 #### GNN Benchmark Datasets (Computer Vision)
-| Dataset | Graphs | Classes | Description |
-|---------|---------|---------|-------------|
-| **MNIST** | 70,000 | 10 | Handwritten digits as superpixel graphs |
-| **CIFAR10** | 60,000 | 10 | Natural images as superpixel graphs |
-| **PATTERN** | 14,000 | 2 | Synthetic node classification patterns |
+| Dataset       | Graphs  | Classes | Description                             |
+|---------------|---------|---------|-----------------------------------------|
+| **MNIST**     | 70,000  | 10      | Handwritten digits as superpixel graphs |
+| **CIFAR10**   | 60,000  | 10      | Natural images as superpixel graphs     |
+| **PATTERN**   | 14,000  | 2       | Synthetic node classification patterns  |
 
 #### Long Range Graph Benchmark (LRGB) - Available
-| Dataset | Graphs | Classes | Description |
-|---------|---------|---------|-------------|
-| **PeptidesFunctional** | ~15,000 | 10 | Peptide functional prediction (commented out) |
-| **CLUSTER** | 12,000 | 2 | Inductive node classification |
+| Dataset                | Graphs  | Classes | Description                                   |
+|------------------------|---------|---------|-----------------------------------------------|
+| **PeptidesFunctional** | ~15,000 | 10      | Peptide functional prediction (commented out) |
+| **CLUSTER**            | 12,000  | 2       | Inductive node classification                 |
 
 #### Open Graph Benchmark (OGB) - Available
-| Dataset | Graphs | Classes | Description |
-|---------|---------|---------|-------------|
-| **ogbg-molhiv** | 41,127 | 2 | HIV inhibition prediction |
-| **ogbg-molpcba** | 437,929 | 128 | Molecular bioactivity prediction |
+| Dataset          | Graphs  | Classes | Description                      |
+|------------------|---------|---------|----------------------------------|
+| **ogbg-molhiv**  | 41,127  | 2       | HIV inhibition prediction        |
+| **ogbg-molpcba** | 437,929 | 128     | Molecular bioactivity prediction |
 
 ### Regression Datasets
-| Dataset | Graphs | Task | Description |
-|---------|---------|------|-------------|
-| **ZINC** | 12,000 | Regression | Molecular solubility prediction |
+| Dataset                | Graphs  | Task       | Description                                   |
+|------------------------|---------|------------|-----------------------------------------------|
+| **ZINC**               | 12,000  | Regression | Molecular solubility prediction               |
 | **PeptidesStructural** | ~15,000 | Regression | Peptide structural prediction (commented out) |
 
 ## Model Architectures
@@ -281,17 +295,17 @@ python run_graph_regression.py \
 
 ## Key Parameters
 
-| Parameter | Description | Default | Options |
-|-----------|-------------|---------|---------|
-| `--dataset` | Dataset name | None | mutag, enzymes, proteins, imdb, collab, reddit, zinc |
-| `--layer_type` | Single GNN type | MoE | GCN, GIN, SAGE, GAT, MLP, Unitary, GPS, MoE |
-| `--layer_types` | Expert types for MoE | None | `'["GCN", "GIN"]'`, `'["GIN", "Unitary"]'` |
-| `--num_layers` | Network depth | 4 | 2-16 |
-| `--hidden_dim` | Hidden dimension | 64 | 32, 64, 128, 256 |
-| `--learning_rate` | Learning rate | 0.001 | 0.0001, 0.001, 0.01 |
-| `--dropout` | Dropout rate | 0.1 | 0.0-0.5 |
-| `--num_trials` | Number of runs | 10 | 1-50 |
-| `--encoding` | Structural encoding | None | LAPE, RWPE, LCP, LDP, SUB, EGO |
+| Parameter         | Description          | Default | Options |
+|-------------------|----------------------|---------|---------|
+| `--dataset`       | Dataset name         | None    | mutag, enzymes, proteins, imdb, collab, reddit, zinc |
+| `--layer_type`    | Single GNN type      | MoE     | GCN, GIN, SAGE, GAT, MLP, Unitary, GPS, MoE |
+| `--layer_types`   | Expert types for MoE | None    | `'["GCN", "GIN"]'`, `'["GIN", "Unitary"]'` |
+| `--num_layers`    | Network depth        | 4       | 2-16 |
+| `--hidden_dim`    | Hidden dimension     | 64      | 32, 64, 128, 256 |
+| `--learning_rate` | Learning rate        | 0.001   | 0.0001, 0.001, 0.01 |
+| `--dropout`       | Dropout rate         | 0.1     | 0.0-0.5 |
+| `--num_trials`    | Number of runs       | 10      | 1-50 |
+| `--encoding`      | Structural encoding  | None    | LAPE, RWPE, LCP, LDP, SUB, EGO |
 
 ## Structural Encodings
 
@@ -303,7 +317,7 @@ python run_graph_regression.py \
 - **SUB**: Subgraph-based features
 - **EGO**: Ego-network features
 
-Would be fun to add the hg-encodings too!
+Would be fun to add the hypergraph-encodings too!
 
 ### Curvature-Based Features
 The Local Curvature Profile (LCP) encoding computes Ollivier-Ricci curvature statistics for each node:
@@ -315,7 +329,7 @@ The Local Curvature Profile (LCP) encoding computes Ollivier-Ricci curvature sta
 
 ### Router Configuration for MoE
 ```bash
-python run_graph_classification.py \
+python scripts/run_graph_classification.py \
     --dataset proteins \
     --layer_types '["GCN", "Unitary"]' \
     --router_type GNN \
@@ -326,7 +340,7 @@ python run_graph_classification.py \
 
 ### Deep Network with Unitary Layers
 ```bash
-python run_graph_classification.py \
+python scripts/run_graph_classification.py \
     --dataset enzymes \
     --layer_type Unitary \
     --num_layers 8 \
@@ -379,6 +393,3 @@ class UnitaryGCNConvLayer(nn.Module):
 ```
 
 
-
-
-ON THE CLUSER I HAD scikit-learn==1.2.2 and this was working!

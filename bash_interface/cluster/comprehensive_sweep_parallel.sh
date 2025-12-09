@@ -115,7 +115,7 @@ if [ "$task_id" -le 50 ]; then
     wandb_run_name="${dataset}_${layer_type}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
     
     # Run single layer experiment
-    python run_graph_classification.py \
+    python scripts/run_graph_classification.py \
         --num_trials 5 \
         --dataset "$dataset" \
         --layer_type "$layer_type" \
@@ -159,7 +159,7 @@ else
     wandb_run_name="${dataset}_MoE_${clean_combo}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
     
     # Run MoE experiment
-    python run_graph_classification.py \
+    python scripts/run_graph_classification.py \
         --num_trials 5 \
         --dataset "$dataset" \
         --layer_types "$layer_combo" \
