@@ -1,3 +1,5 @@
+[![Ruff](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml/badge.svg)](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml)
+
 # README
 
 # Graph Mixture of Experts (Graph MoE)
