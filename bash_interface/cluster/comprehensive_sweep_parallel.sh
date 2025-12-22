@@ -206,13 +206,26 @@ cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes || {
 log_message "📁 Project directory: $(pwd)"
 
 # Install project in development mode (if not already installed)
+# Use --no-deps to avoid rebuilding torch-cluster and other compiled packages
 if ! python -c "import graph_moes" 2>/dev/null; then
-    log_message "📦 Installing graph_moes project..."
-    pip install -e . --quiet || {
-        log_message "❌ Failed to install graph_moes project"
+    log_message "📦 Installing graph_moes project (without dependencies)..."
+    # Try installing without dependencies first (dependencies should already be in environment)
+    if pip install -e . --no-deps --quiet 2>/dev/null; then
+        log_message "✅ Project installed (no-deps mode)"
+    # If that fails, try adding src to PYTHONPATH as fallback
+    elif [ -d "src" ]; then
+        log_message "⚠️  pip install failed, adding src to PYTHONPATH..."
+        export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
+        if python -c "import graph_moes" 2>/dev/null; then
+            log_message "✅ Project accessible via PYTHONPATH"
+        else
+            log_message "❌ Failed to make graph_moes importable"
+            exit 1
+        fi
+    else
+        log_message "❌ Failed to install graph_moes project and src directory not found"
         exit 1
-    }
-    log_message "✅ Project installed"
+    fi
 else
     log_message "✅ graph_moes already installed"
 fi
