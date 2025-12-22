@@ -10,15 +10,15 @@
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 110
-#   - 50 single layer experiments: 5 layer types × 10 datasets
-#   - 60 MoE experiments: 6 layer combinations × 10 datasets
+# Total experiments: 154
+#   - 70 single layer experiments: 5 layer types × 14 datasets (10 original + 4 GraphBench)
+#   - 84 MoE experiments: 6 layer combinations × 14 datasets
 #
 # Usage: sbatch comprehensive_sweep_parallel.sh
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-110             # Total experiments: 50 single layer + 60 MoE = 110
+#SBATCH --array=1-154             # Total experiments: 70 single layer + 84 MoE = 154
 #SBATCH --ntasks=1
 #SBATCH --time=48:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=64GB               # Sufficient memory
@@ -96,16 +96,17 @@ declare -a moe_combinations=(
 source /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface/cluster/hyperparams_lookup.sh
 
 # Define datasets - each will use optimal hyperparameters from research paper
-datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern cluster)
+# Includes GraphBench datasets with "graphbench_" prefix
+datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern cluster graphbench_socialnetwork graphbench_co graphbench_sat graphbench_weather)
 
 # Calculate which experiment this array task should run
 task_id=${SLURM_ARRAY_TASK_ID:-1}
 
-# Total single layer experiments: 5 layer types × 10 datasets = 50
-# Total MoE experiments: 6 combinations × 10 datasets = 60
-# Total: 110 experiments
+# Total single layer experiments: 5 layer types × 14 datasets = 70
+# Total MoE experiments: 6 combinations × 14 datasets = 84
+# Total: 154 experiments
 
-if [ "$task_id" -le 50 ]; then
+if [ "$task_id" -le 70 ]; then
     # Single layer experiment
     experiment_type="single"
     adjusted_id=$((task_id - 1))
@@ -149,7 +150,7 @@ if [ "$task_id" -le 50 ]; then
 else
     # MoE experiment
     experiment_type="moe"
-    moe_id=$((task_id - 51))
+    moe_id=$((task_id - 71))
     
     # Calculate dataset and MoE combination
     num_datasets=${#datasets[@]}
