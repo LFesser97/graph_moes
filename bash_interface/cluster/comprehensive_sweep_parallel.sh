@@ -61,26 +61,51 @@ log_message() {
 
 log_message "Starting Comprehensive MoE Sweep Task $SLURM_ARRAY_TASK_ID"
 
-# Set environment path and activate moe environment
+# Set environment path
 export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
+export CONDA_PKGS_DIRS=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/pkgs
 
-# Initialize conda (needed for source activate to work)
-if [ -f "$CONDA_ENVS_PATH/../etc/profile.d/conda.sh" ]; then
-    source "$CONDA_ENVS_PATH/../etc/profile.d/conda.sh"
-elif [ -f "$(conda info --base)/etc/profile.d/conda.sh" ]; then
-    source "$(conda info --base)/etc/profile.d/conda.sh"
-fi
-
-# Activate environment
-source activate moe || {
-    log_message "❌ Failed to activate moe environment"
-    log_message "   CONDA_ENVS_PATH: $CONDA_ENVS_PATH"
-    log_message "   Trying direct path..."
-    source "$CONDA_ENVS_PATH/moe/bin/activate" || {
-        log_message "❌ Direct activation also failed"
+# Load Python module (provides mamba/conda infrastructure)
+log_message "📦 Loading Python module..."
+module load python/3.10.12-fasrc01 || {
+    log_message "⚠️  Failed to load python module, trying alternative..."
+    # Try alternative module name
+    module load python/3.10-fasrc01 || {
+        log_message "❌ Failed to load Python module"
+        log_message "   Available modules:"
+        module avail python 2>&1 | head -5
         exit 1
     }
 }
+
+# Verify mamba is available
+if ! command -v mamba &> /dev/null && ! command -v conda &> /dev/null; then
+    log_message "❌ Neither mamba nor conda available after loading Python module"
+    exit 1
+fi
+
+log_message "✅ Python module loaded: $(which python)"
+
+# Activate environment
+log_message "🔧 Activating moe environment..."
+if source activate moe 2>/dev/null; then
+    log_message "✅ Activated using 'source activate'"
+elif command -v conda &> /dev/null && conda activate moe 2>/dev/null; then
+    log_message "✅ Activated using 'conda activate'"
+elif [ -f "$CONDA_ENVS_PATH/moe/bin/activate" ]; then
+    source "$CONDA_ENVS_PATH/moe/bin/activate" && log_message "✅ Activated using direct path"
+else
+    log_message "❌ Failed to activate moe environment"
+    log_message "   CONDA_ENVS_PATH: $CONDA_ENVS_PATH"
+    log_message "   Environment path: $CONDA_ENVS_PATH/moe"
+    if [ -d "$CONDA_ENVS_PATH" ]; then
+        log_message "   Available environments:"
+        ls -la "$CONDA_ENVS_PATH/" 2>&1 | head -10
+    else
+        log_message "   CONDA_ENVS_PATH directory does not exist!"
+    fi
+    exit 1
+fi
 
 # Verify environment activation
 if [[ "$(which python)" != *"moe"* ]]; then
