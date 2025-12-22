@@ -205,6 +205,17 @@ cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes || {
 
 log_message "📁 Project directory: $(pwd)"
 
+# Install required packages that might be missing
+log_message "📦 Checking and installing required packages..."
+if ! python -c "import graphbench" 2>/dev/null; then
+    log_message "   Installing graphbench-lib..."
+    pip install graphbench-lib --quiet || {
+        log_message "⚠️  Failed to install graphbench-lib, continuing anyway..."
+    }
+else
+    log_message "   ✅ graphbench-lib already installed"
+fi
+
 # Install project in development mode (if not already installed)
 # Use --no-deps to avoid rebuilding torch-cluster and other compiled packages
 if ! python -c "import graph_moes" 2>/dev/null; then
