@@ -63,13 +63,55 @@ log_message "Starting Comprehensive MoE Sweep Task $SLURM_ARRAY_TASK_ID"
 
 # Set environment path and activate moe environment
 export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
-source activate moe
+
+# Initialize conda (needed for source activate to work)
+if [ -f "$CONDA_ENVS_PATH/../etc/profile.d/conda.sh" ]; then
+    source "$CONDA_ENVS_PATH/../etc/profile.d/conda.sh"
+elif [ -f "$(conda info --base)/etc/profile.d/conda.sh" ]; then
+    source "$(conda info --base)/etc/profile.d/conda.sh"
+fi
+
+# Activate environment
+source activate moe || {
+    log_message "❌ Failed to activate moe environment"
+    log_message "   CONDA_ENVS_PATH: $CONDA_ENVS_PATH"
+    log_message "   Trying direct path..."
+    source "$CONDA_ENVS_PATH/moe/bin/activate" || {
+        log_message "❌ Direct activation also failed"
+        exit 1
+    }
+}
+
+# Verify environment activation
+if [[ "$(which python)" != *"moe"* ]]; then
+    log_message "❌ Python not from moe environment: $(which python)"
+    exit 1
+fi
+
+log_message "✅ Activated moe environment: $(which python)"
 
 # Navigate to project directory
-cd /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes
+cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes || {
+    log_message "❌ Failed to navigate to project directory"
+    exit 1
+}
+
+log_message "📁 Project directory: $(pwd)"
+
+# Install project in development mode (if not already installed)
+if ! python -c "import graph_moes" 2>/dev/null; then
+    log_message "📦 Installing graph_moes project..."
+    pip install -e . --quiet || {
+        log_message "❌ Failed to install graph_moes project"
+        exit 1
+    }
+    log_message "✅ Project installed"
+else
+    log_message "✅ graph_moes already installed"
+fi
 
 # Quick verification
-python -c "import numpy, pandas, torch; print('✅ Core packages available')" || {
+python -c "import numpy, pandas, torch, graph_moes; print('✅ Core packages available')" || {
     log_message "❌ Core packages not available"
     exit 1
 }
@@ -93,7 +135,7 @@ declare -a moe_combinations=(
 )
 
 # Load hyperparameter lookup function
-source /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface/cluster/hyperparams_lookup.sh
+source /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface/cluster/hyperparams_lookup.sh
 
 # Define datasets - each will use optimal hyperparameters from research paper
 # Includes GraphBench datasets with "graphbench_" prefix
