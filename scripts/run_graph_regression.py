@@ -24,6 +24,7 @@ from torch_geometric.data import Data
 from torch_geometric.datasets import ZINC
 
 import wandb
+from graph_moes.download.load_graphbench import load_graphbench_dataset
 from graph_moes.encodings.custom_encodings import LocalCurvatureProfile
 from graph_moes.experiments.graph_regression import Experiment
 from hyperparams import get_args_from_input
@@ -64,8 +65,33 @@ peptides_test = torch.load(os.path.join(data_directory, "peptidesstruct", "test.
 peptides_struct = [_convert_lrgb(peptides_train[i]) for i in range(len(peptides_train))] + [_convert_lrgb(peptides_val[i]) for i in range(len(peptides_val))] + [_convert_lrgb(peptides_test[i]) for i in range(len(peptides_test))]
 """
 
+# GraphBench datasets (graph regression tasks)
+print("\n📊 Loading GraphBench regression datasets...")
+graphbench_datasets = {}
+
+# GraphBench dataset names that are relevant for graph regression
+# Weather forecasting and some circuit/chip design tasks may be regression
+graphbench_regression_datasets = [
+    "weather",  # Weather forecasting (regression)
+    # Note: Add other regression datasets as they become available/identified
+]
+
+for dataset_name in graphbench_regression_datasets:
+    try:
+        print(f"  ⏳ Loading GraphBench: {dataset_name}...")
+        graphbench_data = load_graphbench_dataset(
+            dataset_name=dataset_name, root=data_directory
+        )
+        graphbench_datasets[f"graphbench_{dataset_name}"] = graphbench_data
+        print(f"  ✅ GraphBench {dataset_name} loaded: {len(graphbench_data)} graphs")
+    except (ImportError, ValueError, RuntimeError, OSError) as e:
+        print(
+            f"  ⚠️  Failed to load GraphBench {dataset_name}: {e} (may not be installed or available)"
+        )
+
+# we can pass them as click args too
 # datasets = {"zinc": zinc, "peptides_struct": peptides_struct}
-datasets = {"zinc": zinc}
+datasets = {"zinc": zinc, **graphbench_datasets}
 
 
 def log_to_file(message, filename="results/graph_regression.txt"):
@@ -105,6 +131,10 @@ default_args = AttrDict(
 hyperparams = {
     "zinc": AttrDict({"output_dim": 1}),
     "peptides_struct": AttrDict({"output_dim": 11}),
+    # GraphBench regression datasets - output_dim may need adjustment
+    "graphbench_weather": AttrDict(
+        {"output_dim": 1}
+    ),  # Placeholder - adjust based on actual task - NEED TO VERIFY WITH THE TEST SHAPE TODO TODO
 }
 
 
@@ -267,6 +297,12 @@ for key in datasets:
                         ),
                         "groupby/is_moe": hasattr(args, "layer_types")
                         and args.layer_types is not None,
+                        "groupby/moe_layers": (
+                            "+".join(args.layer_types)
+                            if hasattr(args, "layer_types")
+                            and args.layer_types is not None
+                            else None
+                        ),
                         "groupby/num_layers": args.num_layers,
                     }
                 )
@@ -349,6 +385,11 @@ for key in datasets:
                 ),
                 "groupby/is_moe": hasattr(args, "layer_types")
                 and args.layer_types is not None,
+                "groupby/moe_layers": (
+                    "+".join(args.layer_types)
+                    if hasattr(args, "layer_types") and args.layer_types is not None
+                    else None
+                ),
                 "groupby/num_layers": args.num_layers,
             },
             dir=args.wandb_dir,

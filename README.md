@@ -1,5 +1,23 @@
 [![Ruff](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml/badge.svg)](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml)
 
+# TODO (12/10)
+Can GNN be strong baselines:
+- take these hyperparameters and these datasets.
+- total of 15 datasets + TU should be 20 or 21.
+
+Vizualisations:
+for each dataset and each MOE configurations:
++ code lost for the histograms/TmD
+do enough experiments so that each graph is in 10 test datasets.
+
+
+Maybe idea for later:
+- encodings + hg encodings
+
+
+# END OF TODO (12/10)
+
+
 # README
 
 # Graph Mixture of Experts (Graph MoE)

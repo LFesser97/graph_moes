@@ -23,6 +23,7 @@ from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
 from tqdm import tqdm
 
 import wandb
+from graph_moes.download.load_graphbench import load_graphbench_dataset
 from graph_moes.encodings.custom_encodings import LocalCurvatureProfile
 from graph_moes.experiments.graph_classification import Experiment
 from hyperparams import get_args_from_input
@@ -91,6 +92,37 @@ print(f"  ✅ REDDIT-BINARY loaded: {len(reddit)} graphs")
 
 print("and yet more...")
 
+# GraphBench datasets (graph classification tasks)
+print("\n📊 Loading GraphBench datasets...")
+graphbench_datasets = {}
+
+# GraphBench dataset names that are relevant for graph classification
+# Based on GraphBench documentation: https://github.com/graphbench/package
+graphbench_classification_datasets = [
+    "socialnetwork",  # Social media datasets
+    "co",  # Combinatorial optimization
+    "sat",  # SAT solving
+    "algorithmic_reasoning_easy",  # Algorithmic reasoning (easy)
+    "algorithmic_reasoning_medium",  # Algorithmic reasoning (medium)
+    "algorithmic_reasoning_hard",  # Algorithmic reasoning (hard)
+    "electronic_circuits",  # Electronic circuits
+    "chipdesign",  # Chip design
+    # Note: weather is for regression tasks, not included here
+]
+
+for dataset_name in graphbench_classification_datasets:
+    try:
+        print(f"  ⏳ Loading GraphBench: {dataset_name}...")
+        graphbench_data = load_graphbench_dataset(
+            dataset_name=dataset_name, root=data_directory
+        )
+        graphbench_datasets[f"graphbench_{dataset_name}"] = graphbench_data
+        print(f"  ✅ GraphBench {dataset_name} loaded: {len(graphbench_data)} graphs")
+    except (ImportError, ValueError, RuntimeError, OSError) as e:
+        print(
+            f"  ⚠️  Failed to load GraphBench {dataset_name}: {e} (may not be installed or available)"
+        )
+
 # Add to run_graph_classification.py
 # print("  ⏳ Loading ogbg-molhiv...")
 # molhiv = PygGraphPropPredDataset(name="ogbg-molhiv", root=data_directory)
@@ -142,6 +174,8 @@ datasets = {
     # # OGB datasets:
     # "molhiv": molhiv,
     # "molpcba": molpcba,
+    # GraphBench datasets:
+    **graphbench_datasets,
 }
 # datasets = {"collab": collab, "imdb": imdb, "proteins": proteins, "reddit": reddit}
 
@@ -151,6 +185,12 @@ for key in datasets:
         for graph in datasets[key]:
             n = graph.num_nodes
             graph.x = torch.ones((n, 1))
+    # Handle GraphBench datasets that might not have node features
+    elif key.startswith("graphbench_"):
+        for graph in datasets[key]:
+            if not hasattr(graph, "x") or graph.x is None:
+                n = graph.num_nodes
+                graph.x = torch.ones((n, 1))
 
 
 def log_to_file(message, filename="results/graph_classification.txt"):
@@ -210,6 +250,18 @@ hyperparams = {
         {"output_dim": 2}
     ),  # Binary classification (HIV active/inactive)
     "molpcba": AttrDict({"output_dim": 128}),  # Multi-label classification (128 assays)
+    # GraphBench datasets - output_dim will need to be determined based on actual dataset
+    # These are placeholders and may need adjustment after loading the actual datasets
+    # TODO TODO TODO
+    "graphbench_socialnetwork": AttrDict(
+        {"output_dim": 2}
+    ),  # Placeholder - adjust based on actual task
+    "graphbench_co": AttrDict(
+        {"output_dim": 2}
+    ),  # Placeholder - adjust based on actual task
+    "graphbench_sat": AttrDict(
+        {"output_dim": 2}
+    ),  # Placeholder - adjust based on actual task
 }
 
 results = []
@@ -385,6 +437,11 @@ for key in datasets:
                             "MoE" if args.layer_types else args.layer_type
                         ),
                         "groupby/is_moe": args.layer_types is not None,
+                        "groupby/moe_layers": (
+                            "+".join(args.layer_types)
+                            if args.layer_types is not None
+                            else None
+                        ),
                         "groupby/num_layers": args.num_layers,
                     }
                 )
@@ -483,6 +540,9 @@ for key in datasets:
                 "groupby/dataset": key,
                 "groupby/model_type": "MoE" if args.layer_types else args.layer_type,
                 "groupby/is_moe": args.layer_types is not None,
+                "groupby/moe_layers": (
+                    "+".join(args.layer_types) if args.layer_types is not None else None
+                ),
                 "groupby/num_layers": args.num_layers,
             }
         )
