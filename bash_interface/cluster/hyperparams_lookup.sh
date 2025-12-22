@@ -16,7 +16,8 @@
 #   - patience: Early stopping patience
 #
 # Supported datasets: mutag, enzymes, proteins, mnist, cifar, pattern, cluster,
-#                     zinc, molhiv, molpcba
+#                     zinc, molhiv, molpcba, graphbench_socialnetwork, graphbench_co,
+#                     graphbench_sat, graphbench_weather
 # Supported model types: GCN, GCN+, GIN, GIN+, and others (defaults for MoE)
 #
 # Usage: source this file, then call get_hyperparams "dataset" "model_type"
@@ -306,8 +307,89 @@ get_hyperparams() {
             esac
             ;;
             
+        # GraphBench datasets
+        "graphbench_socialnetwork")
+            case "$model_type" in
+                "GCN"|"GCN+"|"GIN"|"GIN+")
+                    hidden_dim=64
+                    num_layers=4
+                    learning_rate=0.001
+                    dropout=0.1
+                    batch_size=32
+                    epochs=200
+                    ;;
+                *)
+                    hidden_dim=64
+                    num_layers=4
+                    learning_rate=0.001
+                    dropout=0.1
+                    batch_size=32
+                    ;;
+            esac
+            ;;
+            
+        "graphbench_co")
+            case "$model_type" in
+                "GCN"|"GCN+"|"GIN"|"GIN+")
+                    hidden_dim=64
+                    num_layers=4
+                    learning_rate=0.001
+                    dropout=0.1
+                    batch_size=32
+                    epochs=200
+                    ;;
+                *)
+                    hidden_dim=64
+                    num_layers=4
+                    learning_rate=0.001
+                    dropout=0.1
+                    batch_size=32
+                    ;;
+            esac
+            ;;
+            
+        "graphbench_sat")
+            case "$model_type" in
+                "GCN"|"GCN+"|"GIN"|"GIN+")
+                    hidden_dim=64
+                    num_layers=4
+                    learning_rate=0.001
+                    dropout=0.1
+                    batch_size=32
+                    epochs=200
+                    ;;
+                *)
+                    hidden_dim=64
+                    num_layers=4
+                    learning_rate=0.001
+                    dropout=0.1
+                    batch_size=32
+                    ;;
+            esac
+            ;;
+            
+        "graphbench_weather")
+            case "$model_type" in
+                "GCN"|"GCN+"|"GIN"|"GIN+")
+                    hidden_dim=64
+                    num_layers=4
+                    learning_rate=0.001
+                    dropout=0.1
+                    batch_size=32
+                    epochs=200
+                    ;;
+                *)
+                    hidden_dim=64
+                    num_layers=4
+                    learning_rate=0.001
+                    dropout=0.1
+                    batch_size=32
+                    ;;
+            esac
+            ;;
+            
         *)
-            # Default values for other datasets
+            # Default values for other datasets (including other GraphBench datasets)
             hidden_dim=64
             num_layers=4
             learning_rate=0.001
