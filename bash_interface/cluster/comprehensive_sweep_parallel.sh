@@ -137,74 +137,28 @@ log_message "🔧 Activating $ENV_NAME environment..."
 log_message "   CONDA_ENVS_PATH: $CONDA_ENVS_PATH"
 log_message "   Python before activation: $(which python)"
 
-# Try activation methods
+# Use manual PATH setup (most reliable method on clusters)
 activation_success=false
-
-# Method 1: source activate
-if source activate $ENV_NAME 2>/dev/null; then
+if [ -d "$CONDA_ENVS_PATH/$ENV_NAME/bin" ] && [ -f "$CONDA_ENVS_PATH/$ENV_NAME/bin/python" ]; then
+    log_message "   Setting up environment PATH..."
+    # Prepend environment bin to PATH
+    export PATH="$CONDA_ENVS_PATH/$ENV_NAME/bin:$PATH"
+    # Also set CONDA_DEFAULT_ENV for compatibility
+    export CONDA_DEFAULT_ENV=$ENV_NAME
+    # Prevent user site-packages
+    export PYTHONNOUSERSITE=1
     python_path=$(which python)
     if [[ "$python_path" == *"$ENV_NAME"* ]]; then
-        log_message "✅ Activated using 'source activate'"
+        log_message "✅ Environment activated"
         log_message "   Python after activation: $python_path"
         activation_success=true
     else
-        log_message "⚠️  'source activate' ran but Python path unchanged: $python_path"
+        log_message "⚠️  PATH setup didn't work, Python still: $python_path"
+        log_message "   Checking if $ENV_NAME/bin/python exists..."
+        ls -la "$CONDA_ENVS_PATH/$ENV_NAME/bin/python" 2>&1 || log_message "   ❌ $ENV_NAME/bin/python does not exist!"
     fi
-fi
-
-# Method 2: conda activate (if first method didn't work)
-if [ "$activation_success" = false ] && command -v conda &> /dev/null; then
-    if conda activate $ENV_NAME 2>/dev/null; then
-        python_path=$(which python)
-        if [[ "$python_path" == *"$ENV_NAME"* ]]; then
-            log_message "✅ Activated using 'conda activate'"
-            log_message "   Python after activation: $python_path"
-            activation_success=true
-        else
-            log_message "⚠️  'conda activate' ran but Python path unchanged: $python_path"
-        fi
-    fi
-fi
-
-# Method 3: Direct path activation (if previous methods didn't work)
-if [ "$activation_success" = false ]; then
-    if [ -f "$CONDA_ENVS_PATH/$ENV_NAME/bin/activate" ]; then
-        log_message "   Trying direct path activation..."
-        source "$CONDA_ENVS_PATH/$ENV_NAME/bin/activate"
-        python_path=$(which python)
-        if [[ "$python_path" == *"$ENV_NAME"* ]]; then
-            log_message "✅ Activated using direct path"
-            log_message "   Python after activation: $python_path"
-            activation_success=true
-        else
-            log_message "⚠️  Direct path activation ran but Python path unchanged: $python_path"
-        fi
-    fi
-fi
-
-# Method 4: Manually set PATH (most reliable method - use this as primary)
-if [ "$activation_success" = false ]; then
-    if [ -d "$CONDA_ENVS_PATH/$ENV_NAME/bin" ] && [ -f "$CONDA_ENVS_PATH/$ENV_NAME/bin/python" ]; then
-        log_message "   Using manual PATH setup (most reliable)..."
-        # Prepend environment bin to PATH
-        export PATH="$CONDA_ENVS_PATH/$ENV_NAME/bin:$PATH"
-        # Also set CONDA_DEFAULT_ENV for compatibility
-        export CONDA_DEFAULT_ENV=$ENV_NAME
-        # Prevent user site-packages
-        export PYTHONNOUSERSITE=1
-        python_path=$(which python)
-        if [[ "$python_path" == *"$ENV_NAME"* ]]; then
-            log_message "✅ Activated using manual PATH setup"
-            log_message "   Python after activation: $python_path"
-            activation_success=true
-        else
-            log_message "⚠️  Manual PATH setup didn't work, Python still: $python_path"
-            log_message "   Checking if $ENV_NAME/bin/python exists..."
-            ls -la "$CONDA_ENVS_PATH/$ENV_NAME/bin/python" 2>&1 || log_message "   ❌ $ENV_NAME/bin/python does not exist!"
-        fi
-    else
-        log_message "⚠️  $ENV_NAME/bin directory or python not found at: $CONDA_ENVS_PATH/$ENV_NAME/bin"
-    fi
+else
+    log_message "⚠️  $ENV_NAME/bin directory or python not found at: $CONDA_ENVS_PATH/$ENV_NAME/bin"
 fi
 
 # Final verification
