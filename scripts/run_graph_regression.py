@@ -19,7 +19,11 @@ import numpy as np
 import pandas as pd
 import torch
 import torch_geometric.transforms as T
-from attrdict import AttrDict
+
+try:
+    from attrdict3 import AttrDict  # Python 3.10+ compatible
+except ImportError:
+    from attrdict import AttrDict  # Fallback for older Python
 from torch_geometric.data import Data
 from torch_geometric.datasets import ZINC
 

@@ -5,7 +5,10 @@ import random
 from typing import Dict, List, Optional, Tuple
 
 import torch
-from attrdict import AttrDict
+try:
+    from attrdict3 import AttrDict  # Python 3.10+ compatible
+except ImportError:
+    from attrdict import AttrDict  # Fallback for older Python
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset, Subset, random_split
 from torch_geometric.loader import DataLoader

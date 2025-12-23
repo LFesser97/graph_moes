@@ -1,7 +1,10 @@
 import argparse
 import ast
 
-from attrdict import AttrDict
+try:
+    from attrdict3 import AttrDict  # Python 3.10+ compatible
+except ImportError:
+    from attrdict import AttrDict  # Fallback for older Python
 
 
 def get_args_from_input():

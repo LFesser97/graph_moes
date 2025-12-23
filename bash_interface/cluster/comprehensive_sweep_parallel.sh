@@ -218,9 +218,16 @@ fi
 
 # Install required packages that might be missing
 log_message "📦 Checking and installing required packages..."
+
+# Install attrdict3 for Python 3.10+ compatibility
+if ! python -c "import attrdict3" 2>/dev/null; then
+    log_message "   Installing attrdict3 (Python 3.10+ compatible)..."
+    python -m pip install attrdict3 --no-cache-dir --no-user --quiet 2>&1 || log_message "⚠️  Failed to install attrdict3"
+fi
+
 if ! python -c "import graphbench" 2>/dev/null; then
     log_message "   Installing graphbench-lib..."
-    if ! python -m pip install graphbench-lib --no-cache-dir --quiet 2>&1; then
+    if ! python -m pip install graphbench-lib --no-cache-dir --no-user 2>&1; then
         log_message "⚠️  Failed to install graphbench-lib, continuing anyway..."
     else
         log_message "✅ graphbench-lib installed successfully."

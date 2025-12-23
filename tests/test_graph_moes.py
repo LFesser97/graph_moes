@@ -7,7 +7,11 @@ and the complete MoE and MoE_E architectures with various configurations.
 import pytest
 import torch
 import torch.nn as nn
-from attrdict import AttrDict
+
+try:
+    from attrdict3 import AttrDict  # Python 3.10+ compatible
+except ImportError:
+    from attrdict import AttrDict  # Fallback for older Python
 from torch_geometric.data import Batch, Data
 
 from graph_moes.moes.graph_moe import MoE, MoE_E
