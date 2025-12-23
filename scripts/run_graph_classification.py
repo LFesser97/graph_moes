@@ -19,10 +19,11 @@ import torch
 import torch_geometric.transforms as T
 from attrdict import AttrDict
 from torch_geometric.data import Data
-from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
+from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset, LRGBDataset
 from tqdm import tqdm
 
 import wandb
+from ogb.graphproppred import PygGraphPropPredDataset
 from graph_moes.download.load_graphbench import load_graphbench_dataset
 from graph_moes.encodings.custom_encodings import LocalCurvatureProfile
 from graph_moes.experiments.graph_classification import Experiment
@@ -123,37 +124,102 @@ for dataset_name in graphbench_classification_datasets:
             f"  ⚠️  Failed to load GraphBench {dataset_name}: {e} (may not be installed or available)"
         )
 
-# Add to run_graph_classification.py
-# print("  ⏳ Loading ogbg-molhiv...")
-# molhiv = PygGraphPropPredDataset(name="ogbg-molhiv", root=data_directory)
-# print(f"  ✅ ogbg-molhiv loaded: {len(molhiv)} graphs")
+# LRGB datasets
+print("\n📊 Loading LRGB datasets...")
+try:
+    print("  ⏳ Loading Cluster...")
+    cluster = list(LRGBDataset(root=data_directory, name="Cluster"))
+    print(f"  ✅ Cluster loaded: {len(cluster)} graphs")
+except (ImportError, ValueError, RuntimeError, OSError) as e:
+    print(f"  ⚠️  Failed to load Cluster: {e}")
+    cluster = []
 
-# print("  ⏳ Loading ogbg-molpcba...")
-# molpcba = PygGraphPropPredDataset(name="ogbg-molpcba", root=data_directory)
-# print(f"  ✅ ogbg-molpcba loaded: {len(molpcba)} graphs")
+try:
+    print("  ⏳ Loading PascalVOC-SP...")
+    pascalvoc = list(LRGBDataset(root=data_directory, name="pascalvoc-sp"))
+    print(f"  ✅ PascalVOC-SP loaded: {len(pascalvoc)} graphs")
+except (ImportError, ValueError, RuntimeError, OSError) as e:
+    print(f"  ⚠️  Failed to load PascalVOC-SP: {e}")
+    pascalvoc = []
 
-# print("  ⏳ Loading Cluster...")
-# cluster = LRGBDataset(root=data_directory, name="Cluster")
-# print(f"  ✅ Cluster loaded: {len(cluster)} graphs")
+try:
+    print("  ⏳ Loading COCO-SP...")
+    coco = list(LRGBDataset(root=data_directory, name="coco-sp"))
+    print(f"  ✅ COCO-SP loaded: {len(coco)} graphs")
+except (ImportError, ValueError, RuntimeError, OSError) as e:
+    print(f"  ⚠️  Failed to load COCO-SP: {e}")
+    coco = []
 
-# print("  ⏳ Loading PascalVOC-SP...")
-# pascalvoc = LRGBDataset(root=data_directory, name="pascalvoc-sp")
-# print(f"  ✅ PascalVOC-SP loaded: {len(pascalvoc)} graphs")
+# Peptides-func dataset
+print("\n📊 Loading Peptides-func...")
+try:
+    peptides_func_path = os.path.join(data_directory, "peptidesfunc")
+    if os.path.exists(peptides_func_path):
+        peptides_train = torch.load(os.path.join(peptides_func_path, "train.pt"))
+        peptides_val = torch.load(os.path.join(peptides_func_path, "val.pt"))
+        peptides_test = torch.load(os.path.join(peptides_func_path, "test.pt"))
+        peptides_func = (
+            [_convert_lrgb(peptides_train[i]) for i in range(len(peptides_train))]
+            + [_convert_lrgb(peptides_val[i]) for i in range(len(peptides_val))]
+            + [_convert_lrgb(peptides_test[i]) for i in range(len(peptides_test))]
+        )
+        print(f"  ✅ Peptides-func loaded: {len(peptides_func)} graphs")
+    else:
+        print(f"  ⚠️  Peptides-func directory not found at {peptides_func_path}")
+        peptides_func = []
+except Exception as e:
+    print(f"  ⚠️  Failed to load Peptides-func: {e}")
+    peptides_func = []
 
-# print("  ⏳ Loading COCO-SP...")
-# coco = LRGBDataset(root=data_directory, name="coco-sp")
-# print(f"  ✅ COCO-SP loaded: {len(coco)} graphs")
+# OGB datasets
+print("\n📊 Loading OGB datasets...")
+try:
+    print("  ⏳ Loading ogbg-molhiv...")
+    molhiv_dataset = PygGraphPropPredDataset(name="ogbg-molhiv", root=data_directory)
+    molhiv = [molhiv_dataset[i] for i in range(len(molhiv_dataset))]
+    print(f"  ✅ ogbg-molhiv loaded: {len(molhiv)} graphs")
+except (ImportError, ValueError, RuntimeError, OSError) as e:
+    print(f"  ⚠️  Failed to load ogbg-molhiv: {e}")
+    molhiv = []
+
+try:
+    print("  ⏳ Loading ogbg-molpcba...")
+    molpcba_dataset = PygGraphPropPredDataset(name="ogbg-molpcba", root=data_directory)
+    molpcba = [molpcba_dataset[i] for i in range(len(molpcba_dataset))]
+    print(f"  ✅ ogbg-molpcba loaded: {len(molpcba)} graphs")
+except (ImportError, ValueError, RuntimeError, OSError) as e:
+    print(f"  ⚠️  Failed to load ogbg-molpcba: {e}")
+    molpcba = []
+
+try:
+    print("  ⏳ Loading ogbg-ppa...")
+    ppa_dataset = PygGraphPropPredDataset(name="ogbg-ppa", root=data_directory)
+    ppa = [ppa_dataset[i] for i in range(len(ppa_dataset))]
+    print(f"  ✅ ogbg-ppa loaded: {len(ppa)} graphs")
+except (ImportError, ValueError, RuntimeError, OSError) as e:
+    print(f"  ⚠️  Failed to load ogbg-ppa: {e}")
+    ppa = []
+
+try:
+    print("  ⏳ Loading ogbg-code2...")
+    code2_dataset = PygGraphPropPredDataset(name="ogbg-code2", root=data_directory)
+    code2 = [code2_dataset[i] for i in range(len(code2_dataset))]
+    print(f"  ✅ ogbg-code2 loaded: {len(code2)} graphs")
+except (ImportError, ValueError, RuntimeError, OSError) as e:
+    print(f"  ⚠️  Failed to load ogbg-code2: {e}")
+    code2 = []
+
+# MalNet-Tiny dataset
+print("\n📊 Loading MalNet-Tiny...")
+try:
+    # MalNet-Tiny is available in PyG as TUDataset
+    malnet = list(TUDataset(root=data_directory, name="MalNetTiny"))
+    print(f"  ✅ MalNet-Tiny loaded: {len(malnet)} graphs")
+except (ImportError, ValueError, RuntimeError, OSError) as e:
+    print(f"  ⚠️  Failed to load MalNet-Tiny: {e}")
+    malnet = []
 
 print("🎉 All datasets loaded successfully!")
-
-"""
-# import peptides-func dataset
-peptides_zip_filepath = data_directory
-peptides_train = torch.load(os.path.join(peptides_zip_filepath, "peptidesfunc", "train.pt"))
-peptides_val = torch.load(os.path.join(peptides_zip_filepath, "peptidesfunc", "val.pt"))
-peptides_test = torch.load(os.path.join(peptides_zip_filepath, "peptidesfunc", "test.pt"))
-peptides_func = [_convert_lrgb(peptides_train[i]) for i in range(len(peptides_train))] + [_convert_lrgb(peptides_val[i]) for i in range(len(peptides_val))] + [_convert_lrgb(peptides_test[i]) for i in range(len(peptides_test))]
-"""
 
 
 datasets = {
@@ -168,15 +234,23 @@ datasets = {
     "cifar": cifar,
     "pattern": pattern,
     # LRGB datasets:
-    # "cluster": cluster,  # Commented out - dataset not loaded
-    # "pascalvoc": pascalvoc,  # Commented out - dataset not loaded
-    # "coco": coco,  # Commented out - dataset not loaded
-    # # OGB datasets:
-    # "molhiv": molhiv,
-    # "molpcba": molpcba,
+    "cluster": cluster if cluster else None,
+    "pascalvoc": pascalvoc if pascalvoc else None,
+    "coco": coco if coco else None,
+    "peptides_func": peptides_func if peptides_func else None,
+    # OGB datasets:
+    "molhiv": molhiv if molhiv else None,
+    "molpcba": molpcba if molpcba else None,
+    "ppa": ppa if ppa else None,
+    "code2": code2 if code2 else None,
+    # Other datasets:
+    "malnet": malnet if malnet else None,
     # GraphBench datasets:
     **graphbench_datasets,
 }
+
+# Remove None or empty datasets (failed to load)
+datasets = {k: v for k, v in datasets.items() if v is not None and len(v) > 0}
 # datasets = {"collab": collab, "imdb": imdb, "proteins": proteins, "reddit": reddit}
 
 
@@ -230,14 +304,14 @@ default_args = AttrDict(
 )
 
 hyperparams = {
+    # TU datasets:
     "mutag": AttrDict({"output_dim": 2}),
     "enzymes": AttrDict({"output_dim": 6}),
     "proteins": AttrDict({"output_dim": 2}),
     "collab": AttrDict({"output_dim": 3}),
     "imdb": AttrDict({"output_dim": 2}),
     "reddit": AttrDict({"output_dim": 2}),
-    "peptides": AttrDict({"output_dim": 10}),
-    # New datasets:
+    # GNN Benchmark datasets:
     "mnist": AttrDict({"output_dim": 10}),
     "cifar": AttrDict({"output_dim": 10}),
     "pattern": AttrDict({"output_dim": 2}),  # Binary classification
@@ -245,11 +319,16 @@ hyperparams = {
     "cluster": AttrDict({"output_dim": 6}),  # 6 clusters
     "pascalvoc": AttrDict({"output_dim": 21}),  # 21 object classes
     "coco": AttrDict({"output_dim": 81}),  # 81 object classes
+    "peptides_func": AttrDict({"output_dim": 10}),  # 10 functional classes
     # OGB datasets:
     "molhiv": AttrDict(
         {"output_dim": 2}
     ),  # Binary classification (HIV active/inactive)
     "molpcba": AttrDict({"output_dim": 128}),  # Multi-label classification (128 assays)
+    "ppa": AttrDict({"output_dim": 37}),  # 37 protein-protein association classes
+    "code2": AttrDict({"output_dim": 1}),  # Regression task (single output)
+    # Other datasets:
+    "malnet": AttrDict({"output_dim": 5}),  # 5 malware categories
     # GraphBench datasets - output_dim will need to be determined based on actual dataset
     # These are placeholders and may need adjustment after loading the actual datasets
     # TODO TODO TODO
