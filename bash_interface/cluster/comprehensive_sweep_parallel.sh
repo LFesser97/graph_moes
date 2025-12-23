@@ -250,6 +250,7 @@ MISSING_DEPS=(
     "torcheval>=0.0.7:torcheval"
     "wget>=3.2:wget"
     "ipdb>=0.13.13:ipdb"
+    "asgl>=1.0.5:asgl"
 )
 for dep_spec in "${MISSING_DEPS[@]}"; do
     DEP=$(echo "$dep_spec" | cut -d':' -f1)
