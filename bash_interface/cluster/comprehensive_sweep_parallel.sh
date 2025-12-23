@@ -195,6 +195,9 @@ cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes || {
 
 log_message "📁 Project directory: $(pwd)"
 
+# Add project root to PYTHONPATH so hyperparams.py can be imported
+export PYTHONPATH="$(pwd):${PYTHONPATH}"
+
 # Check if scipy is working, if not, try to reinstall
 log_message "🔍 Verifying scipy installation..."
 if ! python -c "import scipy.signal" 2>/dev/null; then
