@@ -37,6 +37,39 @@ export WANDB_CACHE_DIR="./wandb/.cache"
 
 mkdir -p ./wandb logs
 
+# Disable user site-packages to prevent conflicts (also set in activation, but set here too)
+export PYTHONNOUSERSITE=1
+
+# Load CUDA modules if available (needed for torch CUDA support)
+if command -v module &> /dev/null; then
+    echo "📦 Loading CUDA modules..."
+    if module load cuda/12.9.1-fasrc01 2>/dev/null; then
+        echo "   ✅ Loaded cuda/12.9.1-fasrc01"
+    elif module load cuda 2>/dev/null; then
+        echo "   ✅ Loaded cuda (default version)"
+    else
+        echo "   ⚠️  CUDA module not found, continuing..."
+    fi
+    
+    if module load cudnn/9.10.2.21_cuda12-fasrc01 2>/dev/null; then
+        echo "   ✅ Loaded cudnn/9.10.2.21_cuda12-fasrc01"
+    elif module load cudnn 2>/dev/null; then
+        echo "   ✅ Loaded cudnn (default version)"
+    else
+        echo "   ⚠️  cuDNN module not found, continuing..."
+    fi
+    
+    # Set LD_LIBRARY_PATH to include CUDA libraries (including targets directory for libcusparseLt.so.0)
+    if [ -n "$CUDA_HOME" ]; then
+        export LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${CUDA_HOME}/lib:${CUDA_HOME}/targets/x86_64-linux/lib:${LD_LIBRARY_PATH}"
+        echo "   Using CUDA_HOME: $CUDA_HOME"
+    elif [ -n "$CUDA_ROOT" ]; then
+        export LD_LIBRARY_PATH="${CUDA_ROOT}/lib64:${CUDA_ROOT}/lib:${CUDA_ROOT}/targets/x86_64-linux/lib:${LD_LIBRARY_PATH}"
+        echo "   Using CUDA_ROOT: $CUDA_ROOT"
+    fi
+    echo "   LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}"
+fi
+
 echo "✅ WandB environment configured"
 echo "   Entity: $WANDB_ENTITY"
 echo "   Project: $WANDB_PROJECT" 
@@ -98,8 +131,9 @@ else
     log_message "⚠️  Could not find conda.sh, activation may not work properly"
 fi
 
-# Activate environment
-log_message "🔧 Activating moe environment..."
+# Activate environment (use moe_fresh - the fresh environment we created)
+ENV_NAME="moe_fresh"
+log_message "🔧 Activating $ENV_NAME environment..."
 log_message "   CONDA_ENVS_PATH: $CONDA_ENVS_PATH"
 log_message "   Python before activation: $(which python)"
 
@@ -107,9 +141,9 @@ log_message "   Python before activation: $(which python)"
 activation_success=false
 
 # Method 1: source activate
-if source activate moe 2>/dev/null; then
+if source activate $ENV_NAME 2>/dev/null; then
     python_path=$(which python)
-    if [[ "$python_path" == *"moe"* ]]; then
+    if [[ "$python_path" == *"$ENV_NAME"* ]]; then
         log_message "✅ Activated using 'source activate'"
         log_message "   Python after activation: $python_path"
         activation_success=true
@@ -120,9 +154,9 @@ fi
 
 # Method 2: conda activate (if first method didn't work)
 if [ "$activation_success" = false ] && command -v conda &> /dev/null; then
-    if conda activate moe 2>/dev/null; then
+    if conda activate $ENV_NAME 2>/dev/null; then
         python_path=$(which python)
-        if [[ "$python_path" == *"moe"* ]]; then
+        if [[ "$python_path" == *"$ENV_NAME"* ]]; then
             log_message "✅ Activated using 'conda activate'"
             log_message "   Python after activation: $python_path"
             activation_success=true
@@ -134,11 +168,11 @@ fi
 
 # Method 3: Direct path activation (if previous methods didn't work)
 if [ "$activation_success" = false ]; then
-    if [ -f "$CONDA_ENVS_PATH/moe/bin/activate" ]; then
+    if [ -f "$CONDA_ENVS_PATH/$ENV_NAME/bin/activate" ]; then
         log_message "   Trying direct path activation..."
-        source "$CONDA_ENVS_PATH/moe/bin/activate"
+        source "$CONDA_ENVS_PATH/$ENV_NAME/bin/activate"
         python_path=$(which python)
-        if [[ "$python_path" == *"moe"* ]]; then
+        if [[ "$python_path" == *"$ENV_NAME"* ]]; then
             log_message "✅ Activated using direct path"
             log_message "   Python after activation: $python_path"
             activation_success=true
@@ -148,34 +182,36 @@ if [ "$activation_success" = false ]; then
     fi
 fi
 
-# Method 4: Manually set PATH if activation didn't work
+# Method 4: Manually set PATH (most reliable method - use this as primary)
 if [ "$activation_success" = false ]; then
-    if [ -d "$CONDA_ENVS_PATH/moe/bin" ] && [ -f "$CONDA_ENVS_PATH/moe/bin/python" ]; then
-        log_message "   Trying manual PATH setup..."
-        # Prepend moe bin to PATH
-        export PATH="$CONDA_ENVS_PATH/moe/bin:$PATH"
+    if [ -d "$CONDA_ENVS_PATH/$ENV_NAME/bin" ] && [ -f "$CONDA_ENVS_PATH/$ENV_NAME/bin/python" ]; then
+        log_message "   Using manual PATH setup (most reliable)..."
+        # Prepend environment bin to PATH
+        export PATH="$CONDA_ENVS_PATH/$ENV_NAME/bin:$PATH"
         # Also set CONDA_DEFAULT_ENV for compatibility
-        export CONDA_DEFAULT_ENV=moe
+        export CONDA_DEFAULT_ENV=$ENV_NAME
+        # Prevent user site-packages
+        export PYTHONNOUSERSITE=1
         python_path=$(which python)
-        if [[ "$python_path" == *"moe"* ]]; then
+        if [[ "$python_path" == *"$ENV_NAME"* ]]; then
             log_message "✅ Activated using manual PATH setup"
             log_message "   Python after activation: $python_path"
             activation_success=true
         else
             log_message "⚠️  Manual PATH setup didn't work, Python still: $python_path"
-            log_message "   Checking if moe/bin/python exists..."
-            ls -la "$CONDA_ENVS_PATH/moe/bin/python" 2>&1 || log_message "   ❌ moe/bin/python does not exist!"
+            log_message "   Checking if $ENV_NAME/bin/python exists..."
+            ls -la "$CONDA_ENVS_PATH/$ENV_NAME/bin/python" 2>&1 || log_message "   ❌ $ENV_NAME/bin/python does not exist!"
         fi
     else
-        log_message "⚠️  moe/bin directory or python not found at: $CONDA_ENVS_PATH/moe/bin"
+        log_message "⚠️  $ENV_NAME/bin directory or python not found at: $CONDA_ENVS_PATH/$ENV_NAME/bin"
     fi
 fi
 
 # Final verification
 if [ "$activation_success" = false ]; then
-    log_message "❌ Failed to activate moe environment"
+    log_message "❌ Failed to activate $ENV_NAME environment"
     log_message "   Current Python: $(which python)"
-    log_message "   Expected path should contain: moe"
+    log_message "   Expected path should contain: $ENV_NAME"
     log_message "   CONDA_ENVS_PATH: $CONDA_ENVS_PATH"
     if [ -d "$CONDA_ENVS_PATH" ]; then
         log_message "   Available environments:"
@@ -186,16 +222,16 @@ if [ "$activation_success" = false ]; then
     exit 1
 fi
 
-# Double-check Python is from moe environment
+# Double-check Python is from the correct environment
 python_path=$(which python)
-if [[ "$python_path" != *"moe"* ]]; then
-    log_message "❌ CRITICAL: Python not from moe environment after activation!"
+if [[ "$python_path" != *"$ENV_NAME"* ]]; then
+    log_message "❌ CRITICAL: Python not from $ENV_NAME environment after activation!"
     log_message "   Python path: $python_path"
     log_message "   This will cause import errors!"
     exit 1
 fi
 
-log_message "✅ Verified moe environment active: $python_path"
+log_message "✅ Verified $ENV_NAME environment active: $python_path"
 
 # Navigate to project directory
 cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes || {
