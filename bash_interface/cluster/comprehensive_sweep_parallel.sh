@@ -205,13 +205,36 @@ cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes || {
 
 log_message "📁 Project directory: $(pwd)"
 
+# Check if scipy is working, if not, try to reinstall
+log_message "🔍 Verifying scipy installation..."
+if ! python -c "import scipy.signal" 2>/dev/null; then
+    log_message "❌ Scipy import failed, attempting to reinstall scipy..."
+    log_message "   Uninstalling scipy..."
+    python -m pip uninstall scipy -y --quiet 2>/dev/null || log_message "⚠️  Failed to uninstall scipy (may not be installed)."
+    log_message "   Installing scipy (using python -m pip to target environment)..."
+    # Use python -m pip to ensure we use the environment's pip
+    if ! python -m pip install scipy --no-cache-dir --quiet 2>&1; then
+        log_message "❌ Failed to reinstall scipy. Trying numpy + scipy reinstall..."
+        python -m pip uninstall numpy scipy -y --quiet 2>/dev/null
+        python -m pip install numpy --no-cache-dir --quiet && python -m pip install scipy --no-cache-dir --quiet || {
+            log_message "❌ Critical: Failed to reinstall numpy/scipy. GraphBench may not work."
+        }
+    else
+        log_message "✅ Scipy reinstalled successfully."
+    fi
+else
+    log_message "✅ Scipy import successful."
+fi
+
 # Install required packages that might be missing
 log_message "📦 Checking and installing required packages..."
 if ! python -c "import graphbench" 2>/dev/null; then
     log_message "   Installing graphbench-lib..."
-    pip install graphbench-lib --quiet || {
+    if ! python -m pip install graphbench-lib --no-cache-dir --quiet 2>&1; then
         log_message "⚠️  Failed to install graphbench-lib, continuing anyway..."
-    }
+    else
+        log_message "✅ graphbench-lib installed successfully."
+    fi
 else
     log_message "   ✅ graphbench-lib already installed"
 fi
