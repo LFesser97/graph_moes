@@ -219,11 +219,47 @@ fi
 # Install required packages that might be missing
 log_message "📦 Checking and installing required packages..."
 
+# Fix NumPy version (downgrade if needed - project requires <2.0)
+NUMPY_VERSION=$(python -c "import numpy; print(numpy.__version__)" 2>/dev/null | cut -d. -f1)
+if [ "$NUMPY_VERSION" = "2" ]; then
+    log_message "   ⚠️  NumPy 2.x detected, downgrading to <2.0..."
+    python -m pip install "numpy>=1.23.1,<2.0" --no-cache-dir --no-user --quiet 2>&1 || log_message "⚠️  Failed to downgrade numpy"
+fi
+
 # Install attrdict3 for Python 3.10+ compatibility
 if ! python -c "import attrdict3" 2>/dev/null; then
     log_message "   Installing attrdict3 (Python 3.10+ compatible)..."
     python -m pip install attrdict3 --no-cache-dir --no-user --quiet 2>&1 || log_message "⚠️  Failed to install attrdict3"
 fi
+
+# Install missing dependencies
+log_message "   Installing required dependencies..."
+# Check and install python-louvain (imported as 'community')
+if ! python -c "import community" 2>/dev/null; then
+    log_message "     Installing python-louvain (provides 'community' module)..."
+    python -m pip install "python-louvain>=0.16" --no-cache-dir --no-user --quiet 2>&1 || log_message "     ⚠️  Failed to install python-louvain"
+fi
+
+# Check and install other dependencies
+MISSING_DEPS=(
+    "graphriccicurvature>=0.5.3.1:GraphRicciCurvature"
+    "numba>=0.56.4:numba"
+    "networkit>=10.1:networkit"
+    "cvxpy>=1.4.1:cvxpy"
+    "pot>=0.9.0:ot"
+    "torcheval>=0.0.7:torcheval"
+    "wget>=3.2:wget"
+    "ipdb>=0.13.13:ipdb"
+)
+for dep_spec in "${MISSING_DEPS[@]}"; do
+    DEP=$(echo "$dep_spec" | cut -d':' -f1)
+    IMPORT_NAME=$(echo "$dep_spec" | cut -d':' -f2)
+    if ! python -c "import $IMPORT_NAME" 2>/dev/null; then
+        PACKAGE_NAME=$(echo "$DEP" | cut -d'>' -f1 | cut -d'=' -f1)
+        log_message "     Installing $PACKAGE_NAME..."
+        python -m pip install "$DEP" --no-cache-dir --no-user --quiet 2>&1 || log_message "     ⚠️  Failed to install $PACKAGE_NAME"
+    fi
+done
 
 if ! python -c "import graphbench" 2>/dev/null; then
     log_message "   Installing graphbench-lib..."
