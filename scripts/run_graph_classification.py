@@ -123,10 +123,30 @@ for dataset_name in graphbench_classification_datasets:
         )
         graphbench_datasets[f"graphbench_{dataset_name}"] = graphbench_data
         print(f"  ✅ GraphBench {dataset_name} loaded: {len(graphbench_data)} graphs")
-    except (ImportError, ValueError, RuntimeError, OSError) as e:
-        print(
-            f"  ⚠️  Failed to load GraphBench {dataset_name}: {e} (may not be installed or available)"
-        )
+    except (ImportError, ValueError, RuntimeError, OSError, EOFError, Exception) as e:
+        error_msg = str(e)
+        error_type = type(e).__name__
+        # Check if it's a download/extraction error (corrupted file)
+        if (
+            "zlib.error" in error_msg
+            or "decompressing" in error_msg
+            or "invalid stored block" in error_msg
+            or "Error -3" in error_msg
+            or error_type == "EOFError"
+            or "Compressed file ended" in error_msg
+            or "end-of-stream marker" in error_msg
+            or "tarfile" in error_msg.lower()
+        ):
+            print(
+                f"  ⚠️  Failed to load GraphBench {dataset_name}: Download/extraction error (file may be corrupted or incomplete). "
+                f"Skipping this dataset. To fix: delete {data_directory}/{dataset_name} and re-download."
+            )
+        else:
+            print(
+                f"  ⚠️  Failed to load GraphBench {dataset_name}: {error_type}: {e} (may not be installed or available)"
+            )
+        # Continue with other datasets
+        continue
 
 # LRGB datasets
 print("\n📊 Loading LRGB datasets...")
