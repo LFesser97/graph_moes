@@ -6,11 +6,11 @@ This script downloads datasets once so experiments don't need to download them r
 It checks if datasets already exist and handles corrupted downloads by deleting and retrying.
 """
 
-import os
+import gc
 import shutil
 import sys
+import time
 from pathlib import Path
-from typing import List, Optional
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -79,6 +79,9 @@ def download_graphbench_dataset(
             )
             # Just check if we can create the loader, don't actually load
             print(f"   ✅ {dataset_name} appears to be valid")
+            # Free memory
+            del loader
+            gc.collect()
             return True
         except Exception as e:
             error_msg = str(e)
@@ -101,60 +104,103 @@ def download_graphbench_dataset(
                 if not retry:
                     return False
 
-    # Download the dataset
-    try:
-        print(f"   ⏳ Downloading {dataset_name}...")
-        loader = Loader(
-            dataset_names=dataset_name,
-            root=str(root_dir),
-            pre_filter=None,
-            pre_transform=None,
-            transform=None,
-        )
-        dataset = loader.load()
+    # Download the dataset with retry logic for rate limits
+    max_retries = 3
+    retry_delay = 60  # Wait 60 seconds between retries for rate limits
 
-        if hasattr(dataset, "__len__"):
-            print(
-                f"   ✅ {dataset_name} downloaded successfully: {len(dataset)} samples"
+    for attempt in range(max_retries):
+        try:
+            if attempt > 0:
+                wait_time = retry_delay * attempt  # Exponential backoff
+                print(
+                    f"   ⏳ Retrying download (attempt {attempt + 1}/{max_retries}) after {wait_time}s..."
+                )
+                time.sleep(wait_time)
+            else:
+                print(f"   ⏳ Downloading {dataset_name}...")
+
+            loader = Loader(
+                dataset_names=dataset_name,
+                root=str(root_dir),
+                pre_filter=None,
+                pre_transform=None,
+                transform=None,
             )
-        else:
-            print(f"   ✅ {dataset_name} downloaded successfully")
+            dataset = loader.load()
 
-        return True
+            if hasattr(dataset, "__len__"):
+                print(
+                    f"   ✅ {dataset_name} downloaded successfully: {len(dataset)} samples"
+                )
+            else:
+                print(f"   ✅ {dataset_name} downloaded successfully")
 
-    except Exception as e:
-        error_msg = str(e)
-        error_type = type(e).__name__
+            # Explicitly free memory after loading
+            del dataset
+            del loader
+            gc.collect()
 
-        # Check if it's a download/extraction error
-        if any(
-            keyword in error_msg.lower()
-            for keyword in [
-                "zlib",
-                "decompressing",
-                "eof",
-                "corrupted",
-                "invalid",
-                "end-of-stream",
-                "tarfile",
-            ]
-        ) or error_type in ["EOFError", "zlib.error"]:
-            print(f"   ❌ Download failed due to corrupted file: {error_type}: {e}")
-            if retry:
-                print(f"   🔄 Will retry after cleaning up...")
-                # Clean up any partial downloads
-                dataset_path = root_dir / dataset_name
-                algoreas_path = root_dir / "algoreas"
-                if dataset_path.exists():
-                    shutil.rmtree(dataset_path)
-                if dataset_name == "co" and algoreas_path.exists():
-                    shutil.rmtree(algoreas_path)
-                # Retry once
-                return download_graphbench_dataset(dataset_name, root_dir, retry=False)
-        else:
-            print(f"   ❌ Failed to download {dataset_name}: {error_type}: {e}")
+            return True
 
-        return False
+        except Exception as e:
+            error_msg = str(e)
+            error_type = type(e).__name__
+
+            # Check if it's a rate limit error (HTTP 429)
+            if (
+                "429" in error_msg
+                or "Too Many Requests" in error_msg
+                or "rate limit" in error_msg.lower()
+            ):
+                if attempt < max_retries - 1:
+                    print(
+                        f"   ⚠️  Rate limited (HTTP 429), will retry in {retry_delay * (attempt + 1)}s..."
+                    )
+                    continue  # Retry with backoff
+                else:
+                    print(
+                        f"   ❌ Rate limited after {max_retries} attempts. Please wait and try again later."
+                    )
+                    return False
+
+            # Check if it's a download/extraction error
+            if any(
+                keyword in error_msg.lower()
+                for keyword in [
+                    "zlib",
+                    "decompressing",
+                    "eof",
+                    "corrupted",
+                    "invalid",
+                    "end-of-stream",
+                    "tarfile",
+                ]
+            ) or error_type in ["EOFError", "zlib.error"]:
+                print(f"   ❌ Download failed due to corrupted file: {error_type}: {e}")
+                if retry:
+                    print(f"   🔄 Will retry after cleaning up...")
+                    # Clean up any partial downloads
+                    dataset_path = root_dir / dataset_name
+                    algoreas_path = root_dir / "algoreas"
+                    if dataset_path.exists():
+                        shutil.rmtree(dataset_path)
+                    if dataset_name == "co" and algoreas_path.exists():
+                        shutil.rmtree(algoreas_path)
+                    # Retry once
+                    return download_graphbench_dataset(
+                        dataset_name, root_dir, retry=False
+                    )
+                return False
+            else:
+                # For other errors, only retry if it's not the last attempt
+                if attempt < max_retries - 1:
+                    print(f"   ⚠️  Error: {error_type}: {e}, will retry...")
+                    continue
+                else:
+                    print(f"   ❌ Failed to download {dataset_name}: {error_type}: {e}")
+                    return False
+
+    return False
 
 
 def main() -> None:
@@ -193,6 +239,9 @@ def main() -> None:
             successful_downloads.append(dataset_name)
         else:
             failed_downloads.append(dataset_name)
+
+        # Force garbage collection between datasets to free memory
+        gc.collect()
 
     # Summary
     print("\n" + "=" * 60)

@@ -126,8 +126,14 @@ for dataset_name in graphbench_classification_datasets:
     except (ImportError, ValueError, RuntimeError, OSError, EOFError, Exception) as e:
         error_msg = str(e)
         error_type = type(e).__name__
+        # Check if it's a rate limit error
+        if "429" in error_msg or "Too Many Requests" in error_msg or "rate limit" in error_msg.lower():
+            print(
+                f"  ⚠️  Failed to load GraphBench {dataset_name}: Rate limited by server (HTTP 429). "
+                f"Skipping this dataset. Run download script separately to download datasets."
+            )
         # Check if it's a download/extraction error (corrupted file)
-        if (
+        elif (
             "zlib.error" in error_msg
             or "decompressing" in error_msg
             or "invalid stored block" in error_msg
@@ -140,6 +146,12 @@ for dataset_name in graphbench_classification_datasets:
             print(
                 f"  ⚠️  Failed to load GraphBench {dataset_name}: Download/extraction error (file may be corrupted or incomplete). "
                 f"Skipping this dataset. To fix: delete {data_directory}/{dataset_name} and re-download."
+            )
+        # Check if it's a file structure error
+        elif "NotADirectoryError" in error_type or "Not a directory" in error_msg:
+            print(
+                f"  ⚠️  Failed to load GraphBench {dataset_name}: File structure error. "
+                f"Skipping this dataset. Try deleting {data_directory}/{dataset_name} and re-downloading."
             )
         else:
             print(

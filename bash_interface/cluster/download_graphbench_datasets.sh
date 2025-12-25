@@ -15,7 +15,7 @@
 #SBATCH --job-name=download_graphbench
 #SBATCH --ntasks=1
 #SBATCH --time=4:00:00           # 4 hours should be enough for downloads
-#SBATCH --mem=32GB               # Sufficient memory for downloads
+#SBATCH --mem=128GB              # Increased memory for large datasets (er_large, etc.)
 #SBATCH --output=logs_comprehensive/download_graphbench_%j.log
 #SBATCH --partition=mweber_gpu   # Can run on GPU partition or general
 #SBATCH --gpus=0                 # No GPU needed for downloads
