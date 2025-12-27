@@ -7,7 +7,13 @@ except ImportError:
     from attrdict import AttrDict  # Fallback for older Python
 
 
-def get_args_from_input():
+def get_args_from_input() -> AttrDict:
+    """
+    Parse command-line arguments for network hyperparameters.
+
+    Returns:
+        AttrDict: Dictionary-like object containing parsed command-line arguments.
+    """
     parser = argparse.ArgumentParser(
         description="modify network parameters", argument_default=argparse.SUPPRESS
     )
