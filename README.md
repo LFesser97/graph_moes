@@ -2,9 +2,27 @@
 
 # TODO (12/10)
 Can GNN be strong baselines:
-- take these hyperparameters and these datasets.
-- total of 15 datasets + TU should be 20 or 21.
+- take these hyperparameters and these datasets. [TODO: check manually]
 
+Check what dataset we have right now? 
+What ran:
+proteins, enzymes, imdb, mutag, pattern, reddit, collab, cifar, mnist
+TODO: reread what dataset I expect.
+Missing:
+enzymes, peptides-struct, peptides-func
+- total ~20 
+MAKE SURE I CAN RERUN ON THE CLUSTER. CLEAN UP.
+
+# Dataset Status Summary
+
+**Target Datasets (15 total):**
+- ✅ **Available & Loaded (14):** ZINC, MNIST, CIFAR10, PATTERN, CLUSTER, Peptides-func, PascalVOC-SP, COCO-SP, MalNet-Tiny, ogbg-molhiv, ogbg-molpcba, ogbg-ppa, ogbg-code2
+- ⚠️ **Commented Out (1):** Peptides-struct (needs uncommenting in `run_graph_regression.py`)
+
+**Note:** ogbg-code2 is in classification script but has `output_dim=1` (regression) - verify task type.
+
+
+IN PROGRESS: TO CODE REVIEW AND CHECK
 Vizualisations:
 for each dataset and each MOE configurations:
 + code lost for the histograms/TmD
@@ -286,6 +304,15 @@ python run_graph_regression.py \
 |------------------|---------|---------|----------------------------------|
 | **ogbg-molhiv**  | 41,127  | 2       | HIV inhibition prediction        |
 | **ogbg-molpcba** | 437,929 | 128     | Molecular bioactivity prediction |
+
+#### GraphBench Datasets - Successfully Downloaded
+| Dataset                      | Status | Description                                   |
+|------------------------------|--------|-----------------------------------------------|
+| **sat**                      | ✅     | SAT solving problems                          |
+| **chipdesign**               | ✅     | Chip design optimization                      |
+| **algorithmic_reasoning_easy** | ✅  | Algorithmic reasoning (easy difficulty)       |
+
+Note: Other GraphBench datasets (socialnetwork, co, algorithmic_reasoning_medium/hard, electronic_circuits) had download issues and may require retry.
 
 ### Regression Datasets
 | Dataset                | Graphs  | Task       | Description                                   |
