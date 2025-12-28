@@ -347,10 +347,9 @@ source /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface
 # Define ADDITIONAL datasets - these were previously commented out
 # LRGB datasets (assuming they work now)
 # OGB datasets (ppa should be pre-downloaded)
-# GraphBench datasets (if available, but may need individual testing)
-datasets=(pascalvoc coco peptides_func ppa)
-# Note: GraphBench datasets commented out until tested individually
-# datasets+=(socialnetwork co sat chipdesign electronic_circuits)
+# Additional datasets: LRGB (3), OGB (1), GraphBench (5) = 9 total
+datasets=(pascalvoc coco peptides_func ppa socialnetwork co sat chipdesign electronic_circuits)
+# Total experiments: 45 single + 54 MoE = 99 (algorithmic_reasoning excluded)
 
 # Calculate which experiment this array task should run
 task_id=${SLURM_ARRAY_TASK_ID:-1}
