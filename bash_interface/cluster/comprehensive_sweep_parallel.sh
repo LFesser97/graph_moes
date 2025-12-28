@@ -10,17 +10,17 @@
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 100
-#   - 50 single layer experiments: 5 layer types × 10 datasets
-#   - 60 MoE experiments: 6 layer combinations × 10 datasets
-# Note: GraphBench datasets excluded to avoid download attempts
+# Total experiments: 88
+#   - 44 single layer experiments: 5 layer types × 9 datasets (removed PATTERN - it's node classification)
+#   - 44 MoE experiments: 6 combinations × 9 datasets
+# Note: GraphBench datasets excluded, PATTERN removed (node classification, not graph classification)
 # Each experiment runs 200 trials to ensure proper test set coverage
 #
 # Usage: sbatch comprehensive_sweep_parallel.sh
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-100             # Total experiments: 50 single layer + 60 MoE = 100
+#SBATCH --array=1-88              # Total experiments: 44 single layer + 44 MoE = 88
 #SBATCH --ntasks=1
 #SBATCH --time=48:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=64GB               # Sufficient memory
@@ -346,7 +346,7 @@ source /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface
 # Define datasets - each will use optimal hyperparameters from research paper
 # GraphBench datasets excluded for now (to avoid download attempts)
 # To include GraphBench: add graphbench_socialnetwork graphbench_co graphbench_sat to the list
-datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern cluster)
+datasets=(enzymes proteins mutag imdb collab reddit mnist cifar cluster)
 
 # Calculate which experiment this array task should run
 task_id=${SLURM_ARRAY_TASK_ID:-1}
