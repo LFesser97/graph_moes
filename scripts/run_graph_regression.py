@@ -31,6 +31,7 @@ import wandb
 from graph_moes.download.load_graphbench import load_graphbench_dataset
 from graph_moes.encodings.custom_encodings import LocalCurvatureProfile
 from graph_moes.experiments.graph_regression import Experiment
+from graph_moes.experiments.track_avg_accuracy import load_and_plot_average_per_graph
 from hyperparams import get_args_from_input
 
 # import custom encodings
@@ -113,7 +114,7 @@ default_args = AttrDict(
         "learning_rate": 1e-3,
         "layer_type": "GINE",
         "display": True,
-        "num_trials": 15,
+        "num_trials": 200,
         "eval_every": 1,
         "patience": 250,
         "output_dim": 2,
@@ -220,10 +221,19 @@ for key in datasets:
             torch.save(dataset, f"data/{key}_{args.encoding}.pt")
 
     # create a dictionary of the graphs in the dataset with the key being the graph index
+    # graph_dict[graph_idx] = list of error values (MAE) for each test appearance
     graph_dict = {}
     for i in range(len(dataset)):
         graph_dict[i] = []
+
+    # Track how many times each graph has appeared in test sets
+    test_appearances = {i: 0 for i in range(len(dataset))}
+    required_test_appearances = 10  # Each graph should appear in test sets 10 times
+
     print("GRAPH DICTIONARY CREATED...")
+    print(
+        f"🎯 Goal: Each graph should appear in test sets {required_test_appearances} times"
+    )
 
     # spectral_gap = average_spectral_gap(dataset)
     print("TRAINING STARTED...")
@@ -239,8 +249,40 @@ for key in datasets:
             experiment_id = f"{args.wandb_name}_{timestamp}"
         print(f"🔬 WandB Experiment Group: {experiment_id}")
 
-    for trial in range(args.num_trials):
-        print(f"Trial {trial + 1} of {args.num_trials}")
+    trial = 0
+    while True:
+        trial += 1
+
+        # Check if we've satisfied the requirement (before running this trial)
+        min_test_appearances = (
+            min(test_appearances.values())
+            if test_appearances and len(test_appearances) > 0
+            else 0
+        )
+        if min_test_appearances >= required_test_appearances:
+            print(
+                f"\n✅ All graphs have appeared in test sets at least {required_test_appearances} times!"
+            )
+            print(f"   Stopping before trial {trial}")
+            break
+
+        # Also respect the num_trials limit if set (for backwards compatibility)
+        if (
+            hasattr(args, "num_trials")
+            and args.num_trials is not None
+            and trial > args.num_trials
+        ):
+            print(
+                f"\n⚠️  Reached num_trials limit ({args.num_trials}), but not all graphs have appeared 10 times yet"
+            )
+            print(
+                f"   Current min appearances: {min_test_appearances}/{required_test_appearances}"
+            )
+            break
+
+        print(
+            f"\n📊 TRIAL {trial} (Min test appearances before trial: {min_test_appearances}/{required_test_appearances})"
+        )
 
         # Initialize wandb for this specific trial
         if args.wandb_enabled:
@@ -255,7 +297,7 @@ for key in datasets:
                 group=experiment_id,  # Group all trials together
                 config={
                     **dict(args),
-                    "trial_num": trial + 1,
+                    "trial_num": trial,
                     "dataset": key,
                     # Add grouping variables:
                     "dataset_name": key,
@@ -269,20 +311,36 @@ for key in datasets:
                     "num_layers": args.num_layers,
                 },
                 dir=args.wandb_dir,
-                tags=list(args.wandb_tags or []) + [f"trial_{trial + 1}"],
+                tags=list(args.wandb_tags or []) + [f"trial_{trial}"],
                 reinit=True,  # Allow multiple runs in same process
             )
             print(f"🚀 WandB Trial Run: {wandb.run.name}")
 
         try:
-            train_acc, validation_acc, test_acc, energy, dictionary = Experiment(
-                args=args, dataset=dataset
-            ).run()
+            train_acc, validation_acc, test_acc, energy, dictionary, test_indices = (
+                Experiment(args=args, dataset=dataset).run()
+            )
 
             train_accuracies.append(train_acc)
             validation_accuracies.append(validation_acc)
             test_accuracies.append(test_acc)
             energies.append(energy)
+
+            # Track test set appearances and record error only for test set graphs
+            for graph_idx in test_indices:
+                test_appearances[graph_idx] += 1
+                if graph_idx in dictionary and dictionary[graph_idx] != -1:
+                    graph_dict[graph_idx].append(dictionary[graph_idx])
+
+            # Show intermediate results
+            min_appearances = min(test_appearances.values())
+            max_appearances = max(test_appearances.values())
+            print(
+                f"   Train MAE: {train_acc:.4f} | Val MAE: {validation_acc:.4f} | Test MAE: {test_acc:.4f}"
+            )
+            print(
+                f"   Test appearances: min={min_appearances}, max={max_appearances}, graphs_in_test={len(test_indices)}"
+            )
 
             # Log final trial results to this trial's wandb run
             if args.wandb_enabled:
@@ -292,6 +350,8 @@ for key in datasets:
                         "final/val_mae": validation_acc,
                         "final/test_mae": test_acc,
                         "final/energy": energy,
+                        "final/min_test_appearances": min_appearances,
+                        "final/max_test_appearances": max_appearances,
                         # Add grouping variables:
                         "groupby/dataset": key,
                         "groupby/model_type": (
@@ -311,10 +371,6 @@ for key in datasets:
                     }
                 )
 
-            for name in dictionary.keys():
-                if dictionary[name] != -1:
-                    graph_dict[name].append(dictionary[name])
-
         finally:
             # Finish this trial's wandb run
             if args.wandb_enabled:
@@ -322,22 +378,76 @@ for key in datasets:
 
     end = time.time()
     run_duration = end - start
+    print(f"⏱️  Training completed in {run_duration:.2f} seconds")
+    print(f"📊 Total trials run: {trial}")
+    print(
+        f"📈 Final test appearances: min={min(test_appearances.values())}, max={max(test_appearances.values())}"
+    )
 
-    with open(
-        f"results/{args.num_layers}_layers/{key}_{args.layer_type}_{args.encoding}_graph_dict.pickle",
-        "wb",
-    ) as f:
-        pickle.dump(graph_dict, f)
-    print(f"Graph dictionary for {key} pickled")
+    # Calculate how many graphs have appeared the required number of times
+    graphs_with_sufficient_appearances = sum(
+        1 for count in test_appearances.values() if count >= required_test_appearances
+    )
+    print(
+        f"✅ Graphs with ≥{required_test_appearances} test appearances: {graphs_with_sufficient_appearances}/{len(dataset)}"
+    )
 
+    # Save graph_dict (per-graph error tracking) and test_appearances
+    os.makedirs(f"results/{args.num_layers}_layers", exist_ok=True)
+    graph_dict_filename = f"results/{args.num_layers}_layers/{key}_{args.layer_type}_{args.encoding}_graph_dict.pickle"
+    with open(graph_dict_filename, "wb") as f:
+        pickle.dump(
+            {
+                "graph_dict": graph_dict,
+                "test_appearances": test_appearances,
+                "required_test_appearances": required_test_appearances,
+            },
+            f,
+        )
+    print(f"💾 Graph error dictionary saved to: {graph_dict_filename}")
+
+    # Generate and save average error per graph plot
+    try:
+        plot_path = load_and_plot_average_per_graph(
+            graph_dict_filename,
+            dataset_name=key,
+            layer_type=args.layer_type,
+            encoding=args.encoding,
+            num_layers=args.num_layers,
+            task_type="regression",
+            output_dir="results",
+        )
+        if plot_path:
+            print(f"📊 Average error plot saved to: {plot_path}")
+    except Exception as e:
+        print(f"⚠️  Failed to generate average error plot: {e}")
+
+    # Calculate statistics
+    num_trials_actual = len(train_accuracies)
     train_mean = np.mean(train_accuracies)
     val_mean = np.mean(validation_accuracies)
     test_mean = np.mean(test_accuracies)
     energy_mean = 100 * np.mean(energies)
-    train_ci = 2 * np.std(train_accuracies) / (args.num_trials**0.5)
-    val_ci = 2 * np.std(validation_accuracies) / (args.num_trials**0.5)
-    test_ci = 2 * np.std(test_accuracies) / (args.num_trials**0.5)
-    energy_ci = 200 * np.std(energies) / (args.num_trials**0.5)
+    train_ci = (
+        2 * np.std(train_accuracies) / (num_trials_actual**0.5)
+        if num_trials_actual > 0
+        else 0
+    )
+    val_ci = (
+        2 * np.std(validation_accuracies) / (num_trials_actual**0.5)
+        if num_trials_actual > 0
+        else 0
+    )
+    test_ci = (
+        2 * np.std(test_accuracies) / (num_trials_actual**0.5)
+        if num_trials_actual > 0
+        else 0
+    )
+    energy_ci = (
+        200 * np.std(energies) / (num_trials_actual**0.5)
+        if num_trials_actual > 0
+        else 0
+    )
     log_to_file(
         f"RESULTS FOR dataset: {key} (model: {args.layer_type}), with encodings: {args.encoding}:\n"
     )
@@ -361,6 +471,10 @@ for key in datasets:
             "energy_ci": energy_ci,
             "last_layer_fa": args.last_layer_fa,
             "run_duration": run_duration,
+            "num_trials_actual": num_trials_actual,
+            "min_test_appearances": min(test_appearances.values()),
+            "max_test_appearances": max(test_appearances.values()),
+            "graphs_with_sufficient_appearances": graphs_with_sufficient_appearances,
         }
     )
 
@@ -379,7 +493,8 @@ for key in datasets:
                 **dict(args),
                 "dataset": key,
                 "run_type": "summary",
-                "num_trials": args.num_trials,
+                "num_trials": num_trials_actual,
+                "required_test_appearances": required_test_appearances,
                 # Add grouping variables:
                 "groupby/dataset": key,
                 "groupby/model_type": (
@@ -413,6 +528,10 @@ for key in datasets:
                 "summary/energy_mean": energy_mean,
                 "summary/energy_ci": energy_ci,
                 "summary/run_duration": run_duration,
+                "summary/num_trials_actual": num_trials_actual,
+                "summary/min_test_appearances": min(test_appearances.values()),
+                "summary/max_test_appearances": max(test_appearances.values()),
+                "summary/graphs_with_sufficient_appearances": graphs_with_sufficient_appearances,
                 # Log individual trial results for analysis
                 "trials/train_maes": train_accuracies,
                 "trials/val_maes": validation_accuracies,
