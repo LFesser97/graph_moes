@@ -23,7 +23,7 @@ try:
 except ImportError:
     from attrdict import AttrDict  # Fallback for older Python
 from torch_geometric.data import Data
-from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset, LRGBDataset
+from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
 from tqdm import tqdm
 
 import wandb
@@ -208,31 +208,38 @@ if len(graphbench_classification_datasets) > 0:
 else:
     print("  ⏭️  GraphBench datasets disabled (commented out)")
 
-# LRGB datasets
-print("\n📊 Loading LRGB datasets...")
-try:
-    print("  ⏳ Loading Cluster...")
-    cluster = list(LRGBDataset(root=data_directory, name="Cluster"))
-    print(f"  ✅ Cluster loaded: {len(cluster)} graphs")
-except (ImportError, ValueError, RuntimeError, OSError) as e:
-    print(f"  ⚠️  Failed to load Cluster: {e}")
-    cluster = []
+print("  ⏭️  LRGB datasets disabled (commented out)")
 
-try:
-    print("  ⏳ Loading PascalVOC-SP...")
-    pascalvoc = list(LRGBDataset(root=data_directory, name="pascalvoc-sp"))
-    print(f"  ✅ PascalVOC-SP loaded: {len(pascalvoc)} graphs")
-except (ImportError, ValueError, RuntimeError, OSError) as e:
-    print(f"  ⚠️  Failed to load PascalVOC-SP: {e}")
-    pascalvoc = []
+# LRGB datasets (DISABLED: Commented out to avoid loading issues)
+# print("\n📊 Loading LRGB datasets...")
+# try:
+#     print("  ⏳ Loading Cluster...")
+#     cluster = list(LRGBDataset(root=data_directory, name="Cluster"))
+#     print(f"  ✅ Cluster loaded: {len(cluster)} graphs")
+# except (ImportError, ValueError, RuntimeError, OSError) as e:
+#     print(f"  ⚠️  Failed to load Cluster: {e}")
+#     cluster = []
 
-try:
-    print("  ⏳ Loading COCO-SP...")
-    coco = list(LRGBDataset(root=data_directory, name="coco-sp"))
-    print(f"  ✅ COCO-SP loaded: {len(coco)} graphs")
-except (ImportError, ValueError, RuntimeError, OSError) as e:
-    print(f"  ⚠️  Failed to load COCO-SP: {e}")
-    coco = []
+# try:
+#     print("  ⏳ Loading PascalVOC-SP...")
+#     pascalvoc = list(LRGBDataset(root=data_directory, name="pascalvoc-sp"))
+#     print(f"  ✅ PascalVOC-SP loaded: {len(pascalvoc)} graphs")
+# except (ImportError, ValueError, RuntimeError, OSError) as e:
+#     print(f"  ⚠️  Failed to load PascalVOC-SP: {e}")
+#     pascalvoc = []
+
+# try:
+#     print("  ⏳ Loading COCO-SP...")
+#     coco = list(LRGBDataset(root=data_directory, name="coco-sp"))
+#     print(f"  ✅ COCO-SP loaded: {len(coco)} graphs")
+# except (ImportError, ValueError, RuntimeError, OSError) as e:
+#     print(f"  ⚠️  Failed to load COCO-SP: {e}")
+#     coco = []
+
+# Set LRGB datasets to empty (disabled)
+cluster = []
+pascalvoc = []
+coco = []
 
 # Peptides-func dataset
 print("\n📊 Loading Peptides-func...")
@@ -573,7 +580,7 @@ for key in datasets:
                 f"   Current min appearances: {min_test_appearances}/{required_test_appearances}"
             )
             print(
-                f"   Consider increasing num_trials to allow more trials for test appearance requirement"
+                "   Consider increasing num_trials to allow more trials for test appearance requirement"
             )
             break
 
