@@ -85,17 +85,24 @@ see the performance of each model of each graph (repeated ten times)
 
 **📝 CURRENT STATUS & NEXT STEPS:**
 
-**✅ ogbg-ppa download**: Dataset loading has been uncommented in the script!
+**✅ ogbg-ppa download**: Script created and ready!
 
 **To download ogbg-ppa on cluster:**
 1. Pull latest changes: `git pull`
-2. Run with proper environment: 
+2. Submit the download job:
    ```bash
-   export PYTHONPATH="$(pwd):$(pwd)/src:${PYTHONPATH}"
-   python scripts/run_graph_classification.py --dataset ppa --layer_type GCN --num_trials 1
+   sbatch download_ppa.sh
    ```
-3. Answer "y" to both prompts when asked
-4. The dataset will download directly to cluster storage
+3. Monitor the job: `squeue -u rpellegrinext`
+4. Check logs: `cat slurm-*.out` (after job completes)
+5. The dataset will download directly to cluster storage
+
+**Alternative manual approach:**
+```bash
+export PYTHONPATH="$(pwd):$(pwd)/src:${PYTHONPATH}"
+python scripts/run_graph_classification.py --dataset ppa --layer_type GCN --num_trials 1
+```
+(Answer "y" to both prompts when asked)
 
 **After ogbg-ppa is available:**
 1. Uncomment LRGB datasets (pascalvoc, coco, peptides_func) in `run_graph_classification.py`
