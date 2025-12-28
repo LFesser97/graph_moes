@@ -28,7 +28,9 @@ from tqdm import tqdm
 
 import wandb
 from ogb.graphproppred import PygGraphPropPredDataset
-from graph_moes.download.load_graphbench import load_graphbench_dataset
+
+# GraphBench loading disabled - comment out to re-enable
+# from graph_moes.download.load_graphbench import load_graphbench_dataset
 from graph_moes.encodings.custom_encodings import LocalCurvatureProfile
 from graph_moes.experiments.graph_classification import Experiment
 
@@ -116,11 +118,11 @@ print("and yet more...")
 # GraphBench datasets (graph classification tasks)
 # DISABLED: Commented out to avoid download attempts during comprehensive sweep
 # Uncomment this section when GraphBench datasets are pre-downloaded
-print("\n📊 Loading GraphBench datasets...")
 graphbench_datasets = {}
 
 # GraphBench dataset names that are relevant for graph classification
 # Based on GraphBench documentation: https://github.com/graphbench/package
+# ALL COMMENTED OUT TO PREVENT DOWNLOADS
 graphbench_classification_datasets = [
     # "socialnetwork",  # Social media datasets
     # "co",  # Combinatorial optimization
@@ -133,56 +135,76 @@ graphbench_classification_datasets = [
     # Note: weather is for regression tasks, not included here
 ]
 
-# Skip GraphBench loading if list is empty
+# Skip GraphBench loading - list is empty so this block won't execute
+# GraphBench datasets are disabled to avoid download attempts
 if len(graphbench_classification_datasets) > 0:
-    for dataset_name in graphbench_classification_datasets:
+    print("\n📊 Loading GraphBench datasets...")
     try:
-        print(f"  ⏳ Loading GraphBench: {dataset_name}...")
-        graphbench_data = load_graphbench_dataset(
-            dataset_name=dataset_name, root=data_directory
-        )
-        graphbench_datasets[f"graphbench_{dataset_name}"] = graphbench_data
-        print(f"  ✅ GraphBench {dataset_name} loaded: {len(graphbench_data)} graphs")
-    except (ImportError, ValueError, RuntimeError, OSError, EOFError, Exception) as e:
-        error_msg = str(e)
-        error_type = type(e).__name__
-        # Check if it's a rate limit error
-        if (
-            "429" in error_msg
-            or "Too Many Requests" in error_msg
-            or "rate limit" in error_msg.lower()
-        ):
-            print(
-                f"  ⚠️  Failed to load GraphBench {dataset_name}: Rate limited by server (HTTP 429). "
-                f"Skipping this dataset. Run download script separately to download datasets."
-            )
-        # Check if it's a download/extraction error (corrupted file)
-        elif (
-            "zlib.error" in error_msg
-            or "decompressing" in error_msg
-            or "invalid stored block" in error_msg
-            or "Error -3" in error_msg
-            or error_type == "EOFError"
-            or "Compressed file ended" in error_msg
-            or "end-of-stream marker" in error_msg
-            or "tarfile" in error_msg.lower()
-        ):
-            print(
-                f"  ⚠️  Failed to load GraphBench {dataset_name}: Download/extraction error (file may be corrupted or incomplete). "
-                f"Skipping this dataset. To fix: delete {data_directory}/{dataset_name} and re-download."
-            )
-        # Check if it's a file structure error
-        elif "NotADirectoryError" in error_type or "Not a directory" in error_msg:
-            print(
-                f"  ⚠️  Failed to load GraphBench {dataset_name}: File structure error. "
-                f"Skipping this dataset. Try deleting {data_directory}/{dataset_name} and re-downloading."
-            )
-        else:
-            print(
-                f"  ⚠️  Failed to load GraphBench {dataset_name}: {error_type}: {e} (may not be installed or available)"
-            )
-        # Continue with other datasets
-        continue
+        from graph_moes.download.load_graphbench import load_graphbench_dataset
+    except ImportError:
+        print("  ⚠️  GraphBench import disabled, skipping GraphBench datasets")
+        graphbench_classification_datasets = []
+
+    if len(graphbench_classification_datasets) > 0:
+        for dataset_name in graphbench_classification_datasets:
+            try:
+                print(f"  ⏳ Loading GraphBench: {dataset_name}...")
+                graphbench_data = load_graphbench_dataset(
+                    dataset_name=dataset_name, root=data_directory
+                )
+                graphbench_datasets[f"graphbench_{dataset_name}"] = graphbench_data
+                print(
+                    f"  ✅ GraphBench {dataset_name} loaded: {len(graphbench_data)} graphs"
+                )
+            except (
+                ImportError,
+                ValueError,
+                RuntimeError,
+                OSError,
+                EOFError,
+                Exception,
+            ) as e:
+                error_msg = str(e)
+                error_type = type(e).__name__
+                # Check if it's a rate limit error
+                if (
+                    "429" in error_msg
+                    or "Too Many Requests" in error_msg
+                    or "rate limit" in error_msg.lower()
+                ):
+                    print(
+                        f"  ⚠️  Failed to load GraphBench {dataset_name}: Rate limited by server (HTTP 429). "
+                        f"Skipping this dataset. Run download script separately to download datasets."
+                    )
+                # Check if it's a download/extraction error (corrupted file)
+                elif (
+                    "zlib.error" in error_msg
+                    or "decompressing" in error_msg
+                    or "invalid stored block" in error_msg
+                    or "Error -3" in error_msg
+                    or error_type == "EOFError"
+                    or "Compressed file ended" in error_msg
+                    or "end-of-stream marker" in error_msg
+                    or "tarfile" in error_msg.lower()
+                ):
+                    print(
+                        f"  ⚠️  Failed to load GraphBench {dataset_name}: Download/extraction error (file may be corrupted or incomplete). "
+                        f"Skipping this dataset. To fix: delete {data_directory}/{dataset_name} and re-download."
+                    )
+                # Check if it's a file structure error
+                elif (
+                    "NotADirectoryError" in error_type or "Not a directory" in error_msg
+                ):
+                    print(
+                        f"  ⚠️  Failed to load GraphBench {dataset_name}: File structure error. "
+                        f"Skipping this dataset. Try deleting {data_directory}/{dataset_name} and re-downloading."
+                    )
+                else:
+                    print(
+                        f"  ⚠️  Failed to load GraphBench {dataset_name}: {error_type}: {e} (may not be installed or available)"
+                    )
+                # Continue with other datasets
+                continue
 else:
     print("  ⏭️  GraphBench datasets disabled (commented out)")
 
