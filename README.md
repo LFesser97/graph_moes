@@ -4,6 +4,11 @@
 Can GNN be strong baselines:
 - take these hyperparameters and these datasets. [TODO: check manually]
 
+- Redo plotting + TMD
+- Adding a few datasets + architectures 
+- MoE: foresee how well this is working - look at training curves and that it trains well and accuracy in comparaison with other baselines.
+Aiming end of Jan 
+
 Check what dataset we have right now? 
 What ran:
 proteins, enzymes, imdb, mutag, pattern, reddit, collab, cifar, mnist
