@@ -10,17 +10,17 @@
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 88
-#   - 44 single layer experiments: 5 layer types × 9 datasets (removed PATTERN - it's node classification)
-#   - 44 MoE experiments: 6 combinations × 9 datasets
-# Note: GraphBench datasets excluded, PATTERN removed (node classification, not graph classification)
+# Total experiments: 80
+#   - 40 single layer experiments: 5 layer types × 8 datasets (removed PATTERN and cluster)
+#   - 40 MoE experiments: 6 combinations × 8 datasets
+# Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
 # Each experiment runs 200 trials to ensure proper test set coverage
 #
 # Usage: sbatch comprehensive_sweep_parallel.sh
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-88              # Total experiments: 44 single layer + 44 MoE = 88
+#SBATCH --array=1-80              # Total experiments: 40 single layer + 40 MoE = 80
 #SBATCH --ntasks=1
 #SBATCH --time=48:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=64GB               # Sufficient memory
@@ -346,16 +346,16 @@ source /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface
 # Define datasets - each will use optimal hyperparameters from research paper
 # GraphBench datasets excluded for now (to avoid download attempts)
 # To include GraphBench: add graphbench_socialnetwork graphbench_co graphbench_sat to the list
-datasets=(enzymes proteins mutag imdb collab reddit mnist cifar cluster)
+datasets=(enzymes proteins mutag imdb collab reddit mnist cifar)
 
 # Calculate which experiment this array task should run
 task_id=${SLURM_ARRAY_TASK_ID:-1}
 
-# Total single layer experiments: 5 layer types × 10 datasets = 50
-# Total MoE experiments: 6 combinations × 10 datasets = 60
-# Total: 100 experiments
+# Total single layer experiments: 5 layer types × 8 datasets = 40
+# Total MoE experiments: 6 combinations × 8 datasets = 40
+# Total: 80 experiments
 
-if [ "$task_id" -le 50 ]; then
+if [ "$task_id" -le 40 ]; then
     # Single layer experiment
     experiment_type="single"
     adjusted_id=$((task_id - 1))
@@ -399,7 +399,7 @@ if [ "$task_id" -le 50 ]; then
 else
     # MoE experiment
     experiment_type="moe"
-    moe_id=$((task_id - 51))
+    moe_id=$((task_id - 41))
     
     # Calculate dataset and MoE combination
     num_datasets=${#datasets[@]}
