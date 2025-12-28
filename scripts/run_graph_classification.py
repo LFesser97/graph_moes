@@ -282,14 +282,19 @@ except (ImportError, ValueError, RuntimeError, OSError) as e:
     print(f"  ⚠️  Failed to load ogbg-molpcba: {e}")
     molpcba = []
 
-try:
-    print("  ⏳ Loading ogbg-ppa...")
-    ppa_dataset = PygGraphPropPredDataset(name="ogbg-ppa", root=data_directory)
-    ppa = [ppa_dataset[i] for i in range(len(ppa_dataset))]
-    print(f"  ✅ ogbg-ppa loaded: {len(ppa)} graphs")
-except (ImportError, ValueError, RuntimeError, OSError) as e:
-    print(f"  ⚠️  Failed to load ogbg-ppa: {e}")
-    ppa = []
+print("  ⏭️  ogbg-ppa disabled (requires large download with user confirmation)")
+
+# try:
+#     print("  ⏳ Loading ogbg-ppa...")
+#     ppa_dataset = PygGraphPropPredDataset(name="ogbg-ppa", root=data_directory)
+#     ppa = [ppa_dataset[i] for i in range(len(ppa_dataset))]
+#     print(f"  ✅ ogbg-ppa loaded: {len(ppa)} graphs")
+# except (ImportError, ValueError, RuntimeError, OSError) as e:
+#     print(f"  ⚠️  Failed to load ogbg-ppa: {e}")
+#     ppa = []
+
+# Set ogbg-ppa to empty (disabled - requires large download with user confirmation)
+ppa = []
 
 try:
     print("  ⏳ Loading ogbg-code2...")
