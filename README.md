@@ -68,6 +68,17 @@ see the performance of each model of each graph (repeated ten times)
 - Todo: add pylint/mypy github action
 - Todo: lower priority: add tests
 
+**DATASETS TO ADD BACK:**
+Currently running (10 datasets): enzymes, proteins, mutag, imdb, collab, reddit, mnist, cifar, pattern, cluster
+
+**Commented out/disabled datasets that need to be added back:**
+- **LRGB datasets** (commented out in run_graph_classification.py): pascalvoc, coco, peptides_func
+- **OGB datasets** (commented out): ogbg-ppa (requires large download with user confirmation)
+- **GraphBench datasets** (commented out to avoid download attempts): socialnetwork, co, sat, algorithmic_reasoning_easy/medium/hard, electronic_circuits, chipdesign
+- **Other potential datasets**: weather (regression task), additional TU datasets, other OGB datasets
+
+**Action needed**: Uncomment and test these datasets individually, fix any loading/download issues, add optimal hyperparameters to hyperparams_lookup.sh, and update comprehensive_sweep_parallel.sh to include them.
+
 
 ## Overview
 
