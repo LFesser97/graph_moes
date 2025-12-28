@@ -10,19 +10,20 @@
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 154
-#   - 70 single layer experiments: 5 layer types × 14 datasets (10 original + 4 GraphBench)
-#   - 84 MoE experiments: 6 layer combinations × 14 datasets
+# Total experiments: 143
+#   - 65 single layer experiments: 5 layer types × 13 datasets (10 original + 3 GraphBench)
+#   - 78 MoE experiments: 6 layer combinations × 13 datasets
+# Note: graphbench_weather excluded (regression task, not classification)
 #
 # Usage: sbatch comprehensive_sweep_parallel.sh
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-154             # Total experiments: 70 single layer + 84 MoE = 154
+#SBATCH --array=1-143             # Total experiments: 65 single layer + 78 MoE = 143
 #SBATCH --ntasks=1
 #SBATCH --time=48:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=64GB               # Sufficient memory
-#SBATCH --output=logs_comprehensive/Parrallel_comprehensive_sweep_%A_%a.log  # %A = array job ID, %a = task ID
+#SBATCH --output=logs_comprehensive/Parallel_comprehensive_sweep_%A_%a.log  # %A = array job ID, %a = task ID
 #SBATCH --partition=mweber_gpu
 #SBATCH --gpus=1
 
@@ -35,7 +36,7 @@ export WANDB_PROJECT="MOE_DECEMBER25"
 export WANDB_DIR="./wandb"
 export WANDB_CACHE_DIR="./wandb/.cache"
 
-mkdir -p ./wandb logs
+mkdir -p ./wandb logs logs_comprehensive
 
 # Disable user site-packages to prevent conflicts (also set in activation, but set here too)
 export PYTHONNOUSERSITE=1
@@ -195,8 +196,8 @@ cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes || {
 
 log_message "📁 Project directory: $(pwd)"
 
-# Add project root to PYTHONPATH so hyperparams.py can be imported
-export PYTHONPATH="$(pwd):${PYTHONPATH}"
+# Add project root and src to PYTHONPATH so hyperparams.py and graph_moes can be imported
+export PYTHONPATH="$(pwd):$(pwd)/src:${PYTHONPATH}"
 
 # Check if scipy is working, if not, try to reinstall
 log_message "🔍 Verifying scipy installation..."
@@ -299,6 +300,19 @@ if ! python -c "import graph_moes" 2>/dev/null; then
     fi
 else
     log_message "✅ graph_moes already installed"
+    # Verify submodules can be imported (sometimes package installs but submodules don't work)
+    if ! python -c "from graph_moes.experiments.track_avg_accuracy import load_and_plot_average_per_graph" 2>/dev/null; then
+        log_message "⚠️  graph_moes installed but submodules not importable, adding src to PYTHONPATH..."
+        export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
+        # Verify it works now
+        if ! python -c "from graph_moes.experiments.track_avg_accuracy import load_and_plot_average_per_graph" 2>/dev/null; then
+            log_message "❌ Failed to import graph_moes submodules even with PYTHONPATH"
+            log_message "   Attempting to reinstall package..."
+            pip install -e . --no-deps --force-reinstall --quiet 2>&1 || log_message "⚠️  Reinstall failed, continuing anyway..."
+        else
+            log_message "✅ Submodules now accessible via PYTHONPATH"
+        fi
+    fi
 fi
 
 # Quick verification
@@ -330,16 +344,17 @@ source /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface
 
 # Define datasets - each will use optimal hyperparameters from research paper
 # Includes GraphBench datasets with "graphbench_" prefix
-datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern cluster graphbench_socialnetwork graphbench_co graphbench_sat graphbench_weather)
+# Note: graphbench_weather is for regression, not classification, so excluded
+datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern cluster graphbench_socialnetwork graphbench_co graphbench_sat)
 
 # Calculate which experiment this array task should run
 task_id=${SLURM_ARRAY_TASK_ID:-1}
 
-# Total single layer experiments: 5 layer types × 14 datasets = 70
-# Total MoE experiments: 6 combinations × 14 datasets = 84
-# Total: 154 experiments
+# Total single layer experiments: 5 layer types × 13 datasets = 65
+# Total MoE experiments: 6 combinations × 13 datasets = 78
+# Total: 143 experiments
 
-if [ "$task_id" -le 70 ]; then
+if [ "$task_id" -le 65 ]; then
     # Single layer experiment
     experiment_type="single"
     adjusted_id=$((task_id - 1))
@@ -383,7 +398,7 @@ if [ "$task_id" -le 70 ]; then
 else
     # MoE experiment
     experiment_type="moe"
-    moe_id=$((task_id - 71))
+    moe_id=$((task_id - 66))
     
     # Calculate dataset and MoE combination
     num_datasets=${#datasets[@]}

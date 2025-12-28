@@ -3,9 +3,10 @@
 import copy
 import os
 import random
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
+
 try:
     from attrdict3 import AttrDict  # Python 3.10+ compatible
 except ImportError:
@@ -97,30 +98,47 @@ class Experiment:
             self.model = GNN(self.args).to(self.args.device)
 
         if self.test_dataset is None:
-            print("self.test_dataset is None. Custom split for Peptides will be used.")
             dataset_size = len(self.dataset)
             train_size = int(self.args.train_fraction * dataset_size)
             validation_size = int(self.args.validation_fraction * dataset_size)
             test_size = dataset_size - train_size - validation_size
-            # self.train_dataset, self.validation_dataset, self.test_dataset = random_split(self.dataset,[train_size, validation_size, test_size])
-            # self.train_dataset, self.validation_dataset, self.test_dataset, self.categories = custom_random_split(self.dataset, [self.args.train_fraction, self.args.validation_fraction, self.args.test_fraction])
-            # set the first 10873 graphs as the training set, the next 2331 as the validation set, and the last 2331 as the test set
-
-            self.train_dataset = self.dataset[:10873]
-            self.validation_dataset = self.dataset[10873:13204]
-            self.test_dataset = self.dataset[13204:]
-            self.categories = [
-                [*range(10873)],
-                [*range(10873, 13204)],
-                [*range(13204, 15535)],
-            ]
 
             """
-            self.train_dataset = self.dataset[:10000]
-            self.validation_dataset = self.dataset[10000:11000]
-            self.test_dataset = self.dataset[11000:]
-            self.categories = [[*range(10000)], [*range(10000, 11000)], [*range(11000, 12000)]]
+            The split 10873/2331/2331 is the standard benchmark split for the Peptides-func and Peptides-struct datasets.
+            Total: 15,535 graphs
+            Training: 10,873 (70%)
+            Validation: 2,331 (15%)
+            Test: 2,331 (15%)
+            This is a fixed split used in benchmarking papers to ensure reproducibility and fair comparison.
+
+
+            See eg :
+            https://arxiv.org/pdf/2102.08786
             """
+
+            # self.train_dataset = self.dataset[:10873]
+            # self.validation_dataset = self.dataset[10873:13204]
+            # self.test_dataset = self.dataset[13204:]
+            # self.categories = [
+            #     [*range(10873)],
+            #     [*range(10873, 13204)],
+            #     [*range(13204, 15535)],
+            # ]
+
+            # Use random splits to enable tracking test appearances across trials
+            (
+                self.train_dataset,
+                self.validation_dataset,
+                self.test_dataset,
+                self.categories,
+            ) = custom_random_split(
+                self.dataset,
+                [
+                    self.args.train_fraction,
+                    self.args.validation_fraction,
+                    self.args.test_fraction,
+                ],
+            )
         elif self.validation_dataset is None:
             print("self.validation_dataset is None. Custom split will not be used.")
             train_size = int(self.args.train_fraction * len(self.train_dataset))
@@ -129,7 +147,7 @@ class Experiment:
                 self.args.train_data, [train_size, validation_size]
             )
 
-    def run(self) -> Tuple[float, float, float, float]:
+    def run(self) -> Tuple[float, float, float, float, Dict[int, float], List[int]]:
         optimizer = torch.optim.Adam(
             self.model.parameters(), lr=self.args.learning_rate
         )
@@ -256,7 +274,14 @@ class Experiment:
                         # get the current directory and print it
                         print("Saved model in directory: ", os.getcwd())
 
-                    return train_mae, validation_mae, test_mae, energy, graph_dict
+                    return (
+                        train_mae,
+                        validation_mae,
+                        test_mae,
+                        energy,
+                        graph_dict,
+                        self.categories[2],
+                    )
 
         if self.args.display:
             print("Reached max epoch count, stopping training")
@@ -265,7 +290,30 @@ class Experiment:
             )
 
         energy = 0
-        return best_train_mae, best_validation_mae, best_test_mae, energy, graph_dict
+        # If we reach max epochs, still evaluate test set graphs
+        if hasattr(self, "categories") and self.categories is not None:
+            for graph, i in zip(complete_loader, range(len(self.dataset))):
+                if i in self.categories[2]:  # Only track test set graphs
+                    graph = graph.to(self.args.device)
+                    y = graph.y.to(self.args.device)
+                    out = self.model(
+                        graph.x,
+                        graph.edge_index,
+                        graph.edge_attr,
+                        graph.batch,
+                    )
+                    graph_dict[i] = (out.squeeze() - y).abs().sum().item()
+            test_indices = self.categories[2]
+        else:
+            test_indices = []
+        return (
+            best_train_mae,
+            best_validation_mae,
+            best_test_mae,
+            energy,
+            graph_dict,
+            test_indices,
+        )
 
     def eval(self, loader: DataLoader) -> float:
         self.model.eval()

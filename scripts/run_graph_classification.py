@@ -31,7 +31,22 @@ from ogb.graphproppred import PygGraphPropPredDataset
 from graph_moes.download.load_graphbench import load_graphbench_dataset
 from graph_moes.encodings.custom_encodings import LocalCurvatureProfile
 from graph_moes.experiments.graph_classification import Experiment
-from graph_moes.experiments.track_avg_accuracy import load_and_plot_average_per_graph
+
+try:
+    from graph_moes.experiments.track_avg_accuracy import (
+        load_and_plot_average_per_graph,
+    )
+except ImportError:
+    # Fallback: try adding src to path if package not properly installed
+    import sys
+    from pathlib import Path
+
+    src_path = Path(__file__).parent.parent / "src"
+    if src_path.exists() and str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
+    from graph_moes.experiments.track_avg_accuracy import (
+        load_and_plot_average_per_graph,
+    )
 from hyperparams import get_args_from_input
 
 
@@ -517,16 +532,20 @@ for key in datasets:
             break
 
         # Also respect the num_trials limit if set (for backwards compatibility)
+        # Note: num_trials should be set high (e.g., 200) to allow stopping based on test appearances
         if (
             hasattr(args, "num_trials")
             and args.num_trials is not None
             and trial > args.num_trials
         ):
             print(
-                f"\n⚠️  Reached num_trials limit ({args.num_trials}), but not all graphs have appeared 10 times yet"
+                f"\n⚠️  Reached num_trials limit ({args.num_trials}), but not all graphs have appeared {required_test_appearances} times yet"
             )
             print(
                 f"   Current min appearances: {min_test_appearances}/{required_test_appearances}"
+            )
+            print(
+                f"   Consider increasing num_trials to allow more trials for test appearance requirement"
             )
             break
 
