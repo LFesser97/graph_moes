@@ -83,12 +83,24 @@ see the performance of each model of each graph (repeated ten times)
 - **GraphBench datasets**: socialnetwork, co, sat, algorithmic_reasoning_easy/medium/hard, electronic_circuits, chipdesign (need individual testing)
 - **Other potential datasets**: weather (regression task), additional TU datasets, other OGB datasets
 
-**📝 NEXT STEPS:**
-1. Wait for ogbg-ppa download to complete locally (~2.8GB, 10-20 minutes)
-2. Run `upload_ogbg_ppa_to_cluster.sh` to transfer data to cluster
-3. Uncomment LRGB datasets in `run_graph_classification.py`
-4. Submit `comprehensive_sweep_parallel_additional_data.sh` on cluster
-5. Test GraphBench datasets individually before adding to sweep
+**📝 CURRENT STATUS & NEXT STEPS:**
+
+**🔄 ogbg-ppa download issue**: The dataset requires multiple user confirmations that are hard to automate locally. Two options:
+
+**Option A (Recommended): Download directly on cluster**
+1. SSH to cluster: `ssh rpellegrinext@login.rc.fas.harvard.edu`
+2. Run: `cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes && python scripts/run_graph_classification.py --dataset ppa --layer_type GCN --num_trials 1`
+3. This will download ogbg-ppa directly to cluster storage (much faster and more reliable)
+4. Then uncomment ogbg-ppa in `run_graph_classification.py`
+
+**Option B: Manual download (if Option A doesn't work)**
+1. Use browser to manually download from OGB website
+2. Extract and upload to cluster using `upload_ogbg_ppa_to_cluster.sh`
+
+**After ogbg-ppa is available:**
+1. Uncomment LRGB datasets (pascalvoc, coco, peptides_func) in `run_graph_classification.py`
+2. Submit `comprehensive_sweep_parallel_additional_data.sh` on cluster
+3. Test GraphBench datasets individually before adding to sweep
 
 
 ## Overview
