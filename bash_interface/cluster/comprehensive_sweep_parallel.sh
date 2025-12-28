@@ -14,6 +14,7 @@
 #   - 50 single layer experiments: 5 layer types × 10 datasets
 #   - 60 MoE experiments: 6 layer combinations × 10 datasets
 # Note: GraphBench datasets excluded to avoid download attempts
+# Each experiment runs 200 trials to ensure proper test set coverage
 #
 # Usage: sbatch comprehensive_sweep_parallel.sh
 # ============================================================================
@@ -32,7 +33,7 @@ echo "🚀 Setting up WandB environment for Comprehensive Graph MoE experiments.
 
 export WANDB_API_KEY="ea7c6eeb5a095b531ef60cc784bfeb87d47ea0b0"
 export WANDB_ENTITY="weber-geoml-harvard-university"
-export WANDB_PROJECT="MOE_DECEMBER25"
+export WANDB_PROJECT="MOE_new"
 export WANDB_DIR="./wandb"
 export WANDB_CACHE_DIR="./wandb/.cache"
 
@@ -383,7 +384,7 @@ if [ "$task_id" -le 50 ]; then
     
     # Run single layer experiment
     python scripts/run_graph_classification.py \
-        --num_trials 5 \
+        --num_trials 200 \
         --dataset "$dataset" \
         --layer_type "$layer_type" \
         --learning_rate "$learning_rate" \
@@ -427,7 +428,7 @@ else
     
     # Run MoE experiment
     python scripts/run_graph_classification.py \
-        --num_trials 5 \
+        --num_trials 200 \
         --dataset "$dataset" \
         --layer_types "$layer_combo" \
         --learning_rate "$learning_rate" \
