@@ -68,16 +68,27 @@ see the performance of each model of each graph (repeated ten times)
 - Todo: add pylint/mypy github action
 - Todo: lower priority: add tests
 
-**DATASETS TO ADD BACK:**
-Currently running (10 datasets): enzymes, proteins, mutag, imdb, collab, reddit, mnist, cifar, pattern, cluster
+**CURRENT STATUS (December 28, 2025):**
 
-**Commented out/disabled datasets that need to be added back:**
-- **LRGB datasets** (commented out in run_graph_classification.py): pascalvoc, coco, peptides_func
-- **OGB datasets** (commented out): ogbg-ppa (requires large download with user confirmation)
-- **GraphBench datasets** (commented out to avoid download attempts): socialnetwork, co, sat, algorithmic_reasoning_easy/medium/hard, electronic_circuits, chipdesign
+**✅ Currently running (10 datasets)**: enzymes, proteins, mutag, imdb, collab, reddit, mnist, cifar, pattern, cluster
+
+**🔄 IN PROGRESS - Additional datasets setup:**
+- **Script created**: `bash_interface/cluster/comprehensive_sweep_parallel_additional_data.sh` for additional datasets
+- **Download script**: `download_ogbg_ppa.py` (modified to auto-approve large downloads)
+- **Upload script**: `upload_ogbg_ppa_to_cluster.sh` (for transferring downloaded data to cluster)
+
+**📋 Remaining datasets to add back:**
+- **LRGB datasets**: pascalvoc, coco, peptides_func (ready in script, need uncommenting)
+- **OGB datasets**: ogbg-ppa (download in progress, then upload to cluster)
+- **GraphBench datasets**: socialnetwork, co, sat, algorithmic_reasoning_easy/medium/hard, electronic_circuits, chipdesign (need individual testing)
 - **Other potential datasets**: weather (regression task), additional TU datasets, other OGB datasets
 
-**Action needed**: Uncomment and test these datasets individually, fix any loading/download issues, add optimal hyperparameters to hyperparams_lookup.sh, and update comprehensive_sweep_parallel.sh to include them.
+**📝 NEXT STEPS:**
+1. Wait for ogbg-ppa download to complete locally (~2.8GB, 10-20 minutes)
+2. Run `upload_ogbg_ppa_to_cluster.sh` to transfer data to cluster
+3. Uncomment LRGB datasets in `run_graph_classification.py`
+4. Submit `comprehensive_sweep_parallel_additional_data.sh` on cluster
+5. Test GraphBench datasets individually before adding to sweep
 
 
 ## Overview
