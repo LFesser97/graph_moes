@@ -70,8 +70,8 @@ see the performance of each model of each graph (repeated ten times)
 
 **CURRENT STATUS (December 28, 2025):**
 
-**✅ Currently running (9 datasets)**: enzymes, proteins, mutag, imdb, collab, reddit, mnist, cifar, cluster
-**❌ Removed**: pattern (node classification, not graph classification)
+**✅ Currently running (8 datasets)**: enzymes, proteins, mutag, imdb, collab, reddit, mnist, cifar
+**❌ Removed**: pattern (node classification), cluster (disabled LRGB dataset)
 
 **🔄 IN PROGRESS - Additional datasets setup:**
 - **Script created**: `bash_interface/cluster/comprehensive_sweep_parallel_additional_data.sh` for additional datasets
