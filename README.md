@@ -70,8 +70,8 @@ see the performance of each model of each graph (repeated ten times)
 
 **CURRENT STATUS (December 28, 2025):**
 
-**✅ Currently running (8 datasets)**: enzymes, proteins, mutag, imdb, collab, reddit, mnist, cifar
-**❌ Removed**: pattern (node classification), cluster (disabled LRGB dataset)
+**✅ Currently running (8 datasets - Graph Classification)**: enzymes, proteins, mutag, imdb, collab, reddit, mnist, cifar
+**❌ Excluded from graph classification**: pattern (node classification - requires different experimental setup), cluster (disabled LRGB dataset)
 
 **🔄 IN PROGRESS - Additional datasets setup:**
 - **Script created**: `bash_interface/cluster/comprehensive_sweep_parallel_additional_data.sh` for additional datasets
@@ -87,6 +87,26 @@ see the performance of each model of each graph (repeated ten times)
 **🎯 Next steps:**
 1. Download ogbg-ppa dataset on cluster
 2. Run additional sweep: `sbatch bash_interface/cluster/comprehensive_sweep_parallel_additional_data.sh`
+
+## 📊 Dataset Types Explanation
+
+**Graph Classification** (Current experiments):
+- Each "sample" is an entire graph
+- Task: Predict 1 label for the whole graph
+- Examples: Enzymes (toxic/non-toxic), MNIST (digit classification), CIFAR (object classification)
+
+**Node Classification** (Separate experiments needed):
+- Each "sample" is individual nodes within graphs
+- Task: Predict labels for each node in the graph
+- Examples: PATTERN (synthetic node patterns), CLUSTER (node clustering), PascalVOC-SP (semantic segmentation)
+
+**Note**: PATTERN dataset requires node-level prediction tasks, not graph-level. A separate experimental setup is available for node classification experiments: `bash_interface/cluster/node_classification_pattern.sh`
+
+**⚠️ Important Distinction:**
+- **Graph Classification**: 1 label per graph (our current experiments)
+- **Node Classification**: 1 label per node within graphs (PATTERN requires this)
+
+The node classification script handles the different data loading and evaluation required for node-level tasks.
 
 **📝 CURRENT STATUS & NEXT STEPS:**
 
