@@ -13,7 +13,7 @@ except ImportError:
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset, Subset, random_split
 from torch_geometric.loader import DataLoader
-from torcheval.metrics import MultilabelAUPRC  # might need to comment out on cluster?
+# from torcheval.metrics import MultilabelAUPRC  # Removed - was causing issues with multi-class classification
 from tqdm import tqdm
 
 import wandb
@@ -414,19 +414,26 @@ class Experiment:
     @torch.no_grad()
     def test(self, loader: DataLoader) -> float:
         self.model.eval()
-        metric = MultilabelAUPRC(num_labels=10)
+        sample_size = len(loader.dataset)
 
-        total_error = 0
-        for data in loader:
-            error = 0
-            data = data.to(self.args.device)
-            out = self.model(data)
-            # error_fnc = torch.nn.CrossEntropyLoss()
-            # error += error_fnc(out, data.y)
-            metric.update(out, data.y)
-            error += metric.compute()
-            total_error += error.item() * data.num_graphs
-        return total_error / len(loader.dataset)
+        with torch.no_grad():
+            total_correct = 0
+            for data in loader:
+                data = data.to(self.args.device)
+                out = self.model(data)
+                y = data.y.to(self.args.device)
+
+                # Handle both multi-class and multi-label cases
+                if y.dim() > 1:
+                    # Multi-label case - use sigmoid + threshold
+                    pred = (torch.sigmoid(out) > 0.5).float()
+                    total_correct += (pred == y).all(dim=1).sum().item()
+                else:
+                    # Multi-class case - use argmax
+                    _, pred = out.max(dim=1)
+                    total_correct += pred.eq(y).sum().item()
+
+        return total_correct / sample_size
 
     def check_dirichlet(self, loader: DataLoader) -> float:
         self.model.eval()
