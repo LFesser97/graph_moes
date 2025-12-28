@@ -5,6 +5,7 @@ import random
 from typing import Dict, List, Optional, Tuple
 
 import torch
+
 try:
     from attrdict3 import AttrDict  # Python 3.10+ compatible
 except ImportError:
@@ -138,7 +139,7 @@ class Experiment:
                 self.args.train_data, [train_size, validation_size]
             )
 
-    def run(self) -> Tuple[float, float, float, float, Dict[int, int]]:
+    def run(self) -> Tuple[float, float, float, float, Dict[int, int], List[int]]:
         optimizer = torch.optim.Adam(
             self.model.parameters(), lr=self.args.learning_rate
         )
@@ -323,20 +324,18 @@ class Experiment:
                         energy = 0
 
                         # evaluate the model on all graphs in the dataset
-                        # and record the error for each graph in the dictionary
+                        # and record the correctness for each graph in the test set
                         assert (
                             best_model != self.model
                         ), "Best model is the same as the current model"
                         for graph, i in zip(complete_loader, range(len(self.dataset))):
-                            if i not in self.categories[0]:
+                            if i in self.categories[2]:  # Only track test set graphs
                                 graph = graph.to(self.args.device)
                                 y = graph.y.to(self.args.device)
                                 out = best_model(graph)
                                 _, pred = out.max(dim=1)
                                 graph_dict[i] = pred.eq(y).sum().item()
-                        print(
-                            "Computed error for each graph in the val and test dataset"
-                        )
+                        print("Computed correctness for each graph in the test dataset")
 
                         # save the model
                         # torch.save(best_model.state_dict(), "model.pth")
@@ -350,6 +349,7 @@ class Experiment:
                         best_test_acc,
                         energy,
                         graph_dict,
+                        self.categories[2],  # Return test set indices
                     )
 
         if self.args.display:
@@ -371,7 +371,26 @@ class Experiment:
             )
 
         energy = 0
-        return best_train_acc, best_validation_acc, best_test_acc, energy, graph_dict
+        # If we reach max epochs, still evaluate test set graphs
+        if hasattr(self, "categories") and self.categories is not None:
+            for graph, i in zip(complete_loader, range(len(self.dataset))):
+                if i in self.categories[2]:  # Only track test set graphs
+                    graph = graph.to(self.args.device)
+                    y = graph.y.to(self.args.device)
+                    out = self.model(graph)
+                    _, pred = out.max(dim=1)
+                    graph_dict[i] = pred.eq(y).sum().item()
+            test_indices = self.categories[2]
+        else:
+            test_indices = []
+        return (
+            best_train_acc,
+            best_validation_acc,
+            best_test_acc,
+            energy,
+            graph_dict,
+            test_indices,
+        )
 
     def eval(self, loader: DataLoader) -> float:
         self.model.eval()
