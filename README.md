@@ -85,17 +85,17 @@ see the performance of each model of each graph (repeated ten times)
 
 **📝 CURRENT STATUS & NEXT STEPS:**
 
-**🔄 ogbg-ppa download issue**: The dataset requires multiple user confirmations that are hard to automate locally. Two options:
+**✅ ogbg-ppa download**: Dataset loading has been uncommented in the script!
 
-**Option A (Recommended): Download directly on cluster**
-1. SSH to cluster: `ssh rpellegrinext@login.rc.fas.harvard.edu`
-2. Run: `cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes && python scripts/run_graph_classification.py --dataset ppa --layer_type GCN --num_trials 1`
-3. This will download ogbg-ppa directly to cluster storage (much faster and more reliable)
-4. Then uncomment ogbg-ppa in `run_graph_classification.py`
-
-**Option B: Manual download (if Option A doesn't work)**
-1. Use browser to manually download from OGB website
-2. Extract and upload to cluster using `upload_ogbg_ppa_to_cluster.sh`
+**To download ogbg-ppa on cluster:**
+1. Pull latest changes: `git pull`
+2. Run with proper environment: 
+   ```bash
+   export PYTHONPATH="$(pwd):$(pwd)/src:${PYTHONPATH}"
+   python scripts/run_graph_classification.py --dataset ppa --layer_type GCN --num_trials 1
+   ```
+3. Answer "y" to both prompts when asked
+4. The dataset will download directly to cluster storage
 
 **After ogbg-ppa is available:**
 1. Uncomment LRGB datasets (pascalvoc, coco, peptides_func) in `run_graph_classification.py`
