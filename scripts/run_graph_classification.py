@@ -114,24 +114,28 @@ print(f"  ✅ REDDIT-BINARY loaded: {len(reddit)} graphs")
 print("and yet more...")
 
 # GraphBench datasets (graph classification tasks)
+# DISABLED: Commented out to avoid download attempts during comprehensive sweep
+# Uncomment this section when GraphBench datasets are pre-downloaded
 print("\n📊 Loading GraphBench datasets...")
 graphbench_datasets = {}
 
 # GraphBench dataset names that are relevant for graph classification
 # Based on GraphBench documentation: https://github.com/graphbench/package
 graphbench_classification_datasets = [
-    "socialnetwork",  # Social media datasets
-    "co",  # Combinatorial optimization
-    "sat",  # SAT solving
-    "algorithmic_reasoning_easy",  # Algorithmic reasoning (easy)
-    "algorithmic_reasoning_medium",  # Algorithmic reasoning (medium)
-    "algorithmic_reasoning_hard",  # Algorithmic reasoning (hard)
-    "electronic_circuits",  # Electronic circuits
-    "chipdesign",  # Chip design
+    # "socialnetwork",  # Social media datasets
+    # "co",  # Combinatorial optimization
+    # "sat",  # SAT solving
+    # "algorithmic_reasoning_easy",  # Algorithmic reasoning (easy)
+    # "algorithmic_reasoning_medium",  # Algorithmic reasoning (medium)
+    # "algorithmic_reasoning_hard",  # Algorithmic reasoning (hard)
+    # "electronic_circuits",  # Electronic circuits
+    # "chipdesign",  # Chip design
     # Note: weather is for regression tasks, not included here
 ]
 
-for dataset_name in graphbench_classification_datasets:
+# Skip GraphBench loading if list is empty
+if len(graphbench_classification_datasets) > 0:
+    for dataset_name in graphbench_classification_datasets:
     try:
         print(f"  ⏳ Loading GraphBench: {dataset_name}...")
         graphbench_data = load_graphbench_dataset(
@@ -179,6 +183,8 @@ for dataset_name in graphbench_classification_datasets:
             )
         # Continue with other datasets
         continue
+else:
+    print("  ⏭️  GraphBench datasets disabled (commented out)")
 
 # LRGB datasets
 print("\n📊 Loading LRGB datasets...")
