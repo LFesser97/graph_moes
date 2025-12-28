@@ -51,7 +51,7 @@ default_args = AttrDict(
         "router_dropout": 0.1,
         # WandB defaults
         "wandb_enabled": False,
-        "wandb_project": "MOE",
+        "wandb_project": "MOE_new",
         "wandb_entity": "weber-geoml-harvard-university",
         "wandb_name": None,
         "wandb_dir": "./wandb",
