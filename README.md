@@ -78,11 +78,15 @@ see the performance of each model of each graph (repeated ten times)
 - **Download script**: `download_ogbg_ppa.py` (modified to auto-approve large downloads)
 - **Upload script**: `upload_ogbg_ppa_to_cluster.sh` (for transferring downloaded data to cluster)
 
-**📋 Remaining datasets to add back:**
-- **LRGB datasets**: pascalvoc, coco, peptides_func (ready in script, need uncommenting)
-- **OGB datasets**: ogbg-ppa (download in progress, then upload to cluster)
-- **GraphBench datasets**: socialnetwork, co, sat, algorithmic_reasoning_easy/medium/hard, electronic_circuits, chipdesign (need individual testing)
-- **Other potential datasets**: weather (regression task), additional TU datasets, other OGB datasets
+**📋 Additional datasets (ready in additional sweep script):**
+- **LRGB datasets**: pascalvoc, coco, peptides_func ✅
+- **OGB datasets**: ogbg-ppa (once downloaded) ✅
+- **GraphBench datasets**: socialnetwork, co, sat, electronic_circuits, chipdesign ✅
+- **Excluded**: algorithmic_reasoning_* (too complex), weather (regression), PATTERN (node classification)
+
+**🎯 Next steps:**
+1. Download ogbg-ppa dataset on cluster
+2. Run additional sweep: `sbatch bash_interface/cluster/comprehensive_sweep_parallel_additional_data.sh`
 
 **📝 CURRENT STATUS & NEXT STEPS:**
 
