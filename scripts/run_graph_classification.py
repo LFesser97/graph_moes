@@ -723,7 +723,9 @@ for key in datasets:
         if original_plot_path:
             print(f"📊 Average accuracy plot (by index) saved to: {original_plot_path}")
         if sorted_plot_path:
-            print(f"📊 Average accuracy plot (by accuracy) saved to: {sorted_plot_path}")
+            print(
+                f"📊 Average accuracy plot (by accuracy) saved to: {sorted_plot_path}"
+            )
     except Exception as e:
         print(f"⚠️  Failed to generate average accuracy plots: {e}")
 
@@ -857,11 +859,14 @@ for key in datasets:
         wandb.finish()
 
     # Log every time a dataset is completed
-    df = pd.DataFrame(results)
-    with open(
-        f"results/graph_classification_{args.layer_type}_{args.encoding}.csv", "a"
-    ) as f:
-        df.to_csv(f, mode="a", header=f.tell() == 0)
+    if PANDAS_AVAILABLE:
+        df = pd.DataFrame(results)
+        with open(
+            f"results/graph_classification_{args.layer_type}_{args.encoding}.csv", "a"
+        ) as f:
+            df.to_csv(f, mode="a", header=f.tell() == 0)
+    else:
+        print(f"⚠️  Skipping CSV save (pandas not available)")
 
     print(f"\n🎯 FINAL RESULTS for {key.upper()}:")
     print(f"   📈 Test Accuracy: {test_mean:.2f}% ± {test_ci:.2f}%")
