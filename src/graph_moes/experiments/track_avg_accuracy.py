@@ -62,7 +62,7 @@ def plot_average_per_graph(
         save_filename: Optional custom filename. If None, auto-generated
 
     Returns:
-        Path to the saved plot file
+        Tuple of (original_plot_path, sorted_plot_path) - paths to both saved plot files
     """
     fig, ax = plt.subplots(figsize=(12, 6))
 
@@ -154,9 +154,10 @@ def load_and_plot_average_per_graph(
     num_layers: int,
     task_type: str = "classification",
     output_dir: str = "results",
-) -> str:
+) -> Tuple[str, str]:
     """
-    Load graph_dict from pickle file and create average accuracy/error plot.
+    Load graph_dict from pickle file and create average accuracy/error plots.
+    Creates two plots: one ordered by graph index, one ordered by highest average accuracy.
 
     Args:
         pickle_filepath: Path to the pickle file containing graph_dict
@@ -165,10 +166,10 @@ def load_and_plot_average_per_graph(
         encoding: Encoding used (if any)
         num_layers: Number of layers in the model
         task_type: "classification" or "regression"
-        output_dir: Directory to save the plot
+        output_dir: Directory to save the plots
 
     Returns:
-        Path to the saved plot file
+        Tuple of (original_plot_path, sorted_plot_path)
     """
     # Load the pickle file
     with open(pickle_filepath, "rb") as f:
@@ -185,10 +186,10 @@ def load_and_plot_average_per_graph(
 
     if len(graph_indices) == 0:
         print(f"⚠️  No data found in {pickle_filepath}, skipping plot generation")
-        return ""
+        return "", ""
 
-    # Create and save plot
-    plot_path = plot_average_per_graph(
+    # Create and save original plot (ordered by graph index)
+    original_plot_path = plot_average_per_graph(
         graph_indices,
         average_values,
         dataset_name,
@@ -197,6 +198,25 @@ def load_and_plot_average_per_graph(
         num_layers,
         task_type,
         output_dir,
+        save_filename=f"{dataset_name}_{layer_type}_{encoding or 'None'}_by_index.png"
     )
 
-    return plot_path
+    # Create sorted plot (ordered by highest average accuracy)
+    # Sort by average values in descending order (highest accuracy first)
+    sort_indices = np.argsort(average_values)[::-1]  # Sort descending
+    sorted_graph_indices = graph_indices[sort_indices]
+    sorted_average_values = average_values[sort_indices]
+
+    sorted_plot_path = plot_average_per_graph(
+        sorted_graph_indices,
+        sorted_average_values,
+        dataset_name,
+        layer_type,
+        encoding,
+        num_layers,
+        task_type,
+        output_dir,
+        save_filename=f"{dataset_name}_{layer_type}_{encoding or 'None'}_by_accuracy.png"
+    )
+
+    return original_plot_path, sorted_plot_path

@@ -709,9 +709,9 @@ for key in datasets:
         )
     print(f"💾 Graph correctness dictionary saved to: {graph_dict_filename}")
 
-    # Generate and save average accuracy per graph plot
+    # Generate and save average accuracy per graph plots (by index and by accuracy)
     try:
-        plot_path = load_and_plot_average_per_graph(
+        original_plot_path, sorted_plot_path = load_and_plot_average_per_graph(
             graph_dict_filename,
             dataset_name=key,
             layer_type=args.layer_type,
@@ -720,10 +720,12 @@ for key in datasets:
             task_type="classification",
             output_dir="results",
         )
-        if plot_path:
-            print(f"📊 Average accuracy plot saved to: {plot_path}")
+        if original_plot_path:
+            print(f"📊 Average accuracy plot (by index) saved to: {original_plot_path}")
+        if sorted_plot_path:
+            print(f"📊 Average accuracy plot (by accuracy) saved to: {sorted_plot_path}")
     except Exception as e:
-        print(f"⚠️  Failed to generate average accuracy plot: {e}")
+        print(f"⚠️  Failed to generate average accuracy plots: {e}")
 
     # Calculate statistics
     num_trials_actual = len(train_accuracies)
