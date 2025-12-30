@@ -92,6 +92,10 @@ log_message "   Python before activation: $(which python)"
 # Use manual PATH setup (most reliable method on clusters)
 activation_success=false
 
+# First check what environments are actually available
+log_message "   Checking available conda environments..."
+conda env list 2>/dev/null | grep -E "(moe_fresh|base|root)" | head -5
+
 # Try multiple paths for the conda environment
 possible_env_paths=(
     "$CONDA_ENVS_PATH/$ENV_NAME"
@@ -99,15 +103,29 @@ possible_env_paths=(
     "/n/sw/Mambaforge-23.3.1-1/envs/$ENV_NAME"
     "/n/sw/Miniforge3-24.11.3-0/envs/$ENV_NAME"
     "$CONDA_PREFIX"  # If we're already in the environment
+    # Check if moe_fresh is actually the base environment
+    "$(conda info --base 2>/dev/null)/envs/$ENV_NAME"
+    "$(conda info --base 2>/dev/null)"
 )
 
 for env_path in "${possible_env_paths[@]}"; do
     if [ -d "$env_path/bin" ] && [ -f "$env_path/bin/python" ]; then
         log_message "   Found environment at: $env_path"
         log_message "   Setting up environment PATH..."
+
+        # Check if this is actually moe_fresh or just base
+        if [[ "$env_path" == *"/envs/$ENV_NAME" ]] || [[ "$env_path" == *"moe_fresh"* ]]; then
+            log_message "   ✅ Confirmed this is the moe_fresh environment"
+        else
+            log_message "   ⚠️  This appears to be the base conda environment, not moe_fresh"
+            log_message "   Continuing anyway - packages should still be available"
+        fi
+
         # Prepend environment bin to PATH
         export PATH="$env_path/bin:$PATH"
-        # Also set CONDA_DEFAULT_ENV for compatibility
+        # Also set PYTHONPATH to include user packages
+        export PYTHONPATH="$HOME/.local/lib/python3.*/site-packages:$PYTHONPATH"
+        # Set CONDA_DEFAULT_ENV for compatibility
         export CONDA_DEFAULT_ENV=$ENV_NAME
         export CONDA_PREFIX="$env_path"
         activation_success=true
@@ -117,20 +135,49 @@ for env_path in "${possible_env_paths[@]}"; do
 done
 
 if [ "$activation_success" = false ]; then
-    # Try conda activation methods as fallback
-    if source activate "$ENV_NAME" 2>/dev/null; then
-        activation_success=true
-        log_message "✅ Environment activated via source activate (method 2)"
-    elif conda activate "$ENV_NAME" 2>/dev/null; then
-        activation_success=true
-        log_message "✅ Environment activated via conda activate (method 3)"
+    # Check if moe_fresh environment exists at all
+    if conda env list 2>/dev/null | grep -q "$ENV_NAME"; then
+        log_message "   moe_fresh environment exists, trying activation methods..."
+
+        # Try conda activation methods as fallback
+        if source activate "$ENV_NAME" 2>/dev/null; then
+            activation_success=true
+            log_message "✅ Environment activated via source activate (method 2)"
+        elif conda activate "$ENV_NAME" 2>/dev/null; then
+            activation_success=true
+            log_message "✅ Environment activated via conda activate (method 3)"
+        else
+            log_message "⚠️  Environment activation failed despite environment existing"
+            log_message "   Continuing with current Python environment..."
+        fi
     else
-        log_message "⚠️  Environment activation failed, continuing with system Python..."
+        log_message "⚠️  $ENV_NAME environment not found in conda"
+        log_message "   Using base conda environment instead..."
+
+        # Use base conda environment
+        base_env=$(conda info --base 2>/dev/null)
+        if [ -n "$base_env" ] && [ -d "$base_env/bin" ]; then
+            export PATH="$base_env/bin:$PATH"
+            export CONDA_DEFAULT_ENV="base"
+            export CONDA_PREFIX="$base_env"
+            activation_success=true
+            log_message "✅ Using base conda environment"
+        else
+            log_message "⚠️  Could not find base conda environment either"
+            log_message "   Continuing with system Python..."
+        fi
     fi
 fi
 
 log_message "   Python after activation: $(which python)"
 log_message "   CONDA_DEFAULT_ENV: $CONDA_DEFAULT_ENV"
+
+# Ensure user-installed packages are in PYTHONPATH
+USER_PYTHON_PATH="$HOME/.local/lib/python3.*/site-packages"
+if [ -d "$USER_PYTHON_PATH" ]; then
+    export PYTHONPATH="$USER_PYTHON_PATH:$PYTHONPATH"
+    log_message "   Added user packages to PYTHONPATH: $USER_PYTHON_PATH"
+fi
 
 # Check if pandas is available, install if not
 log_message "🔍 Checking pandas availability..."
