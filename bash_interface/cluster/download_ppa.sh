@@ -73,6 +73,13 @@ fi
 
 # Initialize conda/mamba (required for source activate to work properly)
 log_message "🔧 Initializing conda/mamba..."
+
+# Set CONDA_ENVS_PATH if not set
+if [ -z "$CONDA_ENVS_PATH" ]; then
+    export CONDA_ENVS_PATH="/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs"
+    log_message "   Set CONDA_ENVS_PATH to: $CONDA_ENVS_PATH"
+fi
+
 if [ -f "$(conda info --base 2>/dev/null)/etc/profile.d/conda.sh" ]; then
     source "$(conda info --base)/etc/profile.d/conda.sh"
     log_message "✅ Conda initialized from conda info --base"
@@ -96,17 +103,30 @@ activation_success=false
 log_message "   Checking available conda environments..."
 conda env list 2>/dev/null | grep -E "(moe_fresh|base|root)" | head -5
 
-# Try multiple paths for the conda environment
-possible_env_paths=(
+# Build prioritized list of environment paths
+possible_env_paths=()
+
+# First priority: actual moe_fresh environment if it exists
+if [ -d "/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs/$ENV_NAME" ]; then
+    possible_env_paths+=("/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs/$ENV_NAME")
+    log_message "   moe_fresh environment found at expected location"
+fi
+
+# Other possible locations
+possible_env_paths+=(
     "$CONDA_ENVS_PATH/$ENV_NAME"
     "$HOME/.conda/envs/$ENV_NAME"
     "/n/sw/Mambaforge-23.3.1-1/envs/$ENV_NAME"
-    "/n/sw/Miniforge3-24.11.3-0/envs/$ENV_NAME"
-    "$CONDA_PREFIX"  # If we're already in the environment
-    # Check if moe_fresh is actually the base environment
     "$(conda info --base 2>/dev/null)/envs/$ENV_NAME"
-    "$(conda info --base 2>/dev/null)"
+    "$CONDA_PREFIX"  # If we're already in the environment
 )
+
+# Last resort: base environment
+if [ -d "$(conda info --base 2>/dev/null)" ]; then
+    possible_env_paths+=("$(conda info --base 2>/dev/null)")
+fi
+
+log_message "   Will check $((${#possible_env_paths[@]})) possible environment paths"
 
 for env_path in "${possible_env_paths[@]}"; do
     if [ -d "$env_path/bin" ] && [ -f "$env_path/bin/python" ]; then
@@ -114,11 +134,13 @@ for env_path in "${possible_env_paths[@]}"; do
         log_message "   Setting up environment PATH..."
 
         # Check if this is actually moe_fresh or just base
-        if [[ "$env_path" == *"/envs/$ENV_NAME" ]] || [[ "$env_path" == *"moe_fresh"* ]]; then
-            log_message "   ✅ Confirmed this is the moe_fresh environment"
-        else
+        if [[ "$env_path" == *"/envs/$ENV_NAME" ]] && [[ "$env_path" == *"rpellegrin"* ]]; then
+            log_message "   ✅ Confirmed this is the actual moe_fresh environment"
+        elif [[ "$env_path" == *"Miniforge"* ]] || [[ "$env_path" == *"Mambaforge"* ]]; then
             log_message "   ⚠️  This appears to be the base conda environment, not moe_fresh"
             log_message "   Continuing anyway - packages should still be available"
+        else
+            log_message "   Using environment at: $env_path"
         fi
 
         # Prepend environment bin to PATH
@@ -171,6 +193,7 @@ fi
 
 log_message "   Python after activation: $(which python)"
 log_message "   CONDA_DEFAULT_ENV: $CONDA_DEFAULT_ENV"
+log_message "   Active environment path: $CONDA_PREFIX"
 
 # Ensure user-installed packages are in PYTHONPATH
 USER_PYTHON_PATH="$HOME/.local/lib/python3.*/site-packages"
