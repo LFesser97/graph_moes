@@ -28,7 +28,10 @@ log_message() {
 
 log_message "🚀 Starting ogbg-ppa download job (ID: ${SLURM_JOB_ID})"
 
-cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes
+cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes_2/graph_moes || {
+    log_message "❌ Failed to cd to project directory"
+    exit 1
+}
 log_message "📂 Working directory: $(pwd)"
 
 # Set PYTHONPATH
@@ -88,22 +91,42 @@ log_message "   Python before activation: $(which python)"
 
 # Use manual PATH setup (most reliable method on clusters)
 activation_success=false
-if [ -d "$CONDA_ENVS_PATH/$ENV_NAME/bin" ] && [ -f "$CONDA_ENVS_PATH/$ENV_NAME/bin/python" ]; then
-    log_message "   Setting up environment PATH..."
-    # Prepend environment bin to PATH
-    export PATH="$CONDA_ENVS_PATH/$ENV_NAME/bin:$PATH"
-    # Also set CONDA_DEFAULT_ENV for compatibility
-    export CONDA_DEFAULT_ENV=$ENV_NAME
-    activation_success=true
-    log_message "✅ Environment activated via PATH (method 1)"
-elif source activate "$ENV_NAME" 2>/dev/null; then
-    activation_success=true
-    log_message "✅ Environment activated via source activate (method 2)"
-elif conda activate "$ENV_NAME" 2>/dev/null; then
-    activation_success=true
-    log_message "✅ Environment activated via conda activate (method 2)"
-else
-    log_message "⚠️  Environment activation failed, continuing with system Python..."
+
+# Try multiple paths for the conda environment
+possible_env_paths=(
+    "$CONDA_ENVS_PATH/$ENV_NAME"
+    "$HOME/.conda/envs/$ENV_NAME"
+    "/n/sw/Mambaforge-23.3.1-1/envs/$ENV_NAME"
+    "/n/sw/Miniforge3-24.11.3-0/envs/$ENV_NAME"
+    "$CONDA_PREFIX"  # If we're already in the environment
+)
+
+for env_path in "${possible_env_paths[@]}"; do
+    if [ -d "$env_path/bin" ] && [ -f "$env_path/bin/python" ]; then
+        log_message "   Found environment at: $env_path"
+        log_message "   Setting up environment PATH..."
+        # Prepend environment bin to PATH
+        export PATH="$env_path/bin:$PATH"
+        # Also set CONDA_DEFAULT_ENV for compatibility
+        export CONDA_DEFAULT_ENV=$ENV_NAME
+        export CONDA_PREFIX="$env_path"
+        activation_success=true
+        log_message "✅ Environment activated via PATH (method 1)"
+        break
+    fi
+done
+
+if [ "$activation_success" = false ]; then
+    # Try conda activation methods as fallback
+    if source activate "$ENV_NAME" 2>/dev/null; then
+        activation_success=true
+        log_message "✅ Environment activated via source activate (method 2)"
+    elif conda activate "$ENV_NAME" 2>/dev/null; then
+        activation_success=true
+        log_message "✅ Environment activated via conda activate (method 3)"
+    else
+        log_message "⚠️  Environment activation failed, continuing with system Python..."
+    fi
 fi
 
 log_message "   Python after activation: $(which python)"
@@ -117,19 +140,26 @@ python -c "import pandas; print('✅ pandas available')" 2>/dev/null && pandas_i
 if [ "$pandas_installed" = false ]; then
     log_message "⚠️  pandas not found, installing..."
 
-    # Try pip install first
-    pip install pandas --quiet 2>&1 && {
-        log_message "✅ pandas installed successfully via pip"
+    # Try pip install with user flag (avoids permission issues)
+    pip install --user pandas --quiet 2>&1 && {
+        log_message "✅ pandas installed successfully via pip --user"
         pandas_installed=true
     } || {
-        log_message "⚠️  pip install failed, trying conda install..."
-        # Try conda install as fallback
-        conda install -c conda-forge pandas -y --quiet 2>&1 && {
-            log_message "✅ pandas installed successfully via conda"
+        log_message "⚠️  pip --user failed, trying conda install..."
+
+        # Try conda install with user-specific location
+        conda install -c conda-forge pandas -y --quiet --prefix="$HOME/.conda/envs/${ENV_NAME}_pandas" 2>&1 && {
+            log_message "✅ pandas installed successfully via conda (user env)"
+            # Add to PATH if conda created a new environment
+            if [ -d "$HOME/.conda/envs/${ENV_NAME}_pandas/bin" ]; then
+                export PATH="$HOME/.conda/envs/${ENV_NAME}_pandas/bin:$PATH"
+                log_message "   Added pandas env to PATH"
+            fi
             pandas_installed=true
         } || {
-            log_message "❌ Failed to install pandas via both pip and conda"
-            exit 1
+            log_message "❌ Failed to install pandas via pip and conda"
+            log_message "   Continuing anyway - pandas is optional for download"
+            # Don't exit - pandas is only needed for CSV saving, not for download itself
         }
     }
 else
@@ -138,10 +168,13 @@ fi
 
 # Quick verification of required packages
 log_message "🔍 Verifying required packages..."
-python -c "import pandas; print('✅ pandas available')" || {
-    log_message "❌ pandas not available after installation"
-    exit 1
-}
+if [ "$pandas_installed" = true ]; then
+    python -c "import pandas; print('✅ pandas available')" || {
+        log_message "⚠️  pandas not available after installation (continuing anyway)"
+    }
+else
+    log_message "⚠️  pandas not available (continuing anyway - only needed for CSV saving)"
+fi
 
 log_message "📥 Starting ogbg-ppa dataset download..."
 log_message "   Dataset: ppa"
