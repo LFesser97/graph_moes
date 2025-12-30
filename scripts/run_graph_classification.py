@@ -121,13 +121,13 @@ graphbench_datasets = {}
 
 # GraphBench dataset names that are relevant for graph classification
 # Based on GraphBench documentation: https://github.com/graphbench/package
-# ENABLED for additional data sweep
+# TEMPORARILY DISABLED - having loading issues
 graphbench_classification_datasets = [
-    "socialnetwork",  # Social media datasets
-    "co",  # Combinatorial optimization
-    "sat",  # SAT solving
-    "electronic_circuits",  # Electronic circuits
-    "chipdesign",  # Chip design
+    # "socialnetwork",  # Social media datasets - failing to load
+    # "co",  # Combinatorial optimization - file structure error
+    # "sat",  # SAT solving - works but OOM issues
+    # "electronic_circuits",  # Electronic circuits
+    # "chipdesign",  # Chip design
     # Note: weather is for regression tasks, not included here
 ]
 

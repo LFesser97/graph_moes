@@ -25,7 +25,7 @@
 #SBATCH --array=1-200             # Total experiments: ~25 single layer + ~30 MoE = ~55 (GraphBench datasets)
 #SBATCH --ntasks=1
 #SBATCH --time=48:00:00           # Long time for comprehensive sweep
-#SBATCH --mem=64GB               # Sufficient memory
+#SBATCH --mem=128GB              # Increased memory for GraphBench datasets
 #SBATCH --output=logs_comprehensive/Parallel_additional_sweep_%A_%a.log  # %A = array job ID, %a = task ID
 #SBATCH --partition=mweber_gpu
 #SBATCH --gpus=1
@@ -348,7 +348,7 @@ source /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface
 # LRGB datasets (assuming they work now)
 # OGB datasets (ppa should be pre-downloaded)
 # Additional datasets: LRGB (3), OGB (1), GraphBench (5) = 9 total
-datasets=(socialnetwork co sat chipdesign electronic_circuits)
+datasets=()  # Temporarily empty - GraphBench datasets disabled due to loading issues
 # pascalvoc coco peptides_func ppa
 # Total experiments: 45 single + 54 MoE = 99 (algorithmic_reasoning excluded)
 
