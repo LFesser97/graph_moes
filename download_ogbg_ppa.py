@@ -24,14 +24,18 @@ try:
     print("📦 OGB library loaded successfully")
 except ImportError as e:
     print(f"❌ Failed to import OGB: {e}")
+    print("Make sure you're running this in the activated moe_fresh environment")
     sys.exit(1)
 
 # Monkey patch the decide_download function to automatically approve large downloads
 def auto_decide_download(url):
     """Automatically approve downloads without prompting."""
-    d = ogb_url.ur.urlopen(url)
-    size = int(d.info()["Content-Length"])/ogb_url.GBFACTOR
-    print(f"This will download approximately {size:.2f}GB. Auto-approving...")
+    try:
+        d = ogb_url.ur.urlopen(url)
+        size = int(d.info()["Content-Length"])/ogb_url.GBFACTOR
+        print(f"This will download approximately {size:.2f}GB. Auto-approving...")
+    except:
+        print("This will download a large dataset. Auto-approving...")
     return True
 
 # Replace the original function

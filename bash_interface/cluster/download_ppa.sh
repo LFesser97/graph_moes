@@ -238,6 +238,11 @@ fi
 
 # Quick verification of required packages
 log_message "🔍 Verifying required packages..."
+python -c "import numpy; print('✅ numpy available')" || {
+    log_message "❌ numpy not available - this is required"
+    exit 1
+}
+
 if [ "$pandas_installed" = true ]; then
     python -c "import pandas; print('✅ pandas available')" || {
         log_message "⚠️  pandas not available after installation (continuing anyway)"
@@ -250,14 +255,21 @@ log_message "📥 Starting ogbg-ppa dataset download..."
 log_message "   Dataset: ppa"
 log_message "   Expected size: ~2.8GB"
 
-# Run the download (single trial to trigger download)
-python scripts/run_graph_classification.py --dataset ppa --layer_type GCN --num_trials 1
+# Use the dedicated download script that handles prompts automatically
+python download_ogbg_ppa.py
 
 # Check if download was successful
 if [ -d "graph_datasets/ogbg_ppa" ]; then
     dataset_size=$(du -sh graph_datasets/ogbg_ppa/ | cut -f1)
     log_message "✅ Download completed successfully! Dataset size: $dataset_size"
     log_message "   Location: $(pwd)/graph_datasets/ogbg_ppa/"
+
+    # Count the number of graphs if possible
+    if [ -f "graph_datasets/ogbg_ppa/processed/data.pt" ]; then
+        log_message "   Dataset appears to be properly processed"
+    else
+        log_message "   ⚠️  Dataset downloaded but may need processing"
+    fi
 else
     log_message "❌ Download failed - dataset directory not found"
     exit 1
