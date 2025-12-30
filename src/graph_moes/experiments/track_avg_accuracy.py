@@ -198,7 +198,7 @@ def load_and_plot_average_per_graph(
         num_layers,
         task_type,
         output_dir,
-        save_filename=f"{dataset_name}_{layer_type}_{encoding or 'None'}_by_index.png"
+        save_filename=f"{dataset_name}_{layer_type}_{encoding or 'None'}_by_index.png",
     )
 
     # Create sorted plot (ordered by highest average accuracy)
@@ -216,7 +216,7 @@ def load_and_plot_average_per_graph(
         num_layers,
         task_type,
         output_dir,
-        save_filename=f"{dataset_name}_{layer_type}_{encoding or 'None'}_by_accuracy.png"
+        save_filename=f"{dataset_name}_{layer_type}_{encoding or 'None'}_by_accuracy.png",
     )
 
     return original_plot_path, sorted_plot_path

@@ -859,14 +859,11 @@ for key in datasets:
         wandb.finish()
 
     # Log every time a dataset is completed
-    if PANDAS_AVAILABLE:
-        df = pd.DataFrame(results)
-        with open(
-            f"results/graph_classification_{args.layer_type}_{args.encoding}.csv", "a"
-        ) as f:
-            df.to_csv(f, mode="a", header=f.tell() == 0)
-    else:
-        print(f"⚠️  Skipping CSV save (pandas not available)")
+    df = pd.DataFrame(results)
+    with open(
+        f"results/graph_classification_{args.layer_type}_{args.encoding}.csv", "a"
+    ) as f:
+        df.to_csv(f, mode="a", header=f.tell() == 0)
 
     print(f"\n🎯 FINAL RESULTS for {key.upper()}:")
     print(f"   📈 Test Accuracy: {test_mean:.2f}% ± {test_ci:.2f}%")

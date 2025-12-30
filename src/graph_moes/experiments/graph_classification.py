@@ -13,7 +13,8 @@ except ImportError:
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset, Subset, random_split
 from torch_geometric.loader import DataLoader
-# from torcheval.metrics import MultilabelAUPRC  # Removed - was causing issues with multi-class classification
+
+from torcheval.metrics import MultilabelAUPRC  # For multi-label datasets like molpcba
 from tqdm import tqdm
 
 import wandb
@@ -416,24 +417,56 @@ class Experiment:
         self.model.eval()
         sample_size = len(loader.dataset)
 
-        with torch.no_grad():
-            total_correct = 0
+        # Choose metric based on dataset type
+        # Multi-label datasets need AUPRC, multi-class datasets need accuracy
+        dataset_name = getattr(self.args, "dataset", "")
+        multi_label_datasets = ["molpcba"]  # Known multi-label datasets
+        use_auprc = (
+            dataset_name in multi_label_datasets or self.args.output_dim > 50
+        )  # Fallback for high-dim outputs
+
+        if use_auprc:
+            # Use AUPRC for multi-label datasets (like molpcba with 128 classes)
+            metric = MultilabelAUPRC(num_labels=self.args.output_dim)
+            total_score = 0
+
             for data in loader:
                 data = data.to(self.args.device)
                 out = self.model(data)
                 y = data.y.to(self.args.device)
 
-                # Handle both multi-class and multi-label cases
-                if y.dim() > 1:
-                    # Multi-label case - use sigmoid + threshold
-                    pred = (torch.sigmoid(out) > 0.5).float()
-                    total_correct += (pred == y).all(dim=1).sum().item()
-                else:
-                    # Multi-class case - use argmax
-                    _, pred = out.max(dim=1)
-                    total_correct += pred.eq(y).sum().item()
+                # For multi-label, convert single labels to multi-hot if needed
+                if y.dim() == 1:
+                    # Convert to multi-hot encoding for AUPRC
+                    y_multihot = torch.zeros(
+                        out.shape[0], self.args.output_dim, device=self.args.device
+                    )
+                    y_multihot.scatter_(1, y.unsqueeze(1), 1)
+                    y = y_multihot
 
-        return total_correct / sample_size
+                metric.update(out, y)
+
+            return metric.compute().item()
+        else:
+            # Use accuracy for multi-class datasets
+            with torch.no_grad():
+                total_correct = 0
+                for data in loader:
+                    data = data.to(self.args.device)
+                    out = self.model(data)
+                    y = data.y.to(self.args.device)
+
+                    # Handle both multi-class and multi-label cases
+                    if y.dim() > 1:
+                        # Multi-label case - use sigmoid + threshold
+                        pred = (torch.sigmoid(out) > 0.5).float()
+                        total_correct += (pred == y).all(dim=1).sum().item()
+                    else:
+                        # Multi-class case - use argmax
+                        _, pred = out.max(dim=1)
+                        total_correct += pred.eq(y).sum().item()
+
+            return total_correct / sample_size
 
     def check_dirichlet(self, loader: DataLoader) -> float:
         self.model.eval()
