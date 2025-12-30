@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Node Classification Experiments on PATTERN Dataset
+# Node Classification Experiments on PATTERN Dataset - TODO: check with Lukas
 # ============================================================================
 # This script runs node classification experiments on the PATTERN dataset.
 # Unlike graph classification, node classification predicts labels for individual
