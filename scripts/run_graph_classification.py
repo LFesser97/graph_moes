@@ -235,7 +235,7 @@ print("  ⏭️  LRGB datasets disabled (commented out)")
 # Set LRGB datasets to empty (disabled)
 cluster = []
 pascalvoc = []
-coco = []
+    coco = []
 
 # Peptides-func dataset
 print("\n📊 Loading Peptides-func...")

@@ -1,6 +1,10 @@
 [![Ruff](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml/badge.svg)](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml)
 
 # TODO (12/10)
+
+Ask Lukas about the weird plots. WHy do we get a very clear separation by indexing?
+
+
 Can GNN be strong baselines:
 - take these hyperparameters and these datasets. [TODO: check manually]
 

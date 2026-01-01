@@ -15,14 +15,14 @@
 #   - OGB datasets: ogbg-ppa (assumes pre-downloaded)
 #   - GraphBench datasets: (if available)
 #
-# Total experiments: Variable (depends on available datasets)
+# Total experiments: 44 (20 single layer + 24 MoE with 4 additional datasets)
 # Each experiment runs 200 trials to ensure proper test set coverage
 #
 # Usage: sbatch comprehensive_sweep_parallel_additional_data.sh
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep_additional
-#SBATCH --array=1-200             # Total experiments: ~25 single layer + ~30 MoE = ~55 (GraphBench datasets)
+#SBATCH --array=1-44             # Total experiments: 20 single layer + 24 MoE = 44 (LRGB + OGB datasets only)
 #SBATCH --ntasks=1
 #SBATCH --time=48:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=128GB              # Increased memory for GraphBench datasets
@@ -348,8 +348,8 @@ source /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface
 # LRGB datasets (assuming they work now)
 # OGB datasets (ppa should be pre-downloaded)
 # Additional datasets: LRGB (3), OGB (1), GraphBench (5) = 9 total
-datasets=()  # Temporarily empty - GraphBench datasets disabled due to loading issues
-# pascalvoc coco peptides_func ppa
+# Note: GraphBench datasets disabled due to loading issues, using only LRGB + OGB
+datasets=("pascalvoc" "coco" "peptides_func" "ppa")
 # Total experiments: 45 single + 54 MoE = 99 (algorithmic_reasoning excluded)
 
 # Calculate which experiment this array task should run
