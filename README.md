@@ -2,18 +2,27 @@
 
 # TODO (12/10)
 
-Ask Lukas about the weird plots. WHy do we get a very clear separation by indexing?
-
-
-Can GNN be strong baselines:
+* Ask Lukas about the weird plots. WHy do we get a very clear separation by indexing?
+[ IN PROGRESS]
+* Can GNN be strong baselines:
 - take these hyperparameters and these datasets. [TODO: check manually]
+
+* Add test suite for accuracies / pytest for all that
+* Merge current PR
+* Run a new PR with black/isort/ruff
+
+
+
+
 
 - Redo plotting + TMD
 - Adding a few datasets + architectures 
 - MoE: foresee how well this is working - look at training curves and that it trains well and accuracy in comparaison with other baselines.
 Aiming end of Jan 
 
-Check what dataset we have right now? 
+
+# Dataset Status Summary
+What dataset we have right now? 
 What ran:
 proteins, enzymes, imdb, mutag, pattern, reddit, collab, cifar, mnist
 TODO: reread what dataset I expect.
@@ -21,9 +30,6 @@ Missing:
 enzymes, peptides-struct, peptides-func
 - total ~20 
 MAKE SURE I CAN RERUN ON THE CLUSTER. CLEAN UP.
-
-# Dataset Status Summary
-
 **Target Datasets (15 total):**
 - ✅ **Available & Loaded (14):** ZINC, MNIST, CIFAR10, PATTERN, CLUSTER, Peptides-func, PascalVOC-SP, COCO-SP, MalNet-Tiny, ogbg-molhiv, ogbg-molpcba, ogbg-ppa, ogbg-code2
 - ⚠️ **Commented Out (1):** Peptides-struct (needs uncommenting in `run_graph_regression.py`)
