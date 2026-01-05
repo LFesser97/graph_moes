@@ -36,6 +36,29 @@ def compute_average_per_graph(
     return np.array(graph_indices), np.array(average_values)
 
 
+def get_detailed_model_name(
+    layer_type: str, layer_types: Optional[list] = None, router_type: str = "MLP"
+) -> str:
+    """
+    Generate a detailed model name that includes MOE specifics.
+
+    Args:
+        layer_type: Base layer type (MoE, MoE_E, GCN, etc.)
+        layer_types: List of expert types for MOE models
+        router_type: Router type for MOE models (MLP or GNN)
+
+    Returns:
+        Detailed model name string
+    """
+    if layer_types is not None:
+        # MOE model - include router type and expert combination
+        expert_combo = "_".join(layer_types)
+        return f"{layer_type}_{router_type}_{expert_combo}"
+    else:
+        # Non-MOE model - just return the layer type
+        return layer_type
+
+
 def plot_average_per_graph(
     graph_indices: np.ndarray,
     average_values: np.ndarray,
@@ -46,6 +69,8 @@ def plot_average_per_graph(
     task_type: str = "classification",
     output_dir: str = "results",
     save_filename: Optional[str] = None,
+    layer_types: Optional[list] = None,
+    router_type: str = "MLP",
 ) -> str:
     """
     Plot average accuracy (classification) or average error (regression) per graph.
@@ -131,9 +156,12 @@ def plot_average_per_graph(
     os.makedirs(f"{output_dir}/{num_layers}_layers", exist_ok=True)
     if save_filename is None:
         encoding_str = f"_{encoding}" if encoding else ""
+        detailed_model_name = get_detailed_model_name(
+            layer_type, layer_types, router_type
+        )
         save_filename = (
             f"{output_dir}/{num_layers}_layers/"
-            f"{dataset_name}_{layer_type}{encoding_str}_avg_{task_type}_per_graph.png"
+            f"{dataset_name}_{detailed_model_name}{encoding_str}_avg_{task_type}_per_graph.png"
         )
     else:
         # Ensure output_dir is in the path if it's a relative path
@@ -154,6 +182,8 @@ def load_and_plot_average_per_graph(
     num_layers: int,
     task_type: str = "classification",
     output_dir: str = "results",
+    layer_types: Optional[list] = None,
+    router_type: str = "MLP",
 ) -> Tuple[str, str]:
     """
     Load graph_dict from pickle file and create average accuracy/error plots.
@@ -198,7 +228,9 @@ def load_and_plot_average_per_graph(
         num_layers,
         task_type,
         output_dir,
-        save_filename=f"{dataset_name}_{layer_type}_{encoding or 'None'}_by_index.png",
+        save_filename=f"{dataset_name}_{get_detailed_model_name(layer_type, layer_types, router_type)}_by_index.png",
+        layer_types=layer_types,
+        router_type=router_type,
     )
 
     # Create sorted plot (ordered by highest average accuracy)
@@ -216,7 +248,9 @@ def load_and_plot_average_per_graph(
         num_layers,
         task_type,
         output_dir,
-        save_filename=f"{dataset_name}_{layer_type}_{encoding or 'None'}_by_accuracy.png",
+        save_filename=f"{dataset_name}_{get_detailed_model_name(layer_type, layer_types, router_type)}_by_accuracy.png",
+        layer_types=layer_types,
+        router_type=router_type,
     )
 
     return original_plot_path, sorted_plot_path

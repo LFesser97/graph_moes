@@ -693,7 +693,16 @@ for key in datasets:
     import pickle
 
     os.makedirs(f"results/{args.num_layers}_layers", exist_ok=True)
-    graph_dict_filename = f"results/{args.num_layers}_layers/{key}_{args.layer_type}_{args.encoding}_graph_dict.pickle"
+    # Generate detailed model name for MOE models
+    if args.layer_types is not None:
+        router_type = getattr(args, 'router_type', 'MLP')
+        expert_combo = "_".join(args.layer_types)
+        detailed_model_name = f"{args.layer_type}_{router_type}_{expert_combo}"
+    else:
+        detailed_model_name = args.layer_type
+
+    encoding_str = args.encoding if args.encoding else "None"
+    graph_dict_filename = f"results/{args.num_layers}_layers/{key}_{detailed_model_name}_{encoding_str}_graph_dict.pickle"
     with open(graph_dict_filename, "wb") as f:
         pickle.dump(
             {
@@ -715,6 +724,8 @@ for key in datasets:
             num_layers=args.num_layers,
             task_type="classification",
             output_dir="results",
+            layer_types=getattr(args, 'layer_types', None),
+            router_type=getattr(args, 'router_type', 'MLP'),
         )
         if original_plot_path:
             print(f"📊 Average accuracy plot (by index) saved to: {original_plot_path}")
