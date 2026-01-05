@@ -9,6 +9,13 @@ import pytest
 import torch
 import torch.nn as nn
 
+from torch_geometric.data import Batch, Data
+
+from graph_moes.moes.graph_moe import MoE, MoE_E
+from graph_moes.moes.routers.gnn_router import GNNRouter
+from graph_moes.moes.routers.mlp_router import MLPRouter
+from graph_moes.moes.routers.router import Router
+
 # from attrdict import AttrDict  # Fallback for older Python
 
 
@@ -38,14 +45,6 @@ class AttrDict(dict):
         # Create a new AttrDict with deep copied contents
         new_dict = copy.deepcopy(dict(self), memo)
         return AttrDict(new_dict)
-
-
-from torch_geometric.data import Batch, Data
-
-from graph_moes.moes.graph_moe import MoE, MoE_E
-from graph_moes.moes.routers.gnn_router import GNNRouter
-from graph_moes.moes.routers.mlp_router import MLPRouter
-from graph_moes.moes.routers.router import Router
 
 
 @pytest.fixture
