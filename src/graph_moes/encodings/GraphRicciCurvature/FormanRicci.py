@@ -3,14 +3,13 @@
 This is less expensive that computing the Ollivier-Ricci curvature.
 """
 
+import networkx as nx
 import torch
 
 # torch.multiprocessing.set_start_method('spawn')
 _device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-import networkx as nx
-
-# from .util import logger
+# from graph_moes.encodings.GraphRicciCurvature.util import logger
 
 
 def _compute_afrc_edge(G: nx.Graph, ni: int, nj: int, t_num: int) -> float:

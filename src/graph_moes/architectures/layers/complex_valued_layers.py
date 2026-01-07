@@ -398,7 +398,6 @@ class TaylorGCNConv(MessagePassing):
         if not torch.is_complex(x):
             x = torch.complex(x, torch.zeros_like(x))
 
-        c = 1.0
         x = self.conv(
             x, edge_index, edge_weight, apply_feature_lin=True, return_feature_only=True
         )

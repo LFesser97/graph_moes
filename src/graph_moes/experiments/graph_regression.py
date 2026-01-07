@@ -101,7 +101,6 @@ class Experiment:
             dataset_size = len(self.dataset)
             train_size = int(self.args.train_fraction * dataset_size)
             validation_size = int(self.args.validation_fraction * dataset_size)
-            test_size = dataset_size - train_size - validation_size
 
             """
             The split 10873/2331/2331 is the standard benchmark split for the Peptides-func and Peptides-struct datasets.

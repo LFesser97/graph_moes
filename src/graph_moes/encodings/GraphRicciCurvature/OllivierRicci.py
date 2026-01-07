@@ -3,22 +3,26 @@
 import heapq
 import importlib
 import math
-import time
-
-import pandas as pd
-import torch
-
-torch.multiprocessing.set_start_method("spawn")
-_device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 import multiprocessing as mp
+import time
 from functools import lru_cache
 
 import networkit as nk
 import networkx as nx
 import numpy as np
 import ot
+import pandas as pd
+import torch
 
-from .util import cut_graph_by_cutoff, get_rf_metric_cutoff, logger, set_verbose
+from graph_moes.encodings.GraphRicciCurvature.util import (
+    cut_graph_by_cutoff,
+    get_rf_metric_cutoff,
+    logger,
+    set_verbose,
+)
+
+torch.multiprocessing.set_start_method("spawn")
+_device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 EPSILON = 1e-7  # to prevent divided by zero
 
@@ -334,7 +338,6 @@ def _compute_ricci_curvature_single_edge(source, target):
         return {(source, target): 0}
 
     # compute transportation distance
-    m = 1  # assign an initial cost
     assert _method in ["OTD", "ATD", "Sinkhorn", "OTDSinkhornMix"], (
         'Method %s not found, support method:["OTD", "ATD", "Sinkhorn", "OTDSinkhornMix]'
         % _method

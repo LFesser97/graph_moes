@@ -5,10 +5,10 @@ and the complete MoE and MoE_E architectures with various configurations.
 """
 
 import copy
+
 import pytest
 import torch
 import torch.nn as nn
-
 from torch_geometric.data import Batch, Data
 
 from graph_moes.moes.graph_moe import MoE, MoE_E
@@ -373,7 +373,7 @@ class TestMoE_E:
         original_x = batch_graph.x.clone()
 
         # Forward pass (modifies graph.x)
-        output = model(batch_graph)
+        _ = model(batch_graph)
 
         # Check that last 5 dimensions are zeroed
         assert torch.allclose(
