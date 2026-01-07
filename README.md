@@ -1,4 +1,5 @@
 [![Ruff](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml/badge.svg)](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml)
+[![pytest](https://github.com/LFesser97/graph_moes/actions/workflows/pytest.yml/badge.svg)](https://github.com/LFesser97/graph_moes/actions/workflows/pytest.yml)
 
 # TODO (12/10)
 
