@@ -71,7 +71,6 @@ from torch_geometric.nn import (
     global_mean_pool,
 )
 from torch_geometric.nn.conv import MessagePassing
-from torch_geometric.nn.dense.linear import Linear
 from torch_geometric.nn.inits import zeros
 from torch_geometric.typing import Adj, OptTensor, PairTensor
 
@@ -162,7 +161,7 @@ class GNN(torch.nn.Module):
     def forward(
         self, graph: Union[Data, Batch], measure_dirichlet: bool = False
     ) -> Union[torch.Tensor, float]:
-        x, edge_index, ptr, batch = graph.x, graph.edge_index, graph.ptr, graph.batch
+        x, edge_index, _, batch = graph.x, graph.edge_index, graph.ptr, graph.batch
         x = x.float()
         for i, layer in enumerate(self.layers):
             # MLP layers ignore graph structure

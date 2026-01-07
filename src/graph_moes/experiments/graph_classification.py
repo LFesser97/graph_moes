@@ -10,10 +10,10 @@ try:
     from attrdict3 import AttrDict  # Python 3.10+ compatible
 except ImportError:
     from attrdict import AttrDict  # Fallback for older Python
+
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset, Subset, random_split
 from torch_geometric.loader import DataLoader
-
 from torcheval.metrics import MultilabelAUPRC  # For multi-label datasets like molpcba
 from tqdm import tqdm
 
@@ -117,7 +117,6 @@ class Experiment:
             dataset_size = len(self.dataset)
             train_size = int(self.args.train_fraction * dataset_size)
             validation_size = int(self.args.validation_fraction * dataset_size)
-            test_size = dataset_size - train_size - validation_size
             # self.train_dataset, self.validation_dataset, self.test_dataset = random_split(self.dataset,[train_size, validation_size, test_size])
             (
                 self.train_dataset,
@@ -205,7 +204,6 @@ class Experiment:
                 optimizer.step()
                 optimizer.zero_grad()
 
-            new_best_str = ""
             scheduler.step(total_loss)
 
             # Log training loss to wandb
@@ -246,7 +244,6 @@ class Experiment:
                         best_test_acc = test_acc
                         epochs_no_improve = 0
                         train_goal = train_acc * self.args.stopping_threshold
-                        new_best_str = " (new best train)"
 
                         # Log new best to wandb
                         if self.wandb_active:
@@ -272,7 +269,6 @@ class Experiment:
                         best_test_acc = test_acc
                         epochs_no_improve = 0
                         validation_goal = validation_acc * self.args.stopping_threshold
-                        new_best_str = " (new best validation)"
                         best_model = copy.deepcopy(self.model)
 
                         # Log new best to wandb
@@ -428,7 +424,6 @@ class Experiment:
         if use_auprc:
             # Use AUPRC for multi-label datasets (like molpcba with 128 classes)
             metric = MultilabelAUPRC(num_labels=self.args.output_dim)
-            total_score = 0
 
             for data in loader:
                 data = data.to(self.args.device)

@@ -4,6 +4,17 @@
 # https://www.dgl.ai/dgl_docs/_modules/dgl/nn/pytorch/conv/gatedgcnconv.html
 """
 
+from typing import TYPE_CHECKING, Callable, Optional, Tuple
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+if TYPE_CHECKING:
+    from dgl import DGLGraph
+
+from dgl import function as fn
+
 
 class GatedGCNConv(nn.Module):
     """Gated graph convolutional layer from `Benchmarking Graph Neural Networks
@@ -60,14 +71,14 @@ class GatedGCNConv(nn.Module):
 
     def __init__(
         self,
-        input_feats,
-        edge_feats,
-        output_feats,
-        dropout=0,
-        batch_norm=True,
-        residual=True,
-        activation=F.relu,
-    ):
+        input_feats: int,
+        edge_feats: int,
+        output_feats: int,
+        dropout: float = 0,
+        batch_norm: bool = True,
+        residual: bool = True,
+        activation: Optional[Callable] = F.relu,
+    ) -> None:
         super(GatedGCNConv, self).__init__()
         self.dropout = nn.Dropout(dropout)
         self.batch_norm = batch_norm
@@ -91,7 +102,12 @@ class GatedGCNConv(nn.Module):
 
         self.activation = activation
 
-    def forward(self, graph, feat, edge_feat):
+    def forward(
+        self,
+        graph: "DGLGraph",
+        feat: torch.Tensor,
+        edge_feat: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
 
         Description

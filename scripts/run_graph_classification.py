@@ -22,12 +22,13 @@ try:
     from attrdict3 import AttrDict  # Python 3.10+ compatible
 except ImportError:
     from attrdict import AttrDict  # Fallback for older Python
+
+from ogb.graphproppred import PygGraphPropPredDataset
 from torch_geometric.data import Data
 from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
 from tqdm import tqdm
 
 import wandb
-from ogb.graphproppred import PygGraphPropPredDataset
 
 # GraphBench loading disabled - comment out to re-enable
 # from graph_moes.download.load_graphbench import load_graphbench_dataset
@@ -49,6 +50,7 @@ except ImportError:
     from graph_moes.experiments.track_avg_accuracy import (
         load_and_plot_average_per_graph,
     )
+
 from hyperparams import get_args_from_input
 
 

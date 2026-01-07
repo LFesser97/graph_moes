@@ -167,21 +167,20 @@ def plot_label_distribution(
 
     # Add statistics text
     sorted_labels = sorted(label_counts.items())
-    label_distribution = ", ".join([f"Class {l}: {c}" for l, c in sorted_labels])
+    label_distribution = ", ".join(
+        [f"Class {label}: {count}" for label, count in sorted_labels]
+    )
 
     # Calculate label ordering statistics
     # Check if labels are ordered (all same label in contiguous blocks)
-    is_ordered = True
     transitions = 0
     for i in range(1, len(labels)):
         if labels[i] != labels[i - 1]:
             transitions += 1
             # Check if this transition is expected (only allowed once per class change)
             if i > 1 and labels[i] == labels[i - 2]:
-                is_ordered = False
                 break
 
-    ordering_status = "Ordered" if is_ordered else "Mixed"
     stats_text = (
         f"Total graphs: {len(labels)} | Classes: {num_classes} | "
         # f"Label transitions: {transitions} | Ordering: {ordering_status}\n"
@@ -290,7 +289,7 @@ def main():
             short_name = ds_name.replace("ogbg-", "").replace("-", "_")
             datasets_to_plot[short_name] = dataset_list
             print(f"  ✅ {ds_name} loaded: {len(dataset_list)} graphs")
-        except (EOFError, KeyboardInterrupt) as e:
+        except (EOFError, KeyboardInterrupt):
             print(f"  ⚠️  Skipped {ds_name}: interactive prompt encountered")
         except Exception as e:
             print(f"  ⚠️  Failed to load {ds_name}: {e}")
@@ -325,7 +324,7 @@ def main():
                         f"     ⚠️  WARNING: Labels appear to be heavily ordered (only {transitions} transitions)"
                     )
                 elif transitions > len(labels) * 0.9:  # More than 90% transitions
-                    print(f"     ✅ Labels appear well-mixed (many transitions)")
+                    print("     ✅ Labels appear well-mixed (many transitions)")
 
             # Generate plot
             plot_path = plot_label_distribution(

@@ -1,10 +1,9 @@
+import networkx as nx
 import torch
 
+from graph_moes.encodings.GraphRicciCurvature.util import logger
+
 _device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
-import networkx as nx
-
-from .util import logger
 
 
 def _compute_afrc_edge(G: nx.Graph, ni: int, nj: int, t_num: int, q_num: int) -> float:

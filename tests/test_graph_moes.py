@@ -5,10 +5,10 @@ and the complete MoE and MoE_E architectures with various configurations.
 """
 
 import copy
+
 import pytest
 import torch
 import torch.nn as nn
-
 from torch_geometric.data import Batch, Data
 
 from graph_moes.moes.graph_moe import MoE, MoE_E

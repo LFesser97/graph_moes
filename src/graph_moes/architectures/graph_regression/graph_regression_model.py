@@ -152,14 +152,20 @@ class GNN(torch.nn.Module):
         else:
             raise NotImplementedError
 
-    def forward(self, x, edge_index, edge_attr, batch, measure_dirichlet=False):
+    def forward(
+        self, x, edge_index, edge_attr, batch, edge_type=None, measure_dirichlet=False
+    ):
         x = x.float()
         for i, layer in enumerate(self.layers):
             if self.layer_type in ["R-GCN", "R-GAT", "R-GIN", "FiLM"]:
-                x_new = layer(x, edge_index, edge_type=graph.edge_type)
+                if edge_type is None:
+                    raise ValueError(
+                        f"{self.layer_type} requires edge_type to be provided"
+                    )
+                x_new = layer(x, edge_index, edge_type=edge_type)
             elif self.layer_type == "GatedGCN":
-                if hasattr(graph, "edge_attr") and graph.edge_attr is not None:
-                    x_new = layer(x, edge_index, graph.edge_attr)
+                if edge_attr is not None:
+                    x_new = layer(x, edge_index, edge_attr)
                 else:
                     x_new = layer(x, edge_index)  # Works without edge attributes
             else:
@@ -176,9 +182,7 @@ class GNN(torch.nn.Module):
                     x_new = combined_values[batch]
             x = x_new
         if measure_dirichlet:
-            energy = dirichlet_normalized(
-                x.cpu().numpy(), graph.edge_index.cpu().numpy()
-            )
+            energy = dirichlet_normalized(x.cpu().numpy(), edge_index.cpu().numpy())
             return energy
         x = global_mean_pool(x, batch)
         return self.mlp(x)
@@ -242,7 +246,6 @@ class GINE(torch.nn.Module):
             batch.to(device)
         """
         x = self.node_emb(x.squeeze(-1))
-        attr = self.edge_emb(edge_attr)
 
         for conv in self.convs:
             # x = conv(x, edge_index, batch, attr)
@@ -302,7 +305,6 @@ class GPS(torch.nn.Module):
         # x = self.node_emb(x.squeeze(-1))
         print(x)
         x = self.node_emb(x.float())
-        attr = self.edge_emb(edge_attr)
 
         for conv in self.convs:
             x = conv(x, edge_index)
