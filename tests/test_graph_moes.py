@@ -373,7 +373,7 @@ class TestMoE_E:
         original_x = batch_graph.x.clone()
 
         # Forward pass (modifies graph.x)
-        output = model(batch_graph)
+        _ = model(batch_graph)
 
         # Check that last 5 dimensions are zeroed
         assert torch.allclose(
