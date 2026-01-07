@@ -154,6 +154,8 @@ strict_equality = true
 module = [
     "torch_geometric.*",
     "easydict.*",
+    "attrdict.*",
+    "attrdict3.*",
     "numba.*",
     "GraphRicciCurvature.*",
     "networkit.*",

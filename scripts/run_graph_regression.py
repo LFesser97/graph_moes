@@ -37,7 +37,15 @@ from hyperparams import get_args_from_input
 # import custom encodings
 
 
-def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
+def _convert_lrgb(dataset: torch.Tensor) -> Data:
+    """Convert LRGB dataset tuple format to PyTorch Geometric Data object.
+
+    Args:
+        dataset: Tuple containing (x, edge_attr, edge_index, y) tensors
+
+    Returns:
+        PyTorch Geometric Data object with node features, edges, and labels
+    """
     x = dataset[0]
     edge_attr = dataset[1]
     edge_index = dataset[2]
@@ -99,7 +107,13 @@ for dataset_name in graphbench_regression_datasets:
 datasets = {"zinc": zinc, **graphbench_datasets}
 
 
-def log_to_file(message, filename="results/graph_regression.txt"):
+def log_to_file(message: str, filename: str = "results/graph_regression.txt") -> None:
+    """Log a message to both console and file.
+
+    Args:
+        message: The message to log
+        filename: Path to the log file (default: "results/graph_regression.txt")
+    """
     print(message)
     file = open(filename, "a")
     file.write(message)

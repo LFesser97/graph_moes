@@ -1,4 +1,4 @@
-"""Script to run graph classification experiments."
+"""Script to run graph classification experiments.
 
 This script orchestrates comprehensive graph classification experiments across diverse datasets
 including molecular graphs (MUTAG, ENZYMES, PROTEINS), social networks (IMDB, COLLAB, REDDIT),
@@ -52,7 +52,15 @@ except ImportError:
 from hyperparams import get_args_from_input
 
 
-def _convert_lrgb(dataset: torch.Tensor) -> torch.Tensor:
+def _convert_lrgb(dataset: torch.Tensor) -> Data:
+    """Convert LRGB dataset tuple format to PyTorch Geometric Data object.
+
+    Args:
+        dataset: Tuple containing (x, edge_attr, edge_index, y) tensors
+
+    Returns:
+        PyTorch Geometric Data object with node features, edges, and labels
+    """
     x = dataset[0]
     edge_attr = dataset[1]
     edge_index = dataset[2]
@@ -235,7 +243,7 @@ print("  ⏭️  LRGB datasets disabled (commented out)")
 # Set LRGB datasets to empty (disabled)
 cluster = []
 pascalvoc = []
-    coco = []
+coco = []
 
 # Peptides-func dataset
 print("\n📊 Loading Peptides-func...")
@@ -354,7 +362,15 @@ for key in datasets:
                 graph.x = torch.ones((n, 1))
 
 
-def log_to_file(message, filename="results/graph_classification.txt"):
+def log_to_file(
+    message: str, filename: str = "results/graph_classification.txt"
+) -> None:
+    """Log a message to both console and file.
+
+    Args:
+        message: The message to log
+        filename: Path to the log file (default: "results/graph_classification.txt")
+    """
     print(message)
     file = open(filename, "a")
     file.write(message)
@@ -695,7 +711,7 @@ for key in datasets:
     os.makedirs(f"results/{args.num_layers}_layers", exist_ok=True)
     # Generate detailed model name for MOE models
     if args.layer_types is not None:
-        router_type = getattr(args, 'router_type', 'MLP')
+        router_type = getattr(args, "router_type", "MLP")
         expert_combo = "_".join(args.layer_types)
         detailed_model_name = f"{args.layer_type}_{router_type}_{expert_combo}"
     else:
@@ -724,8 +740,8 @@ for key in datasets:
             num_layers=args.num_layers,
             task_type="classification",
             output_dir="results",
-            layer_types=getattr(args, 'layer_types', None),
-            router_type=getattr(args, 'router_type', 'MLP'),
+            layer_types=getattr(args, "layer_types", None),
+            router_type=getattr(args, "router_type", "MLP"),
         )
         if original_plot_path:
             print(f"📊 Average accuracy plot (by index) saved to: {original_plot_path}")
