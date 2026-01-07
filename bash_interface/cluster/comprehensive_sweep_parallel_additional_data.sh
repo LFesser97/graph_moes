@@ -1,35 +1,37 @@
 #!/bin/bash
 # ============================================================================
-# Comprehensive Graph MoE Sweep - Parallel Array Job Version
+# Comprehensive Graph MoE Sweep - Parallel Array Job Version (Additional Datasets)
 # ============================================================================
 # This script runs a comprehensive hyperparameter sweep for graph neural network
-# experiments using SLURM array jobs for parallel execution. It tests both single
-# layer architectures (GCN, GIN, SAGE, MLP, Unitary) and MoE (Mixture of Experts)
-# combinations across multiple datasets.
+# experiments using SLURM array jobs for parallel execution. This version focuses
+# on the additional datasets that were previously commented out due to download
+# issues or interactive prompts.
 #
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 80
-#   - 40 single layer experiments: 5 layer types × 8 datasets (removed PATTERN and cluster)
-#   - 40 MoE experiments: 6 combinations × 8 datasets
-# Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
+# Additional datasets included:
+#   - LRGB datasets: pascalvoc, coco, peptides_func
+#   - OGB datasets: ogbg-ppa (assumes pre-downloaded)
+#   - GraphBench datasets: (if available)
+#
+# Total experiments: 44 (20 single layer + 24 MoE with 4 additional datasets)
 # Each experiment runs 200 trials to ensure proper test set coverage
 #
-# Usage: sbatch comprehensive_sweep_parallel.sh
+# Usage: sbatch comprehensive_sweep_parallel_additional_data.sh
 # ============================================================================
 
-#SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-80              # Total experiments: 40 single layer + 40 MoE = 80
+#SBATCH --job-name=comprehensive_sweep_additional
+#SBATCH --array=1-44             # Total experiments: 20 single layer + 24 MoE = 44 (LRGB + OGB datasets only)
 #SBATCH --ntasks=1
 #SBATCH --time=48:00:00           # Long time for comprehensive sweep
-#SBATCH --mem=64GB               # Sufficient memory
-#SBATCH --output=logs_comprehensive/Parallel_comprehensive_sweep_%A_%a.log  # %A = array job ID, %a = task ID
+#SBATCH --mem=128GB              # Increased memory for GraphBench datasets
+#SBATCH --output=logs_comprehensive/Parallel_additional_sweep_%A_%a.log  # %A = array job ID, %a = task ID
 #SBATCH --partition=mweber_gpu
 #SBATCH --gpus=1
 
 # WandB Environment Setup
-echo "🚀 Setting up WandB environment for Comprehensive Graph MoE experiments..."
+echo "🚀 Setting up WandB environment for Additional Comprehensive Graph MoE experiments..."
 
 export WANDB_API_KEY="ea7c6eeb5a095b531ef60cc784bfeb87d47ea0b0"
 export WANDB_ENTITY="weber-geoml-harvard-university"
@@ -52,7 +54,7 @@ if command -v module &> /dev/null; then
     else
         echo "   ⚠️  CUDA module not found, continuing..."
     fi
-    
+
     if module load cudnn/9.10.2.21_cuda12-fasrc01 2>/dev/null; then
         echo "   ✅ Loaded cudnn/9.10.2.21_cuda12-fasrc01"
     elif module load cudnn 2>/dev/null; then
@@ -60,7 +62,7 @@ if command -v module &> /dev/null; then
     else
         echo "   ⚠️  cuDNN module not found, continuing..."
     fi
-    
+
     # Set LD_LIBRARY_PATH to include CUDA libraries (including targets directory for libcusparseLt.so.0)
     if [ -n "$CUDA_HOME" ]; then
         export LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${CUDA_HOME}/lib:${CUDA_HOME}/targets/x86_64-linux/lib:${LD_LIBRARY_PATH}"
@@ -74,7 +76,7 @@ fi
 
 echo "✅ WandB environment configured"
 echo "   Entity: $WANDB_ENTITY"
-echo "   Project: $WANDB_PROJECT" 
+echo "   Project: $WANDB_PROJECT"
 echo "   API Key: ${WANDB_API_KEY:0:10}..."
 echo "   Directory: $WANDB_DIR"
 
@@ -87,14 +89,13 @@ else
 fi
 
 echo "🎉 WandB setup complete!"
-echo "🎉 WandB setup complete!"
 
 # Function to log messages with timestamp
 log_message() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Task $SLURM_ARRAY_TASK_ID] $1"
 }
 
-log_message "Starting Comprehensive MoE Sweep Task $SLURM_ARRAY_TASK_ID"
+log_message "Starting Additional Comprehensive MoE Sweep Task $SLURM_ARRAY_TASK_ID"
 
 # Set environment path
 export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
@@ -190,7 +191,7 @@ fi
 log_message "✅ Verified $ENV_NAME environment active: $python_path"
 
 # Navigate to project directory
-cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes || {
+cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes_2/graph_moes || {
     log_message "❌ Failed to navigate to project directory"
     exit 1
 }
@@ -289,10 +290,10 @@ if ! python -c "import graph_moes" 2>/dev/null; then
     elif [ -d "src" ]; then
         log_message "⚠️  pip install failed, adding src to PYTHONPATH..."
         export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
-        if python -c "import graph_moes" 2>/dev/null; then
+        if python -c "import graph_moes" 2>&1; then
             log_message "✅ Project accessible via PYTHONPATH"
         else
-            log_message "❌ Failed to make graph_moes importable"
+            log_message "❌ Failed to import graph_moes submodules"
             exit 1
         fi
     else
@@ -325,7 +326,7 @@ python -c "import numpy, pandas, torch, graph_moes; print('✅ Core packages ava
 # Define all layer type combinations
 declare -a single_layer_types=(
     "GCN"
-    "GIN" 
+    "GIN"
     "SAGE"
     "MLP"
     "Unitary"
@@ -343,45 +344,48 @@ declare -a moe_combinations=(
 # Load hyperparameter lookup function
 source /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface/cluster/hyperparams_lookup.sh
 
-# Define datasets - each will use optimal hyperparameters from research paper
-# GraphBench datasets excluded for now (to avoid download attempts)
-# To include GraphBench: add graphbench_socialnetwork graphbench_co graphbench_sat to the list
-datasets=(enzymes proteins mutag imdb collab reddit mnist cifar)
+# Define ADDITIONAL datasets - these were previously commented out
+# LRGB datasets (assuming they work now)
+# OGB datasets (ppa should be pre-downloaded)
+# Additional datasets: LRGB (3), OGB (1), GraphBench (5) = 9 total
+# Note: GraphBench datasets disabled due to loading issues, using only LRGB + OGB
+datasets=("pascalvoc" "coco" "peptides_func" "ppa")
+# Total experiments: 45 single + 54 MoE = 99 (algorithmic_reasoning excluded)
 
 # Calculate which experiment this array task should run
 task_id=${SLURM_ARRAY_TASK_ID:-1}
 
-# Total single layer experiments: 5 layer types × 8 datasets = 40
-# Total MoE experiments: 6 combinations × 8 datasets = 40
-# Total: 80 experiments
+# Total single layer experiments: 5 layer types × 4 datasets = 20
+# Total MoE experiments: 6 combinations × 4 datasets = 24
+# Total: 44 experiments (but using higher array limit for safety)
 
-if [ "$task_id" -le 40 ]; then
+if [ "$task_id" -le 20 ]; then
     # Single layer experiment
     experiment_type="single"
     adjusted_id=$((task_id - 1))
-    
+
     # Calculate dataset and layer type
     num_datasets=${#datasets[@]}
     dataset_idx=$((adjusted_id % num_datasets))
     layer_idx=$((adjusted_id / num_datasets))
-    
+
     dataset=${datasets[$dataset_idx]}
     layer_type=${single_layer_types[$layer_idx]}
-    
-    log_message "🧪 Single Layer Experiment $task_id: ${dataset}_${layer_type}"
-    
-    # Get optimal hyperparameters
+
+    log_message "🧪 Additional Single Layer Experiment $task_id: ${dataset}_${layer_type}"
+
+    # Get optimal hyperparameters (will need to add these to hyperparams_lookup.sh)
     get_hyperparams "$dataset" "$layer_type"
-    
+
     # Extract hyperparameters
     learning_rate=$HYPERPARAM_LEARNING_RATE
     hidden_dim=$HYPERPARAM_HIDDEN_DIM
     num_layer=$HYPERPARAM_NUM_LAYERS
     dropout=$HYPERPARAM_DROPOUT
     patience=$HYPERPARAM_PATIENCE
-    
+
     wandb_run_name="${dataset}_${layer_type}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
-    
+
     # Run single layer experiment
     python scripts/run_graph_classification.py \
         --num_trials 200 \
@@ -394,38 +398,38 @@ if [ "$task_id" -le 40 ]; then
         --patience "$patience" \
         --wandb_enabled \
         --wandb_name "$wandb_run_name" \
-        --wandb_tags '["cluster", "comprehensive", "single_layer", "research_hyperparams"]'
+        --wandb_tags '["cluster", "comprehensive", "additional_datasets", "single_layer", "research_hyperparams"]'
 
 else
     # MoE experiment
     experiment_type="moe"
-    moe_id=$((task_id - 41))
-    
+    moe_id=$((task_id - 21))
+
     # Calculate dataset and MoE combination
     num_datasets=${#datasets[@]}
     dataset_idx=$((moe_id % num_datasets))
     combo_idx=$((moe_id / num_datasets))
-    
+
     dataset=${datasets[$dataset_idx]}
     layer_combo=${moe_combinations[$combo_idx]}
-    
-    log_message "🧪 MoE Experiment $task_id: ${dataset}_MoE_${layer_combo}"
-    
+
+    log_message "🧪 Additional MoE Experiment $task_id: ${dataset}_MoE_${layer_combo}"
+
     # For MoE, use the first layer type in combination as base for hyperparameters
     first_layer=$(echo "$layer_combo" | grep -o '"[^"]*"' | head -1 | tr -d '"')
     get_hyperparams "$dataset" "$first_layer"
-    
+
     # Extract hyperparameters
     learning_rate=$HYPERPARAM_LEARNING_RATE
     hidden_dim=$HYPERPARAM_HIDDEN_DIM
     num_layer=$HYPERPARAM_NUM_LAYERS
     dropout=$HYPERPARAM_DROPOUT
     patience=$HYPERPARAM_PATIENCE
-    
+
     # Create a clean name from layer combination
     clean_combo=$(echo "$layer_combo" | tr -d '[]",' | tr ' ' '_')
     wandb_run_name="${dataset}_MoE_${clean_combo}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
-    
+
     # Run MoE experiment
     python scripts/run_graph_classification.py \
         --num_trials 200 \
@@ -438,7 +442,7 @@ else
         --patience "$patience" \
         --wandb_enabled \
         --wandb_name "$wandb_run_name" \
-        --wandb_tags '["cluster", "comprehensive", "moe", "research_hyperparams"]'
+        --wandb_tags '["cluster", "comprehensive", "additional_datasets", "moe", "research_hyperparams"]'
 fi
 
 # Check exit status

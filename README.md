@@ -1,5 +1,56 @@
 [![Ruff](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml/badge.svg)](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml)
 
+# TODO (12/10)
+
+* Ask Lukas about the weird plots. WHy do we get a very clear separation by indexing?
+[ IN PROGRESS]
+* Can GNN be strong baselines:
+- take these hyperparameters and these datasets. [TODO: check manually]
+
+* Add test suite for accuracies / pytest for all that
+* Merge current PR
+* Run a new PR with black/isort/ruff
+
+
+
+
+
+- Redo plotting + TMD
+- Adding a few datasets + architectures 
+- MoE: foresee how well this is working - look at training curves and that it trains well and accuracy in comparaison with other baselines.
+Aiming end of Jan 
+
+
+# Dataset Status Summary
+What dataset we have right now? 
+What ran:
+proteins, enzymes, imdb, mutag, pattern, reddit, collab, cifar, mnist
+TODO: reread what dataset I expect.
+Missing:
+enzymes, peptides-struct, peptides-func
+- total ~20 
+MAKE SURE I CAN RERUN ON THE CLUSTER. CLEAN UP.
+**Target Datasets (15 total):**
+- ✅ **Available & Loaded (14):** ZINC, MNIST, CIFAR10, PATTERN, CLUSTER, Peptides-func, PascalVOC-SP, COCO-SP, MalNet-Tiny, ogbg-molhiv, ogbg-molpcba, ogbg-ppa, ogbg-code2
+- ⚠️ **Commented Out (1):** Peptides-struct (needs uncommenting in `run_graph_regression.py`)
+
+**Note:** ogbg-code2 is in classification script but has `output_dim=1` (regression) - verify task type.
+
+
+IN PROGRESS: TO CODE REVIEW AND CHECK
+Vizualisations:
+for each dataset and each MOE configurations:
++ code lost for the histograms/TmD
+do enough experiments so that each graph is in 10 test datasets.
+
+
+Maybe idea for later:
+- encodings + hg encodings
+
+
+# END OF TODO (12/10)
+
+
 # README
 
 # Graph Mixture of Experts (Graph MoE)
@@ -26,6 +77,73 @@ see the performance of each model of each graph (repeated ten times)
 - Fix the missing dataset (ogb causing trouble becuase of sklearn > scipy)
 - Todo: add pylint/mypy github action
 - Todo: lower priority: add tests
+
+**CURRENT STATUS (December 28, 2025):**
+
+**✅ Currently running in main sweep (8 datasets - Graph Classification)**: enzymes, proteins, mutag, imdb, collab, reddit, mnist, cifar
+**📊 Available on WandB (MOE_new project)**: All 8 main sweep datasets above
+**❌ Excluded from graph classification**: pattern (node classification - requires different experimental setup), cluster (disabled LRGB dataset)
+
+**🔄 IN PROGRESS - Additional datasets setup:**
+- **Script created**: `bash_interface/cluster/comprehensive_sweep_parallel_additional_data.sh` for additional datasets
+- **Download script**: `download_ogbg_ppa.py` (modified to auto-approve large downloads)
+- **Upload script**: `upload_ogbg_ppa_to_cluster.sh` (for transferring downloaded data to cluster)
+
+**📋 Additional datasets (ready in additional sweep script):**
+- **LRGB datasets**: pascalvoc, coco, peptides_func ✅
+- **OGB datasets**: ogbg-ppa (once downloaded) ✅
+- **GraphBench datasets**: socialnetwork, co, sat, electronic_circuits, chipdesign ✅
+- **Excluded**: algorithmic_reasoning_* (too complex), weather (regression), PATTERN (node classification)
+
+**🎯 Next steps:**
+1. Download ogbg-ppa dataset on cluster
+2. Run additional sweep: `sbatch bash_interface/cluster/comprehensive_sweep_parallel_additional_data.sh`
+
+## 📊 Dataset Types Explanation
+
+**Graph Classification** (Current experiments):
+- Each "sample" is an entire graph
+- Task: Predict 1 label for the whole graph
+- Examples: Enzymes (toxic/non-toxic), MNIST (digit classification), CIFAR (object classification)
+
+**Node Classification** (Separate experiments needed):
+- Each "sample" is individual nodes within graphs
+- Task: Predict labels for each node in the graph
+- Examples: PATTERN (synthetic node patterns), CLUSTER (node clustering), PascalVOC-SP (semantic segmentation)
+
+**Note**: PATTERN dataset requires node-level prediction tasks, not graph-level. A separate experimental setup is available for node classification experiments: `bash_interface/cluster/node_classification_pattern.sh`
+
+**⚠️ Important Distinction:**
+- **Graph Classification**: 1 label per graph (our current experiments)
+- **Node Classification**: 1 label per node within graphs (PATTERN requires this)
+
+The node classification script handles the different data loading and evaluation required for node-level tasks.
+
+**📝 CURRENT STATUS & NEXT STEPS:**
+
+**✅ ogbg-ppa download**: Script created and ready!
+
+**To download ogbg-ppa on cluster:**
+1. Pull latest changes: `git pull`
+2. Submit the download job:
+   ```bash
+   sbatch download_ppa.sh
+   ```
+3. Monitor the job: `squeue -u rpellegrinext`
+4. Check logs: `cat slurm-*.out` (after job completes)
+5. The dataset will download directly to cluster storage
+
+**Alternative manual approach:**
+```bash
+export PYTHONPATH="$(pwd):$(pwd)/src:${PYTHONPATH}"
+python scripts/run_graph_classification.py --dataset ppa --layer_type GCN --num_trials 1
+```
+(Answer "y" to both prompts when asked)
+
+**After ogbg-ppa is available:**
+1. Uncomment LRGB datasets (pascalvoc, coco, peptides_func) in `run_graph_classification.py`
+2. Submit `comprehensive_sweep_parallel_additional_data.sh` on cluster
+3. Test GraphBench datasets individually before adding to sweep
 
 
 ## Overview
@@ -268,6 +386,15 @@ python run_graph_regression.py \
 |------------------|---------|---------|----------------------------------|
 | **ogbg-molhiv**  | 41,127  | 2       | HIV inhibition prediction        |
 | **ogbg-molpcba** | 437,929 | 128     | Molecular bioactivity prediction |
+
+#### GraphBench Datasets - Successfully Downloaded
+| Dataset                      | Status | Description                                   |
+|------------------------------|--------|-----------------------------------------------|
+| **sat**                      | ✅     | SAT solving problems                          |
+| **chipdesign**               | ✅     | Chip design optimization                      |
+| **algorithmic_reasoning_easy** | ✅  | Algorithmic reasoning (easy difficulty)       |
+
+Note: Other GraphBench datasets (socialnetwork, co, algorithmic_reasoning_medium/hard, electronic_circuits) had download issues and may require retry.
 
 ### Regression Datasets
 | Dataset                | Graphs  | Task       | Description                                   |

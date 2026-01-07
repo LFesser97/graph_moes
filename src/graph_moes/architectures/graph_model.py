@@ -399,8 +399,11 @@ class RedrawProjection:
 
 class ResGatedGraphConv(MessagePassing):
     r"""The residual gated graph convolutional operator from the
-    `"Residual Gated Graph ConvNets" <https://arxiv.org/abs/1711.07553>`_
+    `"Residual Gated Graph ConvNets"`_
     paper.
+
+    NOTE: THis is copied from
+     https://pytorch-geometric.readthedocs.io/en/2.5.1/_modules/torch_geometric/nn/conv/res_gated_graph_conv.html#ResGatedGraphConv
 
     .. math::
         \mathbf{x}^{\prime}_i = \mathbf{W}_1 \mathbf{x}_i +

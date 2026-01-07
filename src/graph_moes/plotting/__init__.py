@@ -1,5 +1,15 @@
 """Plotting utilities for graph MoE models."""
 
-from graph_moes.plotting.routing_weights import plot_routing_weights_over_time
+from graph_moes.plotting.visualize_graphs import (
+    sample_graphs,
+    visualize_graph,
+    visualize_graph_grid,
+    visualize_single_graph,
+)
 
-__all__ = ["plot_routing_weights_over_time"]
+__all__ = [
+    "visualize_graph",
+    "visualize_graph_grid",
+    "visualize_single_graph",
+    "sample_graphs",
+]

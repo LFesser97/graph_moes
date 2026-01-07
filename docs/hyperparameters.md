@@ -3,6 +3,14 @@ All from:
 
 https://arxiv.org/pdf/2502.09263
 
+"Can Classic GNNs Be Strong Baselines for Graph-level Tasks?
+Simple Architectures Meet Excellence"
+
+
+Those are coded in the bash script:
+/Users/pellegrinraphael/Desktop/Academic_Research/Repos_GNN/graph_moes/bash_interface/cluster/hyperparams_lookup.sh
+
+
 # GCN+
 
 ## Table 8. Hyperparameter settings of GCN+ on benchmarks from (Dwivedi et al., 2023).

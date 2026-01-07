@@ -17,14 +17,38 @@ import numpy as np
 import pandas as pd
 import torch
 import torch_geometric.transforms as T
-from attrdict import AttrDict
+
+try:
+    from attrdict3 import AttrDict  # Python 3.10+ compatible
+except ImportError:
+    from attrdict import AttrDict  # Fallback for older Python
 from torch_geometric.data import Data
 from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
 from tqdm import tqdm
 
 import wandb
+from ogb.graphproppred import PygGraphPropPredDataset
+
+# GraphBench loading disabled - comment out to re-enable
+# from graph_moes.download.load_graphbench import load_graphbench_dataset
 from graph_moes.encodings.custom_encodings import LocalCurvatureProfile
 from graph_moes.experiments.graph_classification import Experiment
+
+try:
+    from graph_moes.experiments.track_avg_accuracy import (
+        load_and_plot_average_per_graph,
+    )
+except ImportError:
+    # Fallback: try adding src to path if package not properly installed
+    import sys
+    from pathlib import Path
+
+    src_path = Path(__file__).parent.parent / "src"
+    if src_path.exists() and str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
+    from graph_moes.experiments.track_avg_accuracy import (
+        load_and_plot_average_per_graph,
+    )
 from hyperparams import get_args_from_input
 
 
@@ -91,37 +115,198 @@ print(f"  ✅ REDDIT-BINARY loaded: {len(reddit)} graphs")
 
 print("and yet more...")
 
-# Add to run_graph_classification.py
-# print("  ⏳ Loading ogbg-molhiv...")
-# molhiv = PygGraphPropPredDataset(name="ogbg-molhiv", root=data_directory)
-# print(f"  ✅ ogbg-molhiv loaded: {len(molhiv)} graphs")
+# GraphBench datasets (graph classification tasks)
+# ENABLED for additional data sweep - will attempt downloads
+graphbench_datasets = {}
 
-# print("  ⏳ Loading ogbg-molpcba...")
-# molpcba = PygGraphPropPredDataset(name="ogbg-molpcba", root=data_directory)
-# print(f"  ✅ ogbg-molpcba loaded: {len(molpcba)} graphs")
+# GraphBench dataset names that are relevant for graph classification
+# Based on GraphBench documentation: https://github.com/graphbench/package
+# TEMPORARILY DISABLED - having loading issues
+graphbench_classification_datasets = [
+    # "socialnetwork",  # Social media datasets - failing to load
+    # "co",  # Combinatorial optimization - file structure error
+    # "sat",  # SAT solving - works but OOM issues
+    # "electronic_circuits",  # Electronic circuits
+    # "chipdesign",  # Chip design
+    # Note: weather is for regression tasks, not included here
+]
 
-# print("  ⏳ Loading Cluster...")
-# cluster = LRGBDataset(root=data_directory, name="Cluster")
-# print(f"  ✅ Cluster loaded: {len(cluster)} graphs")
+# Skip GraphBench loading - list is empty so this block won't execute
+# GraphBench datasets are disabled to avoid download attempts
+if len(graphbench_classification_datasets) > 0:
+    print("\n📊 Loading GraphBench datasets...")
+    try:
+        from graph_moes.download.load_graphbench import load_graphbench_dataset
+    except ImportError:
+        print("  ⚠️  GraphBench import disabled, skipping GraphBench datasets")
+        graphbench_classification_datasets = []
 
-# print("  ⏳ Loading PascalVOC-SP...")
-# pascalvoc = LRGBDataset(root=data_directory, name="pascalvoc-sp")
-# print(f"  ✅ PascalVOC-SP loaded: {len(pascalvoc)} graphs")
+    if len(graphbench_classification_datasets) > 0:
+        for dataset_name in graphbench_classification_datasets:
+            try:
+                print(f"  ⏳ Loading GraphBench: {dataset_name}...")
+                graphbench_data = load_graphbench_dataset(
+                    dataset_name=dataset_name, root=data_directory
+                )
+                graphbench_datasets[f"graphbench_{dataset_name}"] = graphbench_data
+                print(
+                    f"  ✅ GraphBench {dataset_name} loaded: {len(graphbench_data)} graphs"
+                )
+            except (
+                ImportError,
+                ValueError,
+                RuntimeError,
+                OSError,
+                EOFError,
+                Exception,
+            ) as e:
+                error_msg = str(e)
+                error_type = type(e).__name__
+                # Check if it's a rate limit error
+                if (
+                    "429" in error_msg
+                    or "Too Many Requests" in error_msg
+                    or "rate limit" in error_msg.lower()
+                ):
+                    print(
+                        f"  ⚠️  Failed to load GraphBench {dataset_name}: Rate limited by server (HTTP 429). "
+                        f"Skipping this dataset. Run download script separately to download datasets."
+                    )
+                # Check if it's a download/extraction error (corrupted file)
+                elif (
+                    "zlib.error" in error_msg
+                    or "decompressing" in error_msg
+                    or "invalid stored block" in error_msg
+                    or "Error -3" in error_msg
+                    or error_type == "EOFError"
+                    or "Compressed file ended" in error_msg
+                    or "end-of-stream marker" in error_msg
+                    or "tarfile" in error_msg.lower()
+                ):
+                    print(
+                        f"  ⚠️  Failed to load GraphBench {dataset_name}: Download/extraction error (file may be corrupted or incomplete). "
+                        f"Skipping this dataset. To fix: delete {data_directory}/{dataset_name} and re-download."
+                    )
+                # Check if it's a file structure error
+                elif (
+                    "NotADirectoryError" in error_type or "Not a directory" in error_msg
+                ):
+                    print(
+                        f"  ⚠️  Failed to load GraphBench {dataset_name}: File structure error. "
+                        f"Skipping this dataset. Try deleting {data_directory}/{dataset_name} and re-downloading."
+                    )
+                else:
+                    print(
+                        f"  ⚠️  Failed to load GraphBench {dataset_name}: {error_type}: {e} (may not be installed or available)"
+                    )
+                # Continue with other datasets
+                continue
+else:
+    print("  📊 Loading GraphBench datasets...")
 
-# print("  ⏳ Loading COCO-SP...")
-# coco = LRGBDataset(root=data_directory, name="coco-sp")
-# print(f"  ✅ COCO-SP loaded: {len(coco)} graphs")
+print("  ⏭️  LRGB datasets disabled (commented out)")
+
+# LRGB datasets (DISABLED: Commented out to avoid loading issues)
+# print("\n📊 Loading LRGB datasets...")
+# try:
+#     print("  ⏳ Loading Cluster...")
+#     cluster = list(LRGBDataset(root=data_directory, name="Cluster"))
+#     print(f"  ✅ Cluster loaded: {len(cluster)} graphs")
+# except (ImportError, ValueError, RuntimeError, OSError) as e:
+#     print(f"  ⚠️  Failed to load Cluster: {e}")
+#     cluster = []
+
+# try:
+#     print("  ⏳ Loading PascalVOC-SP...")
+#     pascalvoc = list(LRGBDataset(root=data_directory, name="pascalvoc-sp"))
+#     print(f"  ✅ PascalVOC-SP loaded: {len(pascalvoc)} graphs")
+# except (ImportError, ValueError, RuntimeError, OSError) as e:
+#     print(f"  ⚠️  Failed to load PascalVOC-SP: {e}")
+#     pascalvoc = []
+
+# try:
+#     print("  ⏳ Loading COCO-SP...")
+#     coco = list(LRGBDataset(root=data_directory, name="coco-sp"))
+#     print(f"  ✅ COCO-SP loaded: {len(coco)} graphs")
+# except (ImportError, ValueError, RuntimeError, OSError) as e:
+#     print(f"  ⚠️  Failed to load COCO-SP: {e}")
+#     coco = []
+
+# Set LRGB datasets to empty (disabled)
+cluster = []
+pascalvoc = []
+    coco = []
+
+# Peptides-func dataset
+print("\n📊 Loading Peptides-func...")
+try:
+    peptides_func_path = os.path.join(data_directory, "peptidesfunc")
+    if os.path.exists(peptides_func_path):
+        peptides_train = torch.load(os.path.join(peptides_func_path, "train.pt"))
+        peptides_val = torch.load(os.path.join(peptides_func_path, "val.pt"))
+        peptides_test = torch.load(os.path.join(peptides_func_path, "test.pt"))
+        peptides_func = (
+            [_convert_lrgb(peptides_train[i]) for i in range(len(peptides_train))]
+            + [_convert_lrgb(peptides_val[i]) for i in range(len(peptides_val))]
+            + [_convert_lrgb(peptides_test[i]) for i in range(len(peptides_test))]
+        )
+        print(f"  ✅ Peptides-func loaded: {len(peptides_func)} graphs")
+    else:
+        print(f"  ⚠️  Peptides-func directory not found at {peptides_func_path}")
+        peptides_func = []
+except Exception as e:
+    print(f"  ⚠️  Failed to load Peptides-func: {e}")
+    peptides_func = []
+
+# OGB datasets
+print("\n📊 Loading OGB datasets...")
+try:
+    print("  ⏳ Loading ogbg-molhiv...")
+    molhiv_dataset = PygGraphPropPredDataset(name="ogbg-molhiv", root=data_directory)
+    molhiv = [molhiv_dataset[i] for i in range(len(molhiv_dataset))]
+    print(f"  ✅ ogbg-molhiv loaded: {len(molhiv)} graphs")
+except (ImportError, ValueError, RuntimeError, OSError) as e:
+    print(f"  ⚠️  Failed to load ogbg-molhiv: {e}")
+    molhiv = []
+
+try:
+    print("  ⏳ Loading ogbg-molpcba...")
+    molpcba_dataset = PygGraphPropPredDataset(name="ogbg-molpcba", root=data_directory)
+    molpcba = [molpcba_dataset[i] for i in range(len(molpcba_dataset))]
+    print(f"  ✅ ogbg-molpcba loaded: {len(molpcba)} graphs")
+except (ImportError, ValueError, RuntimeError, OSError) as e:
+    print(f"  ⚠️  Failed to load ogbg-molpcba: {e}")
+    molpcba = []
+
+try:
+    print("  ⏳ Loading ogbg-ppa...")
+    ppa_dataset = PygGraphPropPredDataset(name="ogbg-ppa", root=data_directory)
+    ppa = [ppa_dataset[i] for i in range(len(ppa_dataset))]
+    print(f"  ✅ ogbg-ppa loaded: {len(ppa)} graphs")
+except (ImportError, ValueError, RuntimeError, OSError, EOFError) as e:
+    print(f"  ⚠️  Failed to load ogbg-ppa: {e}")
+    ppa = []
+
+try:
+    print("  ⏳ Loading ogbg-code2...")
+    code2_dataset = PygGraphPropPredDataset(name="ogbg-code2", root=data_directory)
+    code2 = [code2_dataset[i] for i in range(len(code2_dataset))]
+    print(f"  ✅ ogbg-code2 loaded: {len(code2)} graphs")
+except (ImportError, ValueError, RuntimeError, OSError) as e:
+    print(f"  ⚠️  Failed to load ogbg-code2: {e}")
+    code2 = []
+
+# MalNet-Tiny dataset
+print("\n📊 Loading MalNet-Tiny...")
+try:
+    # MalNet-Tiny is available in PyG as TUDataset
+    malnet = list(TUDataset(root=data_directory, name="MalNetTiny"))
+    print(f"  ✅ MalNet-Tiny loaded: {len(malnet)} graphs")
+except (ImportError, ValueError, RuntimeError, OSError) as e:
+    print(f"  ⚠️  Failed to load MalNet-Tiny: {e}")
+    malnet = []
 
 print("🎉 All datasets loaded successfully!")
-
-"""
-# import peptides-func dataset
-peptides_zip_filepath = data_directory
-peptides_train = torch.load(os.path.join(peptides_zip_filepath, "peptidesfunc", "train.pt"))
-peptides_val = torch.load(os.path.join(peptides_zip_filepath, "peptidesfunc", "val.pt"))
-peptides_test = torch.load(os.path.join(peptides_zip_filepath, "peptidesfunc", "test.pt"))
-peptides_func = [_convert_lrgb(peptides_train[i]) for i in range(len(peptides_train))] + [_convert_lrgb(peptides_val[i]) for i in range(len(peptides_val))] + [_convert_lrgb(peptides_test[i]) for i in range(len(peptides_test))]
-"""
 
 
 datasets = {
@@ -136,13 +321,23 @@ datasets = {
     "cifar": cifar,
     "pattern": pattern,
     # LRGB datasets:
-    # "cluster": cluster,  # Commented out - dataset not loaded
-    # "pascalvoc": pascalvoc,  # Commented out - dataset not loaded
-    # "coco": coco,  # Commented out - dataset not loaded
-    # # OGB datasets:
-    # "molhiv": molhiv,
-    # "molpcba": molpcba,
+    "cluster": cluster if cluster else None,
+    "pascalvoc": pascalvoc if pascalvoc else None,
+    "coco": coco if coco else None,
+    "peptides_func": peptides_func if peptides_func else None,
+    # OGB datasets:
+    "molhiv": molhiv if molhiv else None,
+    "molpcba": molpcba if molpcba else None,
+    "ppa": ppa if ppa else None,
+    "code2": code2 if code2 else None,
+    # Other datasets:
+    "malnet": malnet if malnet else None,
+    # GraphBench datasets:
+    **graphbench_datasets,
 }
+
+# Remove None or empty datasets (failed to load)
+datasets = {k: v for k, v in datasets.items() if v is not None and len(v) > 0}
 # datasets = {"collab": collab, "imdb": imdb, "proteins": proteins, "reddit": reddit}
 
 
@@ -151,6 +346,12 @@ for key in datasets:
         for graph in datasets[key]:
             n = graph.num_nodes
             graph.x = torch.ones((n, 1))
+    # Handle GraphBench datasets that might not have node features
+    elif key.startswith("graphbench_"):
+        for graph in datasets[key]:
+            if not hasattr(graph, "x") or graph.x is None:
+                n = graph.num_nodes
+                graph.x = torch.ones((n, 1))
 
 
 def log_to_file(message, filename="results/graph_classification.txt"):
@@ -168,7 +369,7 @@ default_args = AttrDict(
         "learning_rate": 1e-3,
         "layer_type": "MoE",
         "display": True,
-        "num_trials": 10,
+        "num_trials": 200,  # Set high to allow stopping based on test appearances (default: 10)
         "eval_every": 1,
         "patience": 50,
         "output_dim": 2,
@@ -181,7 +382,7 @@ default_args = AttrDict(
         "layer_types": None,
         # WandB defaults
         "wandb_enabled": False,
-        "wandb_project": "MOE",
+        "wandb_project": "MOE_new",
         "wandb_entity": "weber-geoml-harvard-university",
         "wandb_name": None,
         "wandb_dir": "./wandb",
@@ -190,14 +391,14 @@ default_args = AttrDict(
 )
 
 hyperparams = {
+    # TU datasets:
     "mutag": AttrDict({"output_dim": 2}),
     "enzymes": AttrDict({"output_dim": 6}),
     "proteins": AttrDict({"output_dim": 2}),
     "collab": AttrDict({"output_dim": 3}),
     "imdb": AttrDict({"output_dim": 2}),
     "reddit": AttrDict({"output_dim": 2}),
-    "peptides": AttrDict({"output_dim": 10}),
-    # New datasets:
+    # GNN Benchmark datasets:
     "mnist": AttrDict({"output_dim": 10}),
     "cifar": AttrDict({"output_dim": 10}),
     "pattern": AttrDict({"output_dim": 2}),  # Binary classification
@@ -205,11 +406,28 @@ hyperparams = {
     "cluster": AttrDict({"output_dim": 6}),  # 6 clusters
     "pascalvoc": AttrDict({"output_dim": 21}),  # 21 object classes
     "coco": AttrDict({"output_dim": 81}),  # 81 object classes
+    "peptides_func": AttrDict({"output_dim": 10}),  # 10 functional classes
     # OGB datasets:
     "molhiv": AttrDict(
         {"output_dim": 2}
     ),  # Binary classification (HIV active/inactive)
     "molpcba": AttrDict({"output_dim": 128}),  # Multi-label classification (128 assays)
+    "ppa": AttrDict({"output_dim": 37}),  # 37 protein-protein association classes
+    "code2": AttrDict({"output_dim": 1}),  # Regression task (single output)
+    # Other datasets:
+    "malnet": AttrDict({"output_dim": 5}),  # 5 malware categories
+    # GraphBench datasets - output_dim will need to be determined based on actual dataset
+    # These are placeholders and may need adjustment after loading the actual datasets
+    # TODO TODO TODO
+    "graphbench_socialnetwork": AttrDict(
+        {"output_dim": 2}
+    ),  # Placeholder - adjust based on actual task
+    "graphbench_co": AttrDict(
+        {"output_dim": 2}
+    ),  # Placeholder - adjust based on actual task
+    "graphbench_sat": AttrDict(
+        {"output_dim": 2}
+    ),  # Placeholder - adjust based on actual task
 }
 
 results = []
@@ -297,10 +515,19 @@ for key in datasets:
             print(f"💾 Encoded dataset saved to: data/{key}_{args.encoding}.pt")
 
     # create a dictionary of the graphs in the dataset with the key being the graph index
+    # graph_dict[graph_idx] = list of correctness values (1=correct, 0=incorrect) for each test appearance
     graph_dict = {}
     for i in range(len(dataset)):
         graph_dict[i] = []
+
+    # Track how many times each graph has appeared in test sets
+    test_appearances = {i: 0 for i in range(len(dataset))}
+    required_test_appearances = 10  # Each graph should appear in test sets 10 times
+
     print("GRAPH DICTIONARY CREATED...")
+    print(
+        f"🎯 Goal: Each graph should appear in test sets {required_test_appearances} times"
+    )
 
     print(f"🚀 TRAINING STARTED for {key.upper()} dataset...")
     print(
@@ -318,10 +545,44 @@ for key in datasets:
             experiment_id = f"{args.wandb_name}_{timestamp}"
         print(f"🔬 WandB Experiment Group: {experiment_id}")
 
-    for trial in tqdm(
-        range(args.num_trials), desc=f"Training {key.upper()}", unit="trial"
-    ):
-        print(f"\n📊 TRIAL {trial + 1}/{args.num_trials}")
+    trial = 0
+    while True:
+        trial += 1
+
+        # Check if we've satisfied the requirement (before running this trial)
+        min_test_appearances = (
+            min(test_appearances.values())
+            if test_appearances and len(test_appearances) > 0
+            else 0
+        )
+        if min_test_appearances >= required_test_appearances:
+            print(
+                f"\n✅ All graphs have appeared in test sets at least {required_test_appearances} times!"
+            )
+            print(f"   Stopping before trial {trial}")
+            break
+
+        # Also respect the num_trials limit if set (for backwards compatibility)
+        # Note: num_trials should be set high (e.g., 200) to allow stopping based on test appearances
+        if (
+            hasattr(args, "num_trials")
+            and args.num_trials is not None
+            and trial > args.num_trials
+        ):
+            print(
+                f"\n⚠️  Reached num_trials limit ({args.num_trials}), but not all graphs have appeared {required_test_appearances} times yet"
+            )
+            print(
+                f"   Current min appearances: {min_test_appearances}/{required_test_appearances}"
+            )
+            print(
+                "   Consider increasing num_trials to allow more trials for test appearance requirement"
+            )
+            break
+
+        print(
+            f"\n📊 TRIAL {trial} (Min test appearances before trial: {min_test_appearances}/{required_test_appearances})"
+        )
 
         # Initialize wandb for this specific trial
         if args.wandb_enabled:
@@ -336,7 +597,7 @@ for key in datasets:
                 group=experiment_id,  # Group all trials together
                 config={
                     **dict(args),
-                    "trial_num": trial + 1,
+                    "trial_num": trial,
                     "dataset": key,
                     # Add grouping variables:
                     "dataset_name": key,  # For grouping by dataset
@@ -351,24 +612,35 @@ for key in datasets:
                     ),
                 },
                 dir=args.wandb_dir,
-                tags=list(args.wandb_tags or []) + [f"trial_{trial + 1}"],
+                tags=list(args.wandb_tags or []) + [f"trial_{trial}"],
                 reinit=True,  # Allow multiple runs in same process
             )
             print(f"🚀 WandB Trial Run: {wandb.run.name}")
 
         try:
-            train_acc, validation_acc, test_acc, energy, dictionary = Experiment(
-                args=args, dataset=dataset
-            ).run()
+            train_acc, validation_acc, test_acc, energy, dictionary, test_indices = (
+                Experiment(args=args, dataset=dataset).run()
+            )
 
             train_accuracies.append(train_acc)
             validation_accuracies.append(validation_acc)
             test_accuracies.append(test_acc)
             energies.append(energy)
 
+            # Track test set appearances and record correctness only for test set graphs
+            for graph_idx in test_indices:
+                test_appearances[graph_idx] += 1
+                if graph_idx in dictionary and dictionary[graph_idx] != -1:
+                    graph_dict[graph_idx].append(dictionary[graph_idx])
+
             # Show intermediate results
+            min_appearances = min(test_appearances.values())
+            max_appearances = max(test_appearances.values())
             print(
                 f"   Train: {train_acc:.3f} | Val: {validation_acc:.3f} | Test: {test_acc:.3f}"
+            )
+            print(
+                f"   Test appearances: min={min_appearances}, max={max_appearances}, graphs_in_test={len(test_indices)}"
             )
 
             # Log final trial results to this trial's wandb run
@@ -379,19 +651,22 @@ for key in datasets:
                         "final/val_acc": validation_acc,
                         "final/test_acc": test_acc,
                         "final/energy": energy,
+                        "final/min_test_appearances": min_appearances,
+                        "final/max_test_appearances": max_appearances,
                         # Add grouping variables:
                         "groupby/dataset": key,
                         "groupby/model_type": (
                             "MoE" if args.layer_types else args.layer_type
                         ),
                         "groupby/is_moe": args.layer_types is not None,
+                        "groupby/moe_layers": (
+                            "+".join(args.layer_types)
+                            if args.layer_types is not None
+                            else None
+                        ),
                         "groupby/num_layers": args.num_layers,
                     }
                 )
-
-            for name in dictionary.keys():
-                if dictionary[name] != -1:
-                    graph_dict[name].append(dictionary[name])
 
         finally:
             # Finish this trial's wandb run
@@ -401,19 +676,92 @@ for key in datasets:
     end = time.time()
     run_duration = end - start
     print(f"⏱️  Training completed in {run_duration:.2f} seconds")
+    print(f"📊 Total trials run: {trial}")
+    print(
+        f"📈 Final test appearances: min={min(test_appearances.values())}, max={max(test_appearances.values())}"
+    )
 
-    # with open(f"results/{args.num_layers}_layers/{key}_{args.layer_type}_{args.encoding}_graph_dict.pickle", "wb") as f:
-    # pickle.dump(graph_dict, f)
-    # print(f"Graph dictionary for {key} pickled")
+    # Calculate how many graphs have appeared the required number of times
+    graphs_with_sufficient_appearances = sum(
+        1 for count in test_appearances.values() if count >= required_test_appearances
+    )
+    print(
+        f"✅ Graphs with ≥{required_test_appearances} test appearances: {graphs_with_sufficient_appearances}/{len(dataset)}"
+    )
 
+    # Save graph_dict (per-graph correctness tracking) and test_appearances
+    import pickle
+
+    os.makedirs(f"results/{args.num_layers}_layers", exist_ok=True)
+    # Generate detailed model name for MOE models
+    if args.layer_types is not None:
+        router_type = getattr(args, 'router_type', 'MLP')
+        expert_combo = "_".join(args.layer_types)
+        detailed_model_name = f"{args.layer_type}_{router_type}_{expert_combo}"
+    else:
+        detailed_model_name = args.layer_type
+
+    encoding_str = args.encoding if args.encoding else "None"
+    graph_dict_filename = f"results/{args.num_layers}_layers/{key}_{detailed_model_name}_{encoding_str}_graph_dict.pickle"
+    with open(graph_dict_filename, "wb") as f:
+        pickle.dump(
+            {
+                "graph_dict": graph_dict,
+                "test_appearances": test_appearances,
+                "required_test_appearances": required_test_appearances,
+            },
+            f,
+        )
+    print(f"💾 Graph correctness dictionary saved to: {graph_dict_filename}")
+
+    # Generate and save average accuracy per graph plots (by index and by accuracy)
+    try:
+        original_plot_path, sorted_plot_path = load_and_plot_average_per_graph(
+            graph_dict_filename,
+            dataset_name=key,
+            layer_type=args.layer_type,
+            encoding=args.encoding,
+            num_layers=args.num_layers,
+            task_type="classification",
+            output_dir="results",
+            layer_types=getattr(args, 'layer_types', None),
+            router_type=getattr(args, 'router_type', 'MLP'),
+        )
+        if original_plot_path:
+            print(f"📊 Average accuracy plot (by index) saved to: {original_plot_path}")
+        if sorted_plot_path:
+            print(
+                f"📊 Average accuracy plot (by accuracy) saved to: {sorted_plot_path}"
+            )
+    except Exception as e:
+        print(f"⚠️  Failed to generate average accuracy plots: {e}")
+
+    # Calculate statistics
+    num_trials_actual = len(train_accuracies)
     train_mean = 100 * np.mean(train_accuracies)
     val_mean = 100 * np.mean(validation_accuracies)
     test_mean = 100 * np.mean(test_accuracies)
     energy_mean = 100 * np.mean(energies)
-    train_ci = 2 * np.std(train_accuracies) / (args.num_trials**0.5)
-    val_ci = 2 * np.std(validation_accuracies) / (args.num_trials**0.5)
-    test_ci = 2 * np.std(test_accuracies) / (args.num_trials**0.5)
-    energy_ci = 200 * np.std(energies) / (args.num_trials**0.5)
+    train_ci = (
+        2 * np.std(train_accuracies) / (num_trials_actual**0.5)
+        if num_trials_actual > 0
+        else 0
+    )
+    val_ci = (
+        2 * np.std(validation_accuracies) / (num_trials_actual**0.5)
+        if num_trials_actual > 0
+        else 0
+    )
+    test_ci = (
+        2 * np.std(test_accuracies) / (num_trials_actual**0.5)
+        if num_trials_actual > 0
+        else 0
+    )
+    energy_ci = (
+        200 * np.std(energies) / (num_trials_actual**0.5)
+        if num_trials_actual > 0
+        else 0
+    )
     log_to_file(
         f"RESULTS FOR dataset: {key} (model: {args.layer_type}), with encodings: {args.encoding}:\n"
     )
@@ -437,6 +785,10 @@ for key in datasets:
             "energy_ci": energy_ci,
             "last_layer_fa": args.last_layer_fa,
             "run_duration": run_duration,
+            "num_trials_actual": num_trials_actual,
+            "min_test_appearances": min(test_appearances.values()),
+            "max_test_appearances": max(test_appearances.values()),
+            "graphs_with_sufficient_appearances": graphs_with_sufficient_appearances,
         }
     )
 
@@ -455,7 +807,8 @@ for key in datasets:
                 **dict(args),
                 "dataset": key,
                 "run_type": "summary",
-                "num_trials": args.num_trials,
+                "num_trials": num_trials_actual,
+                "required_test_appearances": required_test_appearances,
             },
             dir=args.wandb_dir,
             tags=list(args.wandb_tags or []) + ["summary"],
@@ -474,6 +827,10 @@ for key in datasets:
                 "summary/energy_mean": energy_mean,
                 "summary/energy_ci": energy_ci,
                 "summary/run_duration": run_duration,
+                "summary/num_trials_actual": num_trials_actual,
+                "summary/min_test_appearances": min(test_appearances.values()),
+                "summary/max_test_appearances": max(test_appearances.values()),
+                "summary/graphs_with_sufficient_appearances": graphs_with_sufficient_appearances,
                 # Log individual trial results for analysis
                 "trials/train_accs": train_accuracies,
                 "trials/val_accs": validation_accuracies,
@@ -483,6 +840,9 @@ for key in datasets:
                 "groupby/dataset": key,
                 "groupby/model_type": "MoE" if args.layer_types else args.layer_type,
                 "groupby/is_moe": args.layer_types is not None,
+                "groupby/moe_layers": (
+                    "+".join(args.layer_types) if args.layer_types is not None else None
+                ),
                 "groupby/num_layers": args.num_layers,
             }
         )

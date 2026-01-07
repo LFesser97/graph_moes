@@ -5,11 +5,16 @@ import random
 from typing import Dict, List, Optional, Tuple
 
 import torch
-from attrdict import AttrDict
+
+try:
+    from attrdict3 import AttrDict  # Python 3.10+ compatible
+except ImportError:
+    from attrdict import AttrDict  # Fallback for older Python
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset, Subset, random_split
 from torch_geometric.loader import DataLoader
-from torcheval.metrics import MultilabelAUPRC  # might need to comment out on cluster?
+
+from torcheval.metrics import MultilabelAUPRC  # For multi-label datasets like molpcba
 from tqdm import tqdm
 
 import wandb
@@ -47,7 +52,7 @@ default_args = AttrDict(
         "router_dropout": 0.1,
         # WandB defaults
         "wandb_enabled": False,
-        "wandb_project": "MOE",
+        "wandb_project": "MOE_new",
         "wandb_entity": "weber-geoml-harvard-university",
         "wandb_name": None,
         "wandb_dir": "./wandb",
@@ -135,7 +140,7 @@ class Experiment:
                 self.args.train_data, [train_size, validation_size]
             )
 
-    def run(self) -> Tuple[float, float, float, float, Dict[int, int]]:
+    def run(self) -> Tuple[float, float, float, float, Dict[int, int], List[int]]:
         optimizer = torch.optim.Adam(
             self.model.parameters(), lr=self.args.learning_rate
         )
@@ -320,20 +325,18 @@ class Experiment:
                         energy = 0
 
                         # evaluate the model on all graphs in the dataset
-                        # and record the error for each graph in the dictionary
+                        # and record the correctness for each graph in the test set
                         assert (
                             best_model != self.model
                         ), "Best model is the same as the current model"
                         for graph, i in zip(complete_loader, range(len(self.dataset))):
-                            if i not in self.categories[0]:
+                            if i in self.categories[2]:  # Only track test set graphs
                                 graph = graph.to(self.args.device)
                                 y = graph.y.to(self.args.device)
                                 out = best_model(graph)
                                 _, pred = out.max(dim=1)
                                 graph_dict[i] = pred.eq(y).sum().item()
-                        print(
-                            "Computed error for each graph in the val and test dataset"
-                        )
+                        print("Computed correctness for each graph in the test dataset")
 
                         # save the model
                         # torch.save(best_model.state_dict(), "model.pth")
@@ -347,6 +350,7 @@ class Experiment:
                         best_test_acc,
                         energy,
                         graph_dict,
+                        self.categories[2],  # Return test set indices
                     )
 
         if self.args.display:
@@ -368,7 +372,26 @@ class Experiment:
             )
 
         energy = 0
-        return best_train_acc, best_validation_acc, best_test_acc, energy, graph_dict
+        # If we reach max epochs, still evaluate test set graphs
+        if hasattr(self, "categories") and self.categories is not None:
+            for graph, i in zip(complete_loader, range(len(self.dataset))):
+                if i in self.categories[2]:  # Only track test set graphs
+                    graph = graph.to(self.args.device)
+                    y = graph.y.to(self.args.device)
+                    out = self.model(graph)
+                    _, pred = out.max(dim=1)
+                    graph_dict[i] = pred.eq(y).sum().item()
+            test_indices = self.categories[2]
+        else:
+            test_indices = []
+        return (
+            best_train_acc,
+            best_validation_acc,
+            best_test_acc,
+            energy,
+            graph_dict,
+            test_indices,
+        )
 
     def eval(self, loader: DataLoader) -> float:
         self.model.eval()
@@ -392,19 +415,58 @@ class Experiment:
     @torch.no_grad()
     def test(self, loader: DataLoader) -> float:
         self.model.eval()
-        metric = MultilabelAUPRC(num_labels=10)
+        sample_size = len(loader.dataset)
 
-        total_error = 0
-        for data in loader:
-            error = 0
-            data = data.to(self.args.device)
-            out = self.model(data)
-            # error_fnc = torch.nn.CrossEntropyLoss()
-            # error += error_fnc(out, data.y)
-            metric.update(out, data.y)
-            error += metric.compute()
-            total_error += error.item() * data.num_graphs
-        return total_error / len(loader.dataset)
+        # Choose metric based on dataset type
+        # Multi-label datasets need AUPRC, multi-class datasets need accuracy
+        dataset_name = getattr(self.args, "dataset", "")
+        multi_label_datasets = ["molpcba"]  # Known multi-label datasets
+        use_auprc = (
+            dataset_name in multi_label_datasets or self.args.output_dim > 50
+        )  # Fallback for high-dim outputs
+
+        if use_auprc:
+            # Use AUPRC for multi-label datasets (like molpcba with 128 classes)
+            metric = MultilabelAUPRC(num_labels=self.args.output_dim)
+            total_score = 0
+
+            for data in loader:
+                data = data.to(self.args.device)
+                out = self.model(data)
+                y = data.y.to(self.args.device)
+
+                # For multi-label, convert single labels to multi-hot if needed
+                if y.dim() == 1:
+                    # Convert to multi-hot encoding for AUPRC
+                    y_multihot = torch.zeros(
+                        out.shape[0], self.args.output_dim, device=self.args.device
+                    )
+                    y_multihot.scatter_(1, y.unsqueeze(1), 1)
+                    y = y_multihot
+
+                metric.update(out, y)
+
+            return metric.compute().item()
+        else:
+            # Use accuracy for multi-class datasets
+            with torch.no_grad():
+                total_correct = 0
+                for data in loader:
+                    data = data.to(self.args.device)
+                    out = self.model(data)
+                    y = data.y.to(self.args.device)
+
+                    # Handle both multi-class and multi-label cases
+                    if y.dim() > 1:
+                        # Multi-label case - use sigmoid + threshold
+                        pred = (torch.sigmoid(out) > 0.5).float()
+                        total_correct += (pred == y).all(dim=1).sum().item()
+                    else:
+                        # Multi-class case - use argmax
+                        _, pred = out.max(dim=1)
+                        total_correct += pred.eq(y).sum().item()
+
+            return total_correct / sample_size
 
     def check_dirichlet(self, loader: DataLoader) -> float:
         self.model.eval()
