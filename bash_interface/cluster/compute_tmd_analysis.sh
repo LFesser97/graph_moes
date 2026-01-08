@@ -15,7 +15,7 @@
 #SBATCH --time=24:00:00           # 24 hours should be enough for TMD computation
 #SBATCH --mem=32GB                # TMD computation can be memory-intensive
 #SBATCH --output=logs_tmd/tmd_analysis_%j.log
-#SBATCH --partition=mweber        # CPU partition (TMD doesn't need GPU)
+#SBATCH --partition=mweber_gpu    # Use GPU partition (matches other scripts, TMD doesn't need GPU but can run here)
 #SBATCH --cpus-per-task=4         # Can use multiple CPUs for parallel computation
 
 # Function to log messages with timestamp
