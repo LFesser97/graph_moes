@@ -153,7 +153,13 @@ if ! python -c "import community" 2>/dev/null; then
     python -m pip install "python-louvain>=0.16" --no-cache-dir --no-user --quiet 2>&1 || log_message "     ⚠️  Failed to install python-louvain"
 fi
 
-# Check and install other dependencies (especially pot for TMD)
+# Install pot (Python Optimal Transport) - CRITICAL for TMD computation
+log_message "   Installing pot (Python Optimal Transport) for TMD..."
+python -m pip install "pot>=0.9.0" --no-cache-dir --no-user --quiet 2>&1 || {
+    log_message "   ⚠️  Failed to install pot, will check again later..."
+}
+
+# Check and install other dependencies
 MISSING_DEPS=(
     "graphriccicurvature>=0.5.3.1:GraphRicciCurvature"
     "numba>=0.56.4:numba"
