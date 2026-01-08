@@ -30,6 +30,9 @@ def extract_labels(
     for i, graph in enumerate(dataset):
         if hasattr(graph, "y"):
             y = graph.y
+            # Check if y is None
+            if y is None:
+                raise ValueError(f"Graph {i} has 'y' attribute but it is None")
             # Handle different label formats
             if isinstance(y, torch.Tensor):
                 if y.dim() == 0:  # Scalar
