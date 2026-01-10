@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
-from torch_geometric.datasets import TUDataset
+from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -25,24 +25,82 @@ from graph_moes.tmd import (
 def load_dataset(
     dataset_name: str, data_directory: str
 ) -> tuple[List, np.ndarray, int, dict]:
-    """Load a TU dataset and extract labels.
+    """Load a dataset and extract labels.
+
+    Supports multiple dataset types:
+    - TU datasets: MUTAG, ENZYMES, PROTEINS, IMDB-BINARY, COLLAB, REDDIT-BINARY, etc.
+    - GNN Benchmark datasets: MNIST, CIFAR10, PATTERN
 
     Args:
-        dataset_name: Name of the dataset (e.g., 'MUTAG', 'ENZYMES')
+        dataset_name: Name of the dataset (e.g., 'MUTAG', 'ENZYMES', 'MNIST', 'PATTERN')
         data_directory: Root directory for datasets
 
     Returns:
         Tuple of (dataset_list, labels, num_classes, label_counts)
+
+    Raises:
+        ValueError: If dataset cannot be loaded or is not supported
     """
     print(f"\n📊 Loading {dataset_name} dataset...")
+
+    # Try TU datasets first
+    tu_datasets = [
+        "MUTAG",
+        "ENZYMES",
+        "PROTEINS",
+        "IMDB-BINARY",
+        "COLLAB",
+        "REDDIT-BINARY",
+        "MalNetTiny",
+    ]
+
+    # Try GNN Benchmark datasets
+    gnn_benchmark_datasets = ["MNIST", "CIFAR10", "PATTERN"]
+
+    dataset = None
+    if dataset_name.upper() in tu_datasets:
+        try:
+            dataset = list(TUDataset(root=data_directory, name=dataset_name))
+        except Exception as e:
+            print(f"❌ Failed to load {dataset_name} as TU dataset: {e}")
+            raise ValueError(f"Could not load {dataset_name} as TU dataset: {e}")
+    elif dataset_name.upper() in gnn_benchmark_datasets:
+        try:
+            dataset = list(
+                GNNBenchmarkDataset(root=data_directory, name=dataset_name.upper())
+            )
+        except Exception as e:
+            print(f"❌ Failed to load {dataset_name} as GNN Benchmark dataset: {e}")
+            raise ValueError(
+                f"Could not load {dataset_name} as GNN Benchmark dataset: {e}"
+            )
+    else:
+        # Try as TU dataset first, then GNN Benchmark
+        try:
+            dataset = list(TUDataset(root=data_directory, name=dataset_name))
+        except Exception:
+            try:
+                dataset = list(
+                    GNNBenchmarkDataset(root=data_directory, name=dataset_name.upper())
+                )
+            except Exception as e:
+                print(
+                    f"❌ Failed to load {dataset_name} as either TU or GNN Benchmark dataset: {e}"
+                )
+                raise ValueError(
+                    f"Dataset {dataset_name} not recognized. Supported types: "
+                    f"TU datasets ({', '.join(tu_datasets)}) or "
+                    f"GNN Benchmark datasets ({', '.join(gnn_benchmark_datasets)})"
+                ) from e
+
+    # Extract labels
     try:
-        dataset = list(TUDataset(root=data_directory, name=dataset_name))
         labels, num_classes, label_counts = extract_labels(dataset, dataset_name)
         print(f"✅ {dataset_name} loaded: {len(dataset)} graphs, {num_classes} classes")
         return dataset, labels, num_classes, label_counts
     except Exception as e:
-        print(f"❌ Failed to load {dataset_name}: {e}")
-        raise
+        print(f"❌ Failed to extract labels from {dataset_name}: {e}")
+        raise ValueError(f"Could not extract labels from {dataset_name}: {e}") from e
 
 
 def save_results(

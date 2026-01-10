@@ -12,7 +12,7 @@
 
 #SBATCH --job-name=tmd_analysis
 #SBATCH --ntasks=1
-#SBATCH --time=24:00:00           # 24 hours should be enough for TMD computation
+#SBATCH --time=48:00:00           # 24 hours should be enough for TMD computation
 #SBATCH --mem=32GB                # TMD computation can be memory-intensive
 #SBATCH --output=logs_tmd/tmd_analysis_%j.log
 #SBATCH --partition=mweber_gpu    # Use GPU partition (matches other scripts, TMD doesn't need GPU but can run here)
@@ -261,17 +261,54 @@ log_message "📁 Using data directory: $DATA_DIR"
 OUTPUT_DIR="$(pwd)/tmd_results"
 log_message "📁 Output directory: $OUTPUT_DIR"
 
-# Run TMD analysis
-log_message "🧪 Starting TMD analysis for MUTAG and ENZYMES datasets..."
-log_message "   This may take several hours depending on dataset size..."
+# Define datasets to process
+# Available TU datasets for TMD analysis:
+# - MUTAG: Small (188 graphs, 2 classes) - ~35k pairwise distances
+# - ENZYMES: Medium (600 graphs, 6 classes) - ~360k pairwise distances
+# - PROTEINS: Large (1113 graphs, 2 classes) - ~1.2M pairwise distances
+# - IMDB-BINARY: Large (1000 graphs, 2 classes) - ~1M pairwise distances
+# - COLLAB: Very Large (5000 graphs, 3 classes) - ~25M pairwise distances - WARNING: May take days!
+# - REDDIT-BINARY: Very Large (2000 graphs, 2 classes) - ~4M pairwise distances - WARNING: May take days!
+#
+# Available GNN Benchmark datasets for TMD analysis:
+# - MNIST: Very Large (~70k graphs, 10 classes) - ~4.9B pairwise distances - WARNING: Extremely long!
+# - CIFAR10: Very Large (~60k graphs, 10 classes) - ~3.6B pairwise distances - WARNING: Extremely long!
+# - PATTERN: Large (~14k graphs, 2 classes) - ~196M pairwise distances - WARNING: May take days!
+#
+# To process only specific datasets, modify the DATASETS variable below.
+# Large datasets (COLLAB, REDDIT-BINARY, PATTERN) and very large datasets (MNIST, CIFAR10)
+# are excluded by default due to computation time.
 
-# Run the TMD analysis script
+# Default datasets (small to medium size)
+DATASETS="PROTEINS IMDB-BINARY COLLAB"
+
+# Uncomment the line below to include large datasets (expect days of computation)
+# DATASETS="MUTAG ENZYMES PROTEINS IMDB-BINARY COLLAB REDDIT-BINARY"
+
+# Or uncomment to include GNN Benchmark datasets (WARNING: Very long computation time!)
+# DATASETS="MUTAG ENZYMES PATTERN"
+# DATASETS="MUTAG ENZYMES PROTEINS IMDB-BINARY PATTERN"
+
+# Or uncomment to process only specific datasets:
+# DATASETS="MUTAG ENZYMES"
+# DATASETS="PROTEINS IMDB-BINARY"
+
+log_message "🧪 Starting TMD analysis for multiple datasets..."
+log_message "   Datasets to process: $DATASETS"
+log_message "   This may take several hours depending on dataset size..."
+log_message "   Computation time scales roughly as O(n^2) where n is the number of graphs"
+
+# TMD parameters
+TMD_W=1.0    # Weighting constant
+TMD_L=4      # Computation tree depth
+
+# Run the TMD analysis script with specified datasets
 python scripts/compute_tmd_analysis.py \
-    --datasets MUTAG ENZYMES \
+    --datasets $DATASETS \
     --data-dir "$DATA_DIR" \
     --output-dir "$OUTPUT_DIR" \
-    --w 1.0 \
-    --L 4 \
+    --w "$TMD_W" \
+    --L "$TMD_L" \
     --cache
 
 # Check exit status
