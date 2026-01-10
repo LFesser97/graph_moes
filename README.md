@@ -5,7 +5,7 @@
 
 # TODO (1/9)
 
-Investigate tmd
+* Investigate tmd
 
 top priorities:
 try to increase accuracies to match "Can ... be strong baseline for"
