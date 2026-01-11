@@ -10,17 +10,23 @@
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 80
-#   - 40 single layer experiments: 5 layer types × 8 datasets (removed PATTERN and cluster)
+# Total experiments: 104
+#   - 64 single layer experiments:
+#     - GCN: 8 datasets × 2 (skip/no-skip) = 16
+#     - GIN: 8 datasets × 2 (skip/no-skip) = 16
+#     - SAGE: 8 datasets × 2 (skip/no-skip) = 16
+#     - MLP: 8 datasets × 1 (no skip) = 8
+#     - Unitary: 8 datasets × 1 (no skip) = 8
 #   - 40 MoE experiments: 6 combinations × 8 datasets
 # Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
 # Each experiment runs 200 trials to ensure proper test set coverage
+# Skip connections are only applied to GCN, GIN, and SAGE
 #
 # Usage: sbatch comprehensive_sweep_parallel.sh
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-80              # Total experiments: 40 single layer + 40 MoE = 80
+#SBATCH --array=1-104             # Total experiments: 64 single layer + 40 MoE = 104
 #SBATCH --ntasks=1
 #SBATCH --time=48:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=64GB               # Sufficient memory
@@ -351,24 +357,62 @@ datasets=(enzymes proteins mutag imdb collab reddit mnist cifar)
 # Calculate which experiment this array task should run
 task_id=${SLURM_ARRAY_TASK_ID:-1}
 
-# Total single layer experiments: 5 layer types × 8 datasets = 40
+# Total single layer experiments: 
+#   - GCN, GIN, SAGE: 3 × 8 datasets × 2 (skip/no-skip) = 48
+#   - MLP, Unitary: 2 × 8 datasets × 1 (no skip) = 16
+#   Total: 64 single layer experiments
 # Total MoE experiments: 6 combinations × 8 datasets = 40
-# Total: 80 experiments
+# Total: 104 experiments
 
-if [ "$task_id" -le 40 ]; then
+if [ "$task_id" -le 64 ]; then
     # Single layer experiment
     experiment_type="single"
     adjusted_id=$((task_id - 1))
     
-    # Calculate dataset and layer type
+    # Calculate dataset, layer type, and skip connection flag
     num_datasets=${#datasets[@]}
-    dataset_idx=$((adjusted_id % num_datasets))
-    layer_idx=$((adjusted_id / num_datasets))
+    
+    # Determine which layer type and skip variant
+    # Layer order: GCN (0-15), GIN (16-31), SAGE (32-47), MLP (48-55), Unitary (56-63)
+    # For GCN, GIN, SAGE: each has 16 tasks (8 datasets × 2 skip variants)
+    # For MLP, Unitary: each has 8 tasks (8 datasets × 1 skip variant = no skip)
+    
+    if [ "$adjusted_id" -lt 16 ]; then
+        # GCN: tasks 0-15
+        layer_type="GCN"
+        layer_base_id=$adjusted_id
+        dataset_idx=$((layer_base_id % num_datasets))
+        skip_variant=$((layer_base_id / num_datasets))  # 0 = no skip, 1 = skip
+    elif [ "$adjusted_id" -lt 32 ]; then
+        # GIN: tasks 16-31
+        layer_type="GIN"
+        layer_base_id=$((adjusted_id - 16))
+        dataset_idx=$((layer_base_id % num_datasets))
+        skip_variant=$((layer_base_id / num_datasets))  # 0 = no skip, 1 = skip
+    elif [ "$adjusted_id" -lt 48 ]; then
+        # SAGE: tasks 32-47
+        layer_type="SAGE"
+        layer_base_id=$((adjusted_id - 32))
+        dataset_idx=$((layer_base_id % num_datasets))
+        skip_variant=$((layer_base_id / num_datasets))  # 0 = no skip, 1 = skip
+    elif [ "$adjusted_id" -lt 56 ]; then
+        # MLP: tasks 48-55
+        layer_type="MLP"
+        layer_base_id=$((adjusted_id - 48))
+        dataset_idx=$((layer_base_id % num_datasets))
+        skip_variant=0  # MLP doesn't support skip connections
+    else
+        # Unitary: tasks 56-63
+        layer_type="Unitary"
+        layer_base_id=$((adjusted_id - 56))
+        dataset_idx=$((layer_base_id % num_datasets))
+        skip_variant=0  # Unitary doesn't support skip connections
+    fi
     
     dataset=${datasets[$dataset_idx]}
-    layer_type=${single_layer_types[$layer_idx]}
+    use_skip=$([ "$skip_variant" -eq 1 ] && [ "$layer_type" in "GCN GIN SAGE" ] && echo "true" || echo "false")
     
-    log_message "🧪 Single Layer Experiment $task_id: ${dataset}_${layer_type}"
+    log_message "🧪 Single Layer Experiment $task_id: ${dataset}_${layer_type} (skip=${use_skip})"
     
     # Get optimal hyperparameters
     get_hyperparams "$dataset" "$layer_type"
@@ -380,26 +424,36 @@ if [ "$task_id" -le 40 ]; then
     dropout=$HYPERPARAM_DROPOUT
     patience=$HYPERPARAM_PATIENCE
     
-    wandb_run_name="${dataset}_${layer_type}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
+    skip_suffix=$([ "$use_skip" = "true" ] && echo "_skip" || echo "")
+    wandb_run_name="${dataset}_${layer_type}${skip_suffix}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
+    
+    # Build command arguments
+    cmd_args=(
+        --num_trials 200
+        --dataset "$dataset"
+        --layer_type "$layer_type"
+        --learning_rate "$learning_rate"
+        --hidden_dim "$hidden_dim"
+        --num_layers "$num_layer"
+        --dropout "$dropout"
+        --patience "$patience"
+        --wandb_enabled
+        --wandb_name "$wandb_run_name"
+        --wandb_tags '["cluster", "comprehensive", "single_layer", "research_hyperparams"]'
+    )
+    
+    # Add skip_connection flag if applicable
+    if [ "$use_skip" = "true" ]; then
+        cmd_args+=(--skip_connection)
+    fi
     
     # Run single layer experiment
-    python scripts/run_graph_classification.py \
-        --num_trials 200 \
-        --dataset "$dataset" \
-        --layer_type "$layer_type" \
-        --learning_rate "$learning_rate" \
-        --hidden_dim "$hidden_dim" \
-        --num_layers "$num_layer" \
-        --dropout "$dropout" \
-        --patience "$patience" \
-        --wandb_enabled \
-        --wandb_name "$wandb_run_name" \
-        --wandb_tags '["cluster", "comprehensive", "single_layer", "research_hyperparams"]'
+    python scripts/run_graph_classification.py "${cmd_args[@]}"
 
 else
     # MoE experiment
     experiment_type="moe"
-    moe_id=$((task_id - 41))
+    moe_id=$((task_id - 65))  # Adjust for 64 single layer experiments instead of 40
     
     # Calculate dataset and MoE combination
     num_datasets=${#datasets[@]}

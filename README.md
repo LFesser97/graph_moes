@@ -3,6 +3,46 @@
 
 # TODO (12/10)
 
+* Investigate tmd
+
+top priorities:
+* try to increase accuracies to match "Can ... be strong baseline for"
+[ with Skip connections or potentially encodings]
+
+
+add hencodings
+Read GPS paper and instead of 50% 50% weight, let an Router decide.
+add peptides
+
+1 - add skip connection to eg (GCN, GIN, etc etc)
+[It's just adding input to conv layer and adding it to the output]+ 
+Check if Dropout is included +
+add encodings
+check the Can ... be strong baseline for
+what we should expect. They also use ENCODINGS!
+Look at the paper (main text table 5)
+
+2 - Also look at normalization [Section 3 in the paper].
+
+4 - Compute the hg encodings once and make sure they are fully correct and then upload them.
+
+add to wandb: the router type
+
+2 - Add global attention as an expert.
+
+3 - Try to add Global attention layer as router (imagine MOE as 
+extension of GPS)
+
+
+Later: check that sage does not do better than
+all moe connections. 
+
+4 - encodings + hg encodings
+
+(no tmd, no rewiring...)
+
+
+
 * Ask Lukas about the weird plots. WHy do we get a very clear separation by indexing?
 [ IN PROGRESS]
 * Can GNN be strong baselines:

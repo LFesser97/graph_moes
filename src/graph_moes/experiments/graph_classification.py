@@ -50,6 +50,7 @@ default_args = AttrDict(
         "router_layer_type": "GIN",
         "router_depth": 4,
         "router_dropout": 0.1,
+        "skip_connection": False,  # Whether to use skip/residual connections (for GCN, GIN, SAGE)
         # WandB defaults
         "wandb_enabled": False,
         "wandb_project": "MOE_new",
