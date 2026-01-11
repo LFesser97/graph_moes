@@ -97,10 +97,24 @@ if [ "$activation_success" = false ]; then
     exit 1
 fi
 
-# Get script directory and project root
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-log_message "📁 Project root: $PROJECT_ROOT"
+# Get project root directory
+# Use SLURM_SUBMIT_DIR if available (directory where sbatch was called), otherwise use absolute path
+if [ -n "$SLURM_SUBMIT_DIR" ]; then
+    # SLURM sets this to the directory where sbatch was called
+    PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+    log_message "📁 Using SLURM_SUBMIT_DIR: $PROJECT_ROOT"
+else
+    # Fallback: use absolute path
+    PROJECT_ROOT="/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes"
+    log_message "📁 Using absolute path: $PROJECT_ROOT"
+fi
+
+# Verify project root exists
+if [ ! -d "$PROJECT_ROOT" ]; then
+    log_message "❌ Project root directory not found: $PROJECT_ROOT"
+    log_message "   Current directory: $(pwd)"
+    exit 1
+fi
 
 # Change to project root
 cd "$PROJECT_ROOT" || {
@@ -109,34 +123,57 @@ cd "$PROJECT_ROOT" || {
 }
 
 log_message "📁 Current directory: $(pwd)"
+log_message "📁 Project root: $PROJECT_ROOT"
 
 # Set up Hypergraph_Encodings repo path
 # The Python script looks for: Repos_GNN/Hypergraph_encodings_clean/Hypergraph_Encodings
-HG_ENCODINGS_PARENT_DIR="$PROJECT_ROOT/../Hypergraph_encodings_clean"
-HG_ENCODINGS_REPO_DIR="$HG_ENCODINGS_PARENT_DIR/Hypergraph_Encodings"
-HG_ENCODINGS_SRC_DIR="$HG_ENCODINGS_REPO_DIR/src"
+# But it might also be directly in the parent directory: Repos_GNN/Hypergraph_Encodings
+HG_ENCODINGS_PARENT_DIR="$(dirname "$PROJECT_ROOT")"
+HG_ENCODINGS_REPO_DIR_ALT1="$HG_ENCODINGS_PARENT_DIR/Hypergraph_encodings_clean/Hypergraph_Encodings"
+HG_ENCODINGS_REPO_DIR_ALT2="$HG_ENCODINGS_PARENT_DIR/Hypergraph_Encodings"
+HG_ENCODINGS_REPO_DIR=""
+HG_ENCODINGS_SRC_DIR=""
 
 log_message "🔍 Checking for Hypergraph_Encodings repo..."
-log_message "   Expected location: $HG_ENCODINGS_REPO_DIR"
 
-# Check if the repo exists
-if [ -d "$HG_ENCODINGS_REPO_DIR" ] && [ -d "$HG_ENCODINGS_SRC_DIR" ]; then
+# Check multiple possible locations
+if [ -d "$HG_ENCODINGS_REPO_DIR_ALT1" ] && [ -d "$HG_ENCODINGS_REPO_DIR_ALT1/src" ]; then
+    HG_ENCODINGS_REPO_DIR="$HG_ENCODINGS_REPO_DIR_ALT1"
+    HG_ENCODINGS_SRC_DIR="$HG_ENCODINGS_REPO_DIR/src"
+    log_message "✅ Hypergraph_Encodings repo found at: $HG_ENCODINGS_REPO_DIR"
+elif [ -d "$HG_ENCODINGS_REPO_DIR_ALT2" ] && [ -d "$HG_ENCODINGS_REPO_DIR_ALT2/src" ]; then
+    HG_ENCODINGS_REPO_DIR="$HG_ENCODINGS_REPO_DIR_ALT2"
+    HG_ENCODINGS_SRC_DIR="$HG_ENCODINGS_REPO_DIR/src"
     log_message "✅ Hypergraph_Encodings repo found at: $HG_ENCODINGS_REPO_DIR"
 else
-    log_message "⚠️  Hypergraph_Encodings repo not found at expected location"
-    log_message "   Attempting to clone from GitHub..."
+    log_message "⚠️  Hypergraph_Encodings repo not found at either location:"
+    log_message "   Option 1: $HG_ENCODINGS_REPO_DIR_ALT1"
+    log_message "   Option 2: $HG_ENCODINGS_REPO_DIR_ALT2"
+    log_message "   Attempting to clone from GitHub to Option 1..."
     
-    # Create parent directory if it doesn't exist
-    mkdir -p "$HG_ENCODINGS_PARENT_DIR"
+    # Create parent directory structure for Option 1
+    HG_ENCODINGS_ALT1_PARENT="$HG_ENCODINGS_PARENT_DIR/Hypergraph_encodings_clean"
+    mkdir -p "$HG_ENCODINGS_ALT1_PARENT" || {
+        log_message "❌ Failed to create directory: $HG_ENCODINGS_ALT1_PARENT"
+        log_message "   Trying Option 2 instead..."
+        HG_ENCODINGS_ALT1_PARENT="$HG_ENCODINGS_PARENT_DIR"
+    }
     
     # Try to clone the repo
-    cd "$HG_ENCODINGS_PARENT_DIR" || exit 1
+    cd "$HG_ENCODINGS_ALT1_PARENT" || {
+        log_message "❌ Failed to change to directory: $HG_ENCODINGS_ALT1_PARENT"
+        exit 1
+    }
+    
     if git clone https://github.com/Weber-GeoML/Hypergraph_Encodings.git 2>&1; then
         log_message "✅ Successfully cloned Hypergraph_Encodings repo"
+        HG_ENCODINGS_REPO_DIR="$HG_ENCODINGS_ALT1_PARENT/Hypergraph_Encodings"
+        HG_ENCODINGS_SRC_DIR="$HG_ENCODINGS_REPO_DIR/src"
     else
         log_message "❌ Failed to clone Hypergraph_Encodings repo"
-        log_message "   Please clone it manually or check the path"
-        log_message "   Expected location: $HG_ENCODINGS_REPO_DIR"
+        log_message "   Please clone it manually to one of these locations:"
+        log_message "   - $HG_ENCODINGS_REPO_DIR_ALT1"
+        log_message "   - $HG_ENCODINGS_REPO_DIR_ALT2"
         exit 1
     fi
     
