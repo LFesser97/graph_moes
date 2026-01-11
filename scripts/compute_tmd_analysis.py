@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+import torch
 from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
 
 # Add project root to path
@@ -92,6 +93,18 @@ def load_dataset(
                     f"TU datasets ({', '.join(tu_datasets)}) or "
                     f"GNN Benchmark datasets ({', '.join(gnn_benchmark_datasets)})"
                 ) from e
+
+    # Add constant node features for datasets that don't have them.
+    # According to the TMD paper (Chuang et al., NeurIPS 2022): "if not, we simply set
+    # the node feature to a scalar for all v" to keep TMD well-defined.
+    # This applies to IMDB-BINARY, COLLAB, and REDDIT-BINARY which don't have node features.
+    datasets_needing_node_features = ["IMDB-BINARY", "COLLAB", "REDDIT-BINARY"]
+    if dataset_name.upper() in datasets_needing_node_features:
+        for graph in dataset:
+            if not hasattr(graph, "x") or graph.x is None:
+                n = graph.num_nodes
+                # Assign constant scalar feature (1.0) to all nodes as per TMD methodology
+                graph.x = torch.ones((n, 1), dtype=torch.float32)
 
     # Extract labels
     try:
