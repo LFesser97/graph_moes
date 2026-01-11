@@ -7,11 +7,16 @@ and computer vision tasks (MNIST, CIFAR10 superpixels). It supports various GNN 
 The script handles dataset preprocessing, optional structural encodings (Laplacian eigenvectors,
 random walk features, curvature profiles), multi-trial training with statistical analysis,
 and comprehensive result logging for benchmarking different graph neural network approaches.
+
+Desired behavior:
+Skips the experiment if the encoding file doesn't exist: Instead of falling back to the
+original dataset, it exits gracefully with sys.exit(0) when the precomputed encoding file is missing or fails to load.
 """
 
 import os
 import time
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -351,19 +356,6 @@ datasets = {k: v for k, v in datasets.items() if v is not None and len(v) > 0}
 # datasets = {"collab": collab, "imdb": imdb, "proteins": proteins, "reddit": reddit}
 
 
-for key in datasets:
-    if key in ["reddit", "imdb", "collab"]:
-        for graph in datasets[key]:
-            n = graph.num_nodes
-            graph.x = torch.ones((n, 1))
-    # Handle GraphBench datasets that might not have node features
-    elif key.startswith("graphbench_"):
-        for graph in datasets[key]:
-            if not hasattr(graph, "x") or graph.x is None:
-                n = graph.num_nodes
-                graph.x = torch.ones((n, 1))
-
-
 def log_to_file(
     message: str, filename: str = "results/graph_classification.txt"
 ) -> None:
@@ -377,6 +369,25 @@ def log_to_file(
     file = open(filename, "a")
     file.write(message)
     file.close()
+
+
+def get_encoding_category(encoding_dir: str | None) -> str:
+    """Determine encoding category based on the directory used for loading encodings.
+
+    Args:
+        encoding_dir: Path to the directory where encodings were loaded from, or None if no encoding.
+
+    Returns:
+        Category string: "hypergraph", "graph", or "None"
+    """
+    if encoding_dir is None:
+        return "None"
+    elif "graph_datasets_with_hg_encodings" in encoding_dir:
+        return "hypergraph"
+    elif "graph_datasets_with_g_encodings" in encoding_dir:
+        return "graph"
+    else:
+        return "None"
 
 
 default_args = AttrDict(
@@ -396,6 +407,7 @@ default_args = AttrDict(
         "dataset": None,
         "last_layer_fa": False,
         "encoding": None,
+        "dataset_encoding": None,  # Pre-computed dataset encoding: None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8,
         "mlp": True,
         "layer_types": None,
         # WandB defaults
@@ -451,10 +463,109 @@ hyperparams = {
 results = []
 args = default_args
 args += get_args_from_input()
+
+# Track which encoding directory was used (for determining encoding_category later)
+encoding_source_dir: str | None = None
+
+# Load encoded datasets if dataset_encoding is specified
+if hasattr(args, "dataset_encoding") and args.dataset_encoding is not None:
+    dataset_encoding = args.dataset_encoding
+    print(f"\n📦 Loading datasets with encoding: {dataset_encoding}")
+
+    # Determine the encoding directory and file pattern
+    if dataset_encoding.startswith("hg_"):
+        # Hypergraph encodings: hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, etc.
+        encoding_suffix = dataset_encoding[
+            3:
+        ]  # Remove "hg_" prefix to get suffix (e.g., "rwpe_we_k20", "lape_normalized_k8")
+        encoded_data_dir = (
+            Path(data_directory).parent / "graph_datasets_with_hg_encodings"
+        )
+        encoding_source_dir = str(encoded_data_dir)  # Track the directory used
+        file_pattern = "{dataset_name}_hg_{encoding_suffix}.pt"
+    elif dataset_encoding.startswith("g_"):
+        # Graph encodings: g_ldp, g_rwpe_k16, g_lape_k8, g_orc, etc.
+        encoding_suffix = dataset_encoding[
+            2:
+        ]  # Remove "g_" prefix to get suffix (e.g., "ldp", "rwpe_k16", "lape_k8")
+        encoded_data_dir = (
+            Path(data_directory).parent / "graph_datasets_with_g_encodings"
+        )
+        encoding_source_dir = str(encoded_data_dir)  # Track the directory used
+        file_pattern = "{dataset_name}_g_{encoding_suffix}.pt"
+    else:
+        raise ValueError(
+            f"Unknown dataset_encoding: {dataset_encoding}. Expected: None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc"
+        )
+
+    if not encoded_data_dir.exists():
+        raise FileNotFoundError(
+            f"Encoded datasets directory not found: {encoded_data_dir}"
+        )
+
+    print(f"📁 Encoded datasets directory: {encoded_data_dir}")
+
+    # Load encoded datasets
+    encoded_datasets = {}
+    for dataset_name in list(datasets.keys()):
+        if dataset_encoding.startswith("hg_"):
+            filename = file_pattern.format(
+                dataset_name=dataset_name, encoding_suffix=encoding_suffix
+            )
+        elif dataset_encoding.startswith("g_"):
+            filename = file_pattern.format(
+                dataset_name=dataset_name, encoding_suffix=encoding_suffix
+            )
+        else:
+            filename = file_pattern.format(dataset_name=dataset_name)
+
+        encoded_file_path = encoded_data_dir / filename
+
+        if encoded_file_path.exists():
+            try:
+                print(f"  ⏳ Loading {dataset_name} with {dataset_encoding}...")
+                encoded_dataset = torch.load(encoded_file_path)
+                encoded_datasets[dataset_name] = encoded_dataset
+                print(f"  ✅ {dataset_name} loaded: {len(encoded_dataset)} graphs")
+            except Exception as e:
+                print(
+                    f"  ❌ Failed to load {dataset_name} with {dataset_encoding}: {e}"
+                )
+                print(
+                    f"     Skipping experiment - pre-computed encoding file exists but failed to load"
+                )
+                import sys
+
+                sys.exit(0)  # Exit gracefully, skip this experiment
+        else:
+            print(f"  ❌ Encoded dataset file not found: {encoded_file_path}")
+            print(
+                f"     Skipping experiment - pre-computed encoding required but not found"
+            )
+            import sys
+
+            sys.exit(0)  # Exit gracefully, skip this experiment
+
+    # Replace datasets with encoded versions
+    datasets = encoded_datasets
+    print(f"✅ Loaded {len(datasets)} datasets with encoding: {dataset_encoding}\n")
+
 if args.dataset:
     # restricts to just the given dataset if this mode is chosen
     name = args.dataset
     datasets = {name: datasets[name]}
+
+for key in datasets:
+    if key in ["reddit", "imdb", "collab"]:
+        for graph in datasets[key]:
+            n = graph.num_nodes
+            graph.x = torch.ones((n, 1))
+    # Handle GraphBench datasets that might not have node features
+    elif key.startswith("graphbench_"):
+        for graph in datasets[key]:
+            if not hasattr(graph, "x") or graph.x is None:
+                n = graph.num_nodes
+                graph.x = torch.ones((n, 1))
 
 for key in datasets:
     args += hyperparams[key]
@@ -462,75 +573,97 @@ for key in datasets:
     validation_accuracies = []
     test_accuracies = []
     energies = []
-    print(f"TESTING: {key} ({args.encoding} - layer {args.layer_type})")
-
     dataset = datasets[key]
 
-    # encode the dataset using the given encoding, if args.encoding is not None
-    if args.encoding in ["LAPE", "RWPE", "LCP", "LDP", "SUB", "EGO"]:
+    # Determine which encoding method is being used
+    dataset_encoding = getattr(args, "dataset_encoding", None)
+    if dataset_encoding is not None:
+        # New system: Pre-computed dataset encodings (preferred)
+        encoding_info = f"dataset_encoding={dataset_encoding}"
+        print(f"TESTING: {key} ({encoding_info}, layer={args.layer_type})")
+        # Skip any on-the-fly encoding if dataset_encoding is specified
+        pass
+    elif args.encoding is not None:
+        # DEPRECATED: On-the-fly encoding computation (args.encoding) is deprecated.
+        # This approach has been replaced with pre-computed dataset encodings via args.dataset_encoding,
+        # which loads pre-processed datasets from graph_datasets_with_hg_encodings/ or
+        # graph_datasets_with_g_encodings/. The code below is kept for backwards compatibility
+        # but should not be used in new experiments. Use --dataset_encoding instead.
+        encoding_info = (
+            f"encoding={args.encoding} (DEPRECATED - use --dataset_encoding instead)"
+        )
+        print(f"TESTING: {key} ({encoding_info}, layer={args.layer_type})")
+        print(
+            f"  ⚠️  WARNING: On-the-fly encoding ({args.encoding}) is deprecated. Use --dataset_encoding for pre-computed encodings."
+        )
+        if args.encoding in ["LAPE", "RWPE", "LCP", "LDP", "SUB", "EGO"]:
 
-        if os.path.exists(f"data/{key}_{args.encoding}.pt"):
-            print(f"✅ ENCODING ALREADY EXISTS: Loading {key}_{args.encoding}.pt")
-            dataset = torch.load(f"data/{key}_{args.encoding}.pt")
+            if os.path.exists(f"data/{key}_{args.encoding}.pt"):
+                print(f"✅ ENCODING ALREADY EXISTS: Loading {key}_{args.encoding}.pt")
+                dataset = torch.load(f"data/{key}_{args.encoding}.pt")
 
-        elif args.encoding == "LCP":
-            print(f"🔄 ENCODING STARTED: {args.encoding} for {key.upper()}...")
-            lcp = LocalCurvatureProfile()
-            for i in tqdm(
-                range(len(dataset)), desc=f"Encoding {key.upper()} with {args.encoding}"
-            ):
-                dataset[i] = lcp.compute_orc(dataset[i])
-                print(f"Graph {i} of {len(dataset)} encoded with {args.encoding}")
-            torch.save(dataset, f"data/{key}_{args.encoding}.pt")
-            print(f"💾 Encoded dataset saved to: data/{key}_{args.encoding}.pt")
+            elif args.encoding == "LCP":
+                print(f"🔄 ENCODING STARTED: {args.encoding} for {key.upper()}...")
+                lcp = LocalCurvatureProfile()
+                for i in tqdm(
+                    range(len(dataset)),
+                    desc=f"Encoding {key.upper()} with {args.encoding}",
+                ):
+                    dataset[i] = lcp.compute_orc(dataset[i])
+                    print(f"Graph {i} of {len(dataset)} encoded with {args.encoding}")
+                torch.save(dataset, f"data/{key}_{args.encoding}.pt")
+                print(f"💾 Encoded dataset saved to: data/{key}_{args.encoding}.pt")
 
-        else:
-            print("ENCODING STARTED...")
-            org_dataset_len = len(dataset)
-            drop_datasets = []
-            current_graph = 0
+            else:
+                print("ENCODING STARTED...")
+                org_dataset_len = len(dataset)
+                drop_datasets = []
+                current_graph = 0
 
-            for i in tqdm(
-                range(org_dataset_len),
-                desc=f"Encoding {key.upper()} with {args.encoding}",
-            ):
-                if args.encoding == "LAPE":
-                    num_nodes = dataset[i].num_nodes
-                    eigvecs = np.min([num_nodes, 8]) - 2
-                    transform = T.AddLaplacianEigenvectorPE(k=eigvecs)
+                for i in tqdm(
+                    range(org_dataset_len),
+                    desc=f"Encoding {key.upper()} with {args.encoding}",
+                ):
+                    if args.encoding == "LAPE":
+                        num_nodes = dataset[i].num_nodes
+                        eigvecs = np.min([num_nodes, 8]) - 2
+                        transform = T.AddLaplacianEigenvectorPE(k=eigvecs)
 
-                elif args.encoding == "RWPE":
-                    transform = T.AddRandomWalkPE(walk_length=16)
+                    elif args.encoding == "RWPE":
+                        transform = T.AddRandomWalkPE(walk_length=16)
 
-                elif args.encoding == "LDP":
-                    transform = T.LocalDegreeProfile()
+                    elif args.encoding == "LDP":
+                        transform = T.LocalDegreeProfile()
 
-                elif args.encoding == "SUB":
-                    transform = T.RootedRWSubgraph(walk_length=10)
+                    elif args.encoding == "SUB":
+                        transform = T.RootedRWSubgraph(walk_length=10)
 
-                elif args.encoding == "EGO":
-                    transform = T.RootedEgoNets(num_hops=2)
+                    elif args.encoding == "EGO":
+                        transform = T.RootedEgoNets(num_hops=2)
 
-                try:
-                    dataset[i] = transform(dataset[i])
-                    print(
-                        f"Graph {current_graph} of {org_dataset_len} encoded with {args.encoding}"
-                    )
-                    current_graph += 1
+                    try:
+                        dataset[i] = transform(dataset[i])
+                        print(
+                            f"Graph {current_graph} of {org_dataset_len} encoded with {args.encoding}"
+                        )
+                        current_graph += 1
 
-                except Exception:
-                    tqdm.write(
-                        f"⚠️  Graph {current_graph} dropped due to encoding error"
-                    )
-                    drop_datasets.append(i)
-                    current_graph += 1
+                    except Exception:
+                        tqdm.write(
+                            f"⚠️  Graph {current_graph} dropped due to encoding error"
+                        )
+                        drop_datasets.append(i)
+                        current_graph += 1
 
-            for i in sorted(drop_datasets, reverse=True):
-                dataset.pop(i)
+                for i in sorted(drop_datasets, reverse=True):
+                    dataset.pop(i)
 
-            # save the dataset to a file in the data folder
-            torch.save(dataset, f"data/{key}_{args.encoding}.pt")
-            print(f"💾 Encoded dataset saved to: data/{key}_{args.encoding}.pt")
+                # save the dataset to a file in the data folder
+                torch.save(dataset, f"data/{key}_{args.encoding}.pt")
+                print(f"💾 Encoded dataset saved to: data/{key}_{args.encoding}.pt")
+    else:
+        # No encoding - using original dataset
+        print(f"TESTING: {key} (no encoding, layer={args.layer_type})")
 
     # create a dictionary of the graphs in the dataset with the key being the graph index
     # graph_dict[graph_idx] = list of correctness values (1=correct, 0=incorrect) for each test appearance
@@ -564,9 +697,17 @@ for key in datasets:
             and args.layer_type in ["GCN", "GIN", "SAGE"]
             else ""
         )
-        experiment_id = f"{key}_{args.layer_type}{skip_suffix}_{timestamp}"
+        dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
+        dataset_encoding_suffix = (
+            f"_enc{dataset_encoding_str}" if dataset_encoding_str != "None" else ""
+        )
+        experiment_id = (
+            f"{key}_{args.layer_type}{skip_suffix}{dataset_encoding_suffix}_{timestamp}"
+        )
         if args.wandb_name:
-            experiment_id = f"{args.wandb_name}{skip_suffix}_{timestamp}"
+            experiment_id = (
+                f"{args.wandb_name}{skip_suffix}{dataset_encoding_suffix}_{timestamp}"
+            )
         print(f"🔬 WandB Experiment Group: {experiment_id}")
 
     trial = 0
@@ -615,12 +756,21 @@ for key in datasets:
                 trial_run_name = f"{args.wandb_name}_trial_{trial + 1:02d}"
 
             # Build config dictionary
+            dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
+            # Determine encoding category based on the directory where encodings were loaded from:
+            # - hypergraph encodings: graph_datasets_with_hg_encodings
+            # - graph encodings: graph_datasets_with_g_encodings
+            # - no encodings: None (using normal datasets)
+            encoding_category = get_encoding_category(encoding_source_dir)
+
             wandb_config = {
                 **dict(args),
                 "trial_num": trial,
                 "dataset": key,
                 # Add grouping variables:
                 "dataset_name": key,  # For grouping by dataset
+                "dataset_encoding": dataset_encoding_str,  # Pre-computed dataset encoding
+                "encoding_category": encoding_category,  # Category: None, hypergraph, or graph
                 "is_moe": args.layer_types
                 is not None,  # Boolean for MoE vs single layer
                 "model_type": (
@@ -688,6 +838,9 @@ for key in datasets:
                     "final/max_test_appearances": max_appearances,
                     # Add grouping variables:
                     "groupby/dataset": key,
+                    "groupby/dataset_encoding": getattr(args, "dataset_encoding", None)
+                    or "None",
+                    "groupby/encoding_category": encoding_category,
                     "groupby/model_type": (
                         "MoE" if args.layer_types else args.layer_type
                     ),
@@ -747,8 +900,9 @@ for key in datasets:
     ]:
         detailed_model_name = f"{detailed_model_name}_skip"
 
-    encoding_str = args.encoding if args.encoding else "None"
-    graph_dict_filename = f"results/{args.num_layers}_layers/{key}_{detailed_model_name}_{encoding_str}_graph_dict.pickle"
+    # Use only pre-computed encoding for filename (legacy encoding is deprecated)
+    dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
+    graph_dict_filename = f"results/{args.num_layers}_layers/{key}_{detailed_model_name}_enc{dataset_encoding_str}_graph_dict.pickle"
     with open(graph_dict_filename, "wb") as f:
         pickle.dump(
             {
@@ -762,11 +916,13 @@ for key in datasets:
 
     # Generate and save average accuracy per graph plots (by index and by accuracy)
     try:
+        # Use dataset_encoding instead of deprecated encoding parameter
+        dataset_encoding_for_plots = getattr(args, "dataset_encoding", None)
         original_plot_path, sorted_plot_path = load_and_plot_average_per_graph(
             graph_dict_filename,
             dataset_name=key,
             layer_type=args.layer_type,
-            encoding=args.encoding,
+            encoding=dataset_encoding_for_plots,
             num_layers=args.num_layers,
             task_type="classification",
             output_dir="results",
@@ -808,14 +964,16 @@ for key in datasets:
         if num_trials_actual > 0
         else 0
     )
+    dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
     log_to_file(
-        f"RESULTS FOR dataset: {key} (model: {args.layer_type}), with encodings: {args.encoding}:\n"
+        f"RESULTS FOR dataset: {key} (model: {args.layer_type}), dataset_encoding: {dataset_encoding_str}:\n"
     )
     log_to_file(f"average acc: {test_mean}\n")
     log_to_file(f"plus/minus:  {test_ci}\n\n")
     results.append(
         {
             "dataset": key,
+            "dataset_encoding": getattr(args, "dataset_encoding", None),
             "encoding": args.encoding,
             "layer_type": args.layer_type,
             "layer_types": args.layer_types,
@@ -845,12 +1003,21 @@ for key in datasets:
             summary_run_name = f"{args.wandb_name}_SUMMARY"
 
         # Build config dictionary for summary run
+        dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
+        # Determine encoding category based on the directory where encodings were loaded from:
+        # - hypergraph encodings: graph_datasets_with_hg_encodings
+        # - graph encodings: graph_datasets_with_g_encodings
+        # - no encodings: None (using normal datasets)
+        encoding_category = get_encoding_category(encoding_source_dir)
+
         summary_config = {
             **dict(args),
             "dataset": key,
             "run_type": "summary",
             "num_trials": num_trials_actual,
             "required_test_appearances": required_test_appearances,
+            "dataset_encoding": dataset_encoding_str,
+            "encoding_category": encoding_category,
         }
         # Add router configuration ONLY for MoE models
         if args.layer_types is not None:
@@ -892,6 +1059,9 @@ for key in datasets:
             "trials/energies": energies,
             # Add grouping variables:
             "groupby/dataset": key,
+            "groupby/dataset_encoding": getattr(args, "dataset_encoding", None)
+            or "None",
+            "groupby/encoding_category": encoding_category,
             "groupby/model_type": "MoE" if args.layer_types else args.layer_type,
             "groupby/is_moe": args.layer_types is not None,
             "groupby/moe_layers": (
@@ -927,10 +1097,12 @@ for key in datasets:
         wandb.finish()
 
     # Log every time a dataset is completed
+    dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
     df = pd.DataFrame(results)
-    with open(
-        f"results/graph_classification_{args.layer_type}_{args.encoding}.csv", "a"
-    ) as f:
+    csv_filename = (
+        f"results/graph_classification_{args.layer_type}_enc{dataset_encoding_str}.csv"
+    )
+    with open(csv_filename, "a") as f:
         df.to_csv(f, mode="a", header=f.tell() == 0)
 
     print(f"\n🎯 FINAL RESULTS for {key.upper()}:")
@@ -939,6 +1111,4 @@ for key in datasets:
     print(f"   🏃 Training Accuracy: {train_mean:.2f}% ± {train_ci:.2f}%")
     print(f"   ⚡ Energy: {energy_mean:.2f}% ± {energy_ci:.2f}%")
     print(f"   ⏱️  Duration: {run_duration:.2f}s")
-    print(
-        f"   💾 Results saved to: results/graph_classification_{args.layer_type}_{args.encoding}.csv"
-    )
+    print(f"   💾 Results saved to: {csv_filename}")

@@ -10,14 +10,17 @@
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 104
-#   - 64 single layer experiments:
-#     - GCN: 8 datasets × 2 (skip/no-skip) = 16
-#     - GIN: 8 datasets × 2 (skip/no-skip) = 16
-#     - SAGE: 8 datasets × 2 (skip/no-skip) = 16
-#     - MLP: 8 datasets × 1 (no skip) = 8
-#     - Unitary: 8 datasets × 1 (no skip) = 8
-#   - 40 MoE experiments: 6 combinations × 8 datasets
+# Total experiments: 624
+#   - Base experiments (no encoding): 104
+#     - 64 single layer experiments:
+#       - GCN: 8 datasets × 2 (skip/no-skip) = 16
+#       - GIN: 8 datasets × 2 (skip/no-skip) = 16
+#       - SAGE: 8 datasets × 2 (skip/no-skip) = 16
+#       - MLP: 8 datasets × 1 (no skip) = 8
+#       - Unitary: 8 datasets × 1 (no skip) = 8
+#     - 40 MoE experiments: 6 combinations × 8 datasets
+#   - With encodings: 104 × 5 = 520 experiments (5 encoding types)
+#     Encoding types: hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc
 # Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
 # Each experiment runs 200 trials to ensure proper test set coverage
 # Skip connections are only applied to GCN, GIN, and SAGE
@@ -26,7 +29,7 @@
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-104             # Total experiments: 64 single layer + 40 MoE = 104
+#SBATCH --array=1-624             # Total experiments: 104 base + (104 × 5 encodings) = 624
 #SBATCH --ntasks=1
 #SBATCH --time=48:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=64GB               # Sufficient memory
@@ -357,14 +360,26 @@ datasets=(enzymes proteins mutag imdb collab reddit mnist cifar)
 # Calculate which experiment this array task should run
 task_id=${SLURM_ARRAY_TASK_ID:-1}
 
-# Total single layer experiments: 
-#   - GCN, GIN, SAGE: 3 × 8 datasets × 2 (skip/no-skip) = 48
-#   - MLP, Unitary: 2 × 8 datasets × 1 (no skip) = 16
-#   Total: 64 single layer experiments
-# Total MoE experiments: 6 combinations × 8 datasets = 40
-# Total: 104 experiments
+# Encoding variants: None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc
+declare -a dataset_encodings=("None" "hg_ldp" "hg_frc" "hg_rwpe_we_k20" "hg_lape_normalized_k8" "g_ldp" "g_rwpe_k16" "g_lape_k8" "g_orc")
+num_encoding_variants=${#dataset_encodings[@]}
 
-if [ "$task_id" -le 64 ]; then
+# Base experiments per encoding variant: 104
+#   - 64 single layer experiments:
+#     - GCN, GIN, SAGE: 3 × 8 datasets × 2 (skip/no-skip) = 48
+#     - MLP, Unitary: 2 × 8 datasets × 1 (no skip) = 16
+#   - 40 MoE experiments: 6 combinations × 8 datasets
+base_experiments_per_variant=104
+
+# Calculate which encoding variant and base experiment this task corresponds to
+encoding_variant_idx=$(((task_id - 1) / base_experiments_per_variant))
+base_experiment_id=$(((task_id - 1) % base_experiments_per_variant + 1))
+
+dataset_encoding=${dataset_encodings[$encoding_variant_idx]}
+
+log_message "📦 Task $task_id: Using dataset_encoding=$dataset_encoding (variant $((encoding_variant_idx + 1))/$num_encoding_variants), base_experiment=$base_experiment_id"
+
+if [ "$base_experiment_id" -le 64 ]; then
     # Single layer experiment
     experiment_type="single"
     adjusted_id=$((task_id - 1))
@@ -412,7 +427,7 @@ if [ "$task_id" -le 64 ]; then
     dataset=${datasets[$dataset_idx]}
     use_skip=$([ "$skip_variant" -eq 1 ] && [ "$layer_type" in "GCN GIN SAGE" ] && echo "true" || echo "false")
     
-    log_message "🧪 Single Layer Experiment $task_id: ${dataset}_${layer_type} (skip=${use_skip})"
+    log_message "🧪 Single Layer Experiment $task_id (base=$base_experiment_id): ${dataset}_${layer_type} (skip=${use_skip}, encoding=${dataset_encoding})"
     
     # Get optimal hyperparameters
     get_hyperparams "$dataset" "$layer_type"
@@ -425,7 +440,8 @@ if [ "$task_id" -le 64 ]; then
     patience=$HYPERPARAM_PATIENCE
     
     skip_suffix=$([ "$use_skip" = "true" ] && echo "_skip" || echo "")
-    wandb_run_name="${dataset}_${layer_type}${skip_suffix}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
+    encoding_suffix=$([ "$dataset_encoding" != "None" ] && echo "_${dataset_encoding}" || echo "")
+    wandb_run_name="${dataset}_${layer_type}${skip_suffix}${encoding_suffix}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
     
     # Build command arguments
     cmd_args=(
@@ -439,8 +455,13 @@ if [ "$task_id" -le 64 ]; then
         --patience "$patience"
         --wandb_enabled
         --wandb_name "$wandb_run_name"
-        --wandb_tags '["cluster", "comprehensive", "single_layer", "research_hyperparams"]'
+        --wandb_tags '["cluster", "comprehensive", "single_layer", "research_hyperparams", "dataset_encoding_'${dataset_encoding}'"]'
     )
+    
+    # Add dataset_encoding if not None
+    if [ "$dataset_encoding" != "None" ]; then
+        cmd_args+=(--dataset_encoding "$dataset_encoding")
+    fi
     
     # Add skip_connection flag if applicable
     if [ "$use_skip" = "true" ]; then
@@ -453,7 +474,7 @@ if [ "$task_id" -le 64 ]; then
 else
     # MoE experiment
     experiment_type="moe"
-    moe_id=$((task_id - 65))  # Adjust for 64 single layer experiments instead of 40
+    moe_id=$((base_experiment_id - 65))  # Adjust for 64 single layer experiments instead of 40
     
     # Calculate dataset and MoE combination
     num_datasets=${#datasets[@]}
@@ -463,7 +484,7 @@ else
     dataset=${datasets[$dataset_idx]}
     layer_combo=${moe_combinations[$combo_idx]}
     
-    log_message "🧪 MoE Experiment $task_id: ${dataset}_MoE_${layer_combo}"
+    log_message "🧪 MoE Experiment $task_id (base=$base_experiment_id): ${dataset}_MoE_${layer_combo} (encoding=${dataset_encoding})"
     
     # For MoE, use the first layer type in combination as base for hyperparameters
     first_layer=$(echo "$layer_combo" | grep -o '"[^"]*"' | head -1 | tr -d '"')
@@ -478,21 +499,31 @@ else
     
     # Create a clean name from layer combination
     clean_combo=$(echo "$layer_combo" | tr -d '[]",' | tr ' ' '_')
-    wandb_run_name="${dataset}_MoE_${clean_combo}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
+    encoding_suffix=$([ "$dataset_encoding" != "None" ] && echo "_${dataset_encoding}" || echo "")
+    wandb_run_name="${dataset}_MoE_${clean_combo}${encoding_suffix}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
+    
+    # Build command arguments for MoE
+    moe_cmd_args=(
+        --num_trials 200
+        --dataset "$dataset"
+        --layer_types "$layer_combo"
+        --learning_rate "$learning_rate"
+        --hidden_dim "$hidden_dim"
+        --num_layers "$num_layer"
+        --dropout "$dropout"
+        --patience "$patience"
+        --wandb_enabled
+        --wandb_name "$wandb_run_name"
+        --wandb_tags '["cluster", "comprehensive", "moe", "research_hyperparams", "dataset_encoding_'${dataset_encoding}'"]'
+    )
+    
+    # Add dataset_encoding if not None
+    if [ "$dataset_encoding" != "None" ]; then
+        moe_cmd_args+=(--dataset_encoding "$dataset_encoding")
+    fi
     
     # Run MoE experiment
-    python scripts/run_graph_classification.py \
-        --num_trials 200 \
-        --dataset "$dataset" \
-        --layer_types "$layer_combo" \
-        --learning_rate "$learning_rate" \
-        --hidden_dim "$hidden_dim" \
-        --num_layers "$num_layer" \
-        --dropout "$dropout" \
-        --patience "$patience" \
-        --wandb_enabled \
-        --wandb_name "$wandb_run_name" \
-        --wandb_tags '["cluster", "comprehensive", "moe", "research_hyperparams"]'
+    python scripts/run_graph_classification.py "${moe_cmd_args[@]}"
 fi
 
 # Check exit status

@@ -219,6 +219,9 @@ def load_and_plot_average_per_graph(
         return "", ""
 
     # Create and save original plot (ordered by graph index)
+    # Include encoding in filename if provided
+    encoding_suffix = f"_enc{encoding}" if encoding else ""
+    detailed_model_name = get_detailed_model_name(layer_type, layer_types, router_type)
     original_plot_path = plot_average_per_graph(
         graph_indices,
         average_values,
@@ -228,7 +231,7 @@ def load_and_plot_average_per_graph(
         num_layers,
         task_type,
         output_dir,
-        save_filename=f"{dataset_name}_{get_detailed_model_name(layer_type, layer_types, router_type)}_by_index.png",
+        save_filename=f"{dataset_name}_{detailed_model_name}{encoding_suffix}_by_index.png",
         layer_types=layer_types,
         router_type=router_type,
     )
@@ -248,7 +251,7 @@ def load_and_plot_average_per_graph(
         num_layers,
         task_type,
         output_dir,
-        save_filename=f"{dataset_name}_{get_detailed_model_name(layer_type, layer_types, router_type)}_by_accuracy.png",
+        save_filename=f"{dataset_name}_{detailed_model_name}{encoding_suffix}_by_accuracy.png",
         layer_types=layer_types,
         router_type=router_type,
     )
