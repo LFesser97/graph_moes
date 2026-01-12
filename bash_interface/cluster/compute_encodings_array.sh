@@ -177,6 +177,29 @@ if [ "$level" = "hypergraph" ]; then
     fi
     
     log_message "✅ Hypergraph_Encodings repo found at: $HYPERGRAPH_REPO"
+    
+    # Install the Hypergraph_Encodings package (installs dependencies like hypernetx)
+    log_message "📦 Installing Hypergraph_Encodings package..."
+    cd "$HYPERGRAPH_REPO" || {
+        log_message "❌ Failed to change to Hypergraph_Encodings directory"
+        exit 1
+    }
+    
+    # Check if already importable, otherwise install
+    if python -c "import sys; sys.path.insert(0, '${HYPERGRAPH_REPO}/src'); from encodings_hnns.encodings import HypergraphEncodings" 2>/dev/null; then
+        log_message "✅ Hypergraph_Encodings already accessible"
+    else
+        log_message "📦 Installing Hypergraph_Encodings (this will install dependencies like hypernetx)..."
+        if pip install -e . > /dev/null 2>&1; then
+            log_message "✅ Successfully installed Hypergraph_Encodings"
+        else
+            log_message "⚠️  pip install -e . failed, but continuing (may already be installed)"
+        fi
+    fi
+    
+    # Go back to project root
+    cd "$PROJECT_ROOT" || exit 1
+    
     # Add to PYTHONPATH
     export PYTHONPATH="${HYPERGRAPH_REPO}/src:${PYTHONPATH}"
 fi
