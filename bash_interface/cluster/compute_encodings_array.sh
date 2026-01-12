@@ -26,16 +26,39 @@
 #SBATCH --partition=mweber_gpu
 #SBATCH --cpus-per-task=8
 
-# Change to script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/../.." || exit 1
-
 # Function to log messages with timestamp
 log_message() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Task $SLURM_ARRAY_TASK_ID] $1"
 }
 
 log_message "Starting encoding computation task $SLURM_ARRAY_TASK_ID"
+
+# Get project root directory
+# Use SLURM_SUBMIT_DIR if available (directory where sbatch was called), otherwise use absolute path
+if [ -n "$SLURM_SUBMIT_DIR" ]; then
+    # SLURM sets this to the directory where sbatch was called
+    PROJECT_ROOT="$SLURM_SUBMIT_DIR"
+    log_message "📁 Using SLURM_SUBMIT_DIR: $PROJECT_ROOT"
+else
+    # Fallback: use absolute path
+    PROJECT_ROOT="/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes"
+    log_message "📁 Using absolute path: $PROJECT_ROOT"
+fi
+
+# Verify project root exists
+if [ ! -d "$PROJECT_ROOT" ]; then
+    log_message "❌ Project root directory not found: $PROJECT_ROOT"
+    log_message "   Current directory: $(pwd)"
+    exit 1
+fi
+
+# Change to project root
+cd "$PROJECT_ROOT" || {
+    log_message "❌ Failed to change to project root: $PROJECT_ROOT"
+    exit 1
+}
+
+log_message "📁 Current directory: $(pwd)"
 
 # Set environment path
 export CONDA_ENVS_PATH=/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/conda/envs
@@ -76,8 +99,8 @@ else
     exit 1
 fi
 
-# Set PYTHONPATH (project root is now current directory)
-export PYTHONPATH="$(pwd)/src:${PYTHONPATH}"
+# Set PYTHONPATH
+export PYTHONPATH="${PROJECT_ROOT}/src:${PYTHONPATH}"
 
 # Define datasets (matching what load_all_datasets loads)
 # TU datasets (short names)
@@ -134,13 +157,26 @@ log_message "   Dataset index: $dataset_idx/$((num_datasets - 1)), Encoding inde
 
 # Check for Hypergraph_Encodings repo if needed
 if [ "$level" = "hypergraph" ]; then
-    HYPERGRAPH_REPO="/n/holylabs/mweber_lab/Everyone/rpellegrin/Hypergraph_Encodings"
-    if [ ! -d "$HYPERGRAPH_REPO" ]; then
-        log_message "⚠️  Hypergraph_Encodings repo not found at $HYPERGRAPH_REPO"
+    HG_ENCODINGS_PARENT_DIR="$(dirname "$PROJECT_ROOT")"
+    HYPERGRAPH_REPO_ALT1="$HG_ENCODINGS_PARENT_DIR/Hypergraph_encodings_clean/Hypergraph_Encodings"
+    HYPERGRAPH_REPO_ALT2="$HG_ENCODINGS_PARENT_DIR/Hypergraph_Encodings"
+    HYPERGRAPH_REPO=""
+    
+    if [ -d "$HYPERGRAPH_REPO_ALT1" ] && [ -d "$HYPERGRAPH_REPO_ALT1/src" ]; then
+        HYPERGRAPH_REPO="$HYPERGRAPH_REPO_ALT1"
+    elif [ -d "$HYPERGRAPH_REPO_ALT2" ] && [ -d "$HYPERGRAPH_REPO_ALT2/src" ]; then
+        HYPERGRAPH_REPO="$HYPERGRAPH_REPO_ALT2"
+    fi
+    
+    if [ -z "$HYPERGRAPH_REPO" ]; then
+        log_message "⚠️  Hypergraph_Encodings repo not found at either location:"
+        log_message "   Option 1: $HYPERGRAPH_REPO_ALT1"
+        log_message "   Option 2: $HYPERGRAPH_REPO_ALT2"
         log_message "   Skipping hypergraph encoding computation"
         exit 0
     fi
     
+    log_message "✅ Hypergraph_Encodings repo found at: $HYPERGRAPH_REPO"
     # Add to PYTHONPATH
     export PYTHONPATH="${HYPERGRAPH_REPO}/src:${PYTHONPATH}"
 fi
