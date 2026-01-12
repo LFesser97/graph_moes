@@ -11,10 +11,10 @@
 # ============================================================================
 
 #SBATCH --job-name=tmd_analysis_array
-#SBATCH --array=1-11             # Number of datasets (adjust based on DATASETS array below)
+#SBATCH --array=1-9              # Number of datasets (9: MUTAG, ENZYMES, PROTEINS, IMDB-BINARY, COLLAB, REDDIT-BINARY, MNIST, CIFAR10, PATTERN)
 #SBATCH --ntasks=1
-#SBATCH --time=96:00:00           # 48 hours should be enough for TMD computation
-#SBATCH --mem=64GB                # TMD computation can be memory-intensive
+#SBATCH --time=96:00:00           # 96 hours for very large datasets like MNIST/CIFAR10
+#SBATCH --mem=256GB               # Increased memory for very large datasets (MNIST ~70k graphs, CIFAR10 ~60k graphs)
 #SBATCH --output=logs_tmd/tmd_analysis_array_%A_%a.log  # %A = array job ID, %a = task ID
 #SBATCH --partition=mweber_gpu    # Use GPU partition (TMD doesn't need GPU but can run here)
 #SBATCH --cpus-per-task=4         # Use multiple CPUs for parallel computation
