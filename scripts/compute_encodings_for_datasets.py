@@ -682,6 +682,12 @@ def main() -> None:
         help="Specific encoding type to compute (default: all except ORC for hypergraph)",
     )
     parser.add_argument(
+        "--dataset",
+        type=str,
+        default=None,
+        help="Specific dataset name to compute (default: all datasets)",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Enable verbose output",
@@ -729,6 +735,17 @@ def main() -> None:
             print(f"  - {name}: {len(dataset)} graphs")
         else:
             print(f"  - {name}: (empty or failed)")
+
+    # Filter datasets if --dataset is specified
+    if args.dataset:
+        dataset_name_normalized = args.dataset.lower().replace("-", "_")
+        if dataset_name_normalized in datasets:
+            datasets = {dataset_name_normalized: datasets[dataset_name_normalized]}
+            print(f"🔧 Filtered to single dataset: {dataset_name_normalized}")
+        else:
+            print(f"⚠️  Warning: Dataset '{args.dataset}' not found in loaded datasets")
+            print(f"   Available datasets: {list(datasets.keys())}")
+            return
 
     # Process each dataset
     for dataset_name, dataset in datasets.items():
