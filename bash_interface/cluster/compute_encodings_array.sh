@@ -178,8 +178,10 @@ if [ "$level" = "hypergraph" ]; then
     
     log_message "✅ Hypergraph_Encodings repo found at: $HYPERGRAPH_REPO"
     
-    # Install hypernetx first (required dependency)
-    log_message "📦 Checking/installing hypernetx (required dependency)..."
+    # Install required dependencies first (hypernetx and fastjsonschema)
+    log_message "📦 Checking/installing required dependencies (hypernetx, fastjsonschema)..."
+    
+    # Install hypernetx
     if python -c "import hypernetx" 2>/dev/null; then
         log_message "✅ hypernetx already installed"
     else
@@ -188,6 +190,19 @@ if [ "$level" = "hypergraph" ]; then
             log_message "✅ Successfully installed hypernetx"
         else
             log_message "⚠️  Failed to install hypernetx"
+            exit 1
+        fi
+    fi
+    
+    # Install fastjsonschema
+    if python -c "import fastjsonschema" 2>/dev/null; then
+        log_message "✅ fastjsonschema already installed"
+    else
+        log_message "📦 Installing fastjsonschema..."
+        if pip install fastjsonschema 2>&1 | while read line; do log_message "   $line"; done; then
+            log_message "✅ Successfully installed fastjsonschema"
+        else
+            log_message "⚠️  Failed to install fastjsonschema"
             exit 1
         fi
     fi
