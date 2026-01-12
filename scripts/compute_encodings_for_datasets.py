@@ -22,29 +22,40 @@ from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
 from tqdm import tqdm
 
 # Add hypergraph encodings repo to path
-hypergraph_encodings_path = (
-    Path(__file__).parent.parent.parent
-    / "Hypergraph_encodings_clean"
-    / "Hypergraph_Encodings"
-)
-if hypergraph_encodings_path.exists():
-    sys.path.insert(0, str(hypergraph_encodings_path / "src"))
-    try:
-        from encodings_hnns.encodings import HypergraphEncodings
-        from encodings_hnns.expansions import compute_clique_expansion
-        from encodings_hnns.liftings_and_expansions import lift_to_hypergraph
+# Check multiple possible locations (cluster structure may vary)
+parent_dir = Path(__file__).parent.parent.parent
+hypergraph_encodings_paths = [
+    parent_dir / "Hypergraph_encodings_clean" / "Hypergraph_Encodings",  # Nested path
+    parent_dir / "Hypergraph_Encodings",  # Direct path (actual location on cluster)
+]
 
-        HYPERGRAPH_ENCODINGS_AVAILABLE = True
-    except ImportError as e:
-        print(f"⚠️  Warning: Could not import hypergraph encodings: {e}")
-        print("   Hypergraph encodings will be skipped.")
-        HYPERGRAPH_ENCODINGS_AVAILABLE = False
-else:
-    print(
-        f"⚠️  Warning: Hypergraph encodings repo not found at {hypergraph_encodings_path}"
-    )
+HYPERGRAPH_ENCODINGS_AVAILABLE = False
+for hypergraph_encodings_path in hypergraph_encodings_paths:
+    if (
+        hypergraph_encodings_path.exists()
+        and (hypergraph_encodings_path / "src").exists()
+    ):
+        src_path = str(hypergraph_encodings_path / "src")
+        sys.path.insert(0, src_path)
+        try:
+            from encodings_hnns.encodings import HypergraphEncodings
+            from encodings_hnns.expansions import compute_clique_expansion
+            from encodings_hnns.liftings_and_expansions import lift_to_hypergraph
+
+            HYPERGRAPH_ENCODINGS_AVAILABLE = True
+            break
+        except ImportError as e:
+            print(
+                f"⚠️  Warning: Could not import hypergraph encodings from {hypergraph_encodings_path}: {e}"
+            )
+            continue
+
+if not HYPERGRAPH_ENCODINGS_AVAILABLE:
+    print("⚠️  Warning: Hypergraph encodings repo not found at any of these locations:")
+    for path in hypergraph_encodings_paths:
+        exists = "✅" if path.exists() else "❌"
+        print(f"   {exists} {path}")
     print("   Hypergraph encodings will be skipped.")
-    HYPERGRAPH_ENCODINGS_AVAILABLE = False
 
 # Import graph-level encodings from graph_moes
 try:

@@ -216,6 +216,11 @@ fi
 # Go back to project root
 cd "$PROJECT_ROOT" || exit 1
 
+# Export PYTHONPATH to include Hypergraph_Encodings (backup if package not installed)
+if [ -n "$HG_ENCODINGS_SRC_DIR" ] && [ -d "$HG_ENCODINGS_SRC_DIR" ]; then
+    export PYTHONPATH="${HG_ENCODINGS_SRC_DIR}:${PYTHONPATH}"
+fi
+
 # Verify the script exists
 ENCODING_SCRIPT="$PROJECT_ROOT/scripts/compute_encodings_for_datasets.py"
 if [ ! -f "$ENCODING_SCRIPT" ]; then
