@@ -7,10 +7,11 @@ This script:
 4. Saves augmented datasets to separate directories
 """
 
+import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
@@ -395,7 +396,11 @@ def compute_single_graph_encoding(
 
 
 def process_dataset_with_hypergraph_encodings(
-    dataset: List[Data], dataset_name: str, output_dir: str, verbose: bool = False
+    dataset: List[Data],
+    dataset_name: str,
+    output_dir: str,
+    verbose: bool = False,
+    encoding_type_filter: Optional[str] = None,
 ) -> None:
     """Process a dataset with hypergraph encodings.
 
@@ -431,10 +436,10 @@ def process_dataset_with_hypergraph_encodings(
     # Define encodings to compute (each separately)
     # NOTE: ORC is very slow (~17 min for 188 graphs), so skipping for now
     # Format: (encoding_type, params_dict, description, filename_suffix)
-    encodings_to_compute = [
+    all_encodings = [
         ("ldp", {}, "LDP (Local Degree Profile)", "ldp"),
         ("frc", {}, "FRC (Forman-Ricci Curvature)", "frc"),
-        # ("orc", {}, "ORC (Ollivier-Ricci Curvature)", "orc"),  # Skipped - very slow
+        ("orc", {}, "ORC (Ollivier-Ricci Curvature)", "orc"),
         (
             "rwpe",
             {"rw_type": "WE", "k": 20},
@@ -448,6 +453,21 @@ def process_dataset_with_hypergraph_encodings(
             "lape_normalized_k8",
         ),
     ]
+
+    # Filter to only the requested encoding type if specified
+    if encoding_type_filter:
+        encodings_to_compute = [
+            enc for enc in all_encodings if enc[0] == encoding_type_filter
+        ]
+        if not encodings_to_compute:
+            print(
+                f"⚠️  Warning: Encoding type '{encoding_type_filter}' not found for hypergraph encodings"
+            )
+            print(f"   Available types: {[enc[0] for enc in all_encodings]}")
+            return
+    else:
+        # Default: skip ORC as it's very slow
+        encodings_to_compute = [enc for enc in all_encodings if enc[0] != "orc"]
 
     # Setup logging function
     def log(msg: str) -> None:
@@ -514,7 +534,11 @@ def process_dataset_with_hypergraph_encodings(
 
 
 def process_dataset_with_graph_encodings(
-    dataset: List[Data], dataset_name: str, output_dir: str, verbose: bool = False
+    dataset: List[Data],
+    dataset_name: str,
+    output_dir: str,
+    verbose: bool = False,
+    encoding_type_filter: Optional[str] = None,
 ) -> None:
     """Process a dataset with graph-level encodings.
 
@@ -545,7 +569,7 @@ def process_dataset_with_graph_encodings(
 
     # Define encodings to compute (each separately)
     # Format: (encoding_type, params_dict, description, filename_suffix)
-    encodings_to_compute = [
+    all_encodings = [
         ("ldp", {}, "LDP (Local Degree Profile)", "ldp"),
         (
             "rwpe",
@@ -556,6 +580,20 @@ def process_dataset_with_graph_encodings(
         ("lape", {"k": 8}, "LAPE (Laplacian Positional Encoding)", "lape_k8"),
         ("orc", {}, "ORC (Ollivier-Ricci Curvature via LCP)", "orc"),
     ]
+
+    # Filter to only the requested encoding type if specified
+    if encoding_type_filter:
+        encodings_to_compute = [
+            enc for enc in all_encodings if enc[0] == encoding_type_filter
+        ]
+        if not encodings_to_compute:
+            print(
+                f"⚠️  Warning: Encoding type '{encoding_type_filter}' not found for graph encodings"
+            )
+            print(f"   Available types: {[enc[0] for enc in all_encodings]}")
+            return
+    else:
+        encodings_to_compute = all_encodings
 
     # Setup logging function
     def log(msg: str) -> None:
@@ -620,7 +658,37 @@ def process_dataset_with_graph_encodings(
 
 
 def main() -> None:
-    """Main function to compute encodings for all datasets."""
+    """Main function to compute encodings for all datasets.
+
+    Supports parallel execution by allowing selection of encoding level (hypergraph/graph)
+    and encoding type (ldp, frc, orc, rwpe, lape).
+    """
+    parser = argparse.ArgumentParser(
+        description="Compute encodings for graph datasets. "
+        "Use --level and --encoding to run specific encodings in parallel."
+    )
+    parser.add_argument(
+        "--level",
+        type=str,
+        choices=["hypergraph", "graph", "both"],
+        default="both",
+        help="Encoding level: 'hypergraph', 'graph', or 'both' (default: both)",
+    )
+    parser.add_argument(
+        "--encoding",
+        type=str,
+        choices=["ldp", "frc", "orc", "rwpe", "lape"],
+        default=None,
+        help="Specific encoding type to compute (default: all except ORC for hypergraph)",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output",
+    )
+
+    args = parser.parse_args()
+
     # Paths
     script_dir = Path(__file__).parent
     repo_root = script_dir.parent
@@ -631,6 +699,10 @@ def main() -> None:
     print(f"📁 Data directory: {data_directory}")
     print(f"📁 Output directory (hypergraph): {output_dir_hg}")
     print(f"📁 Output directory (graph): {output_dir_g}")
+    if args.encoding:
+        print(f"🔧 Computing only: {args.encoding}")
+    if args.level != "both":
+        print(f"🔧 Level: {args.level}")
     print("\n" + "=" * 80)
     print(
         "NOTE: This script computes each encoding separately and saves to separate files."
@@ -638,7 +710,7 @@ def main() -> None:
     print("Hypergraph encodings: {dataset_name}_hg_{encoding_suffix}.pt")
     print("  - ldp: Local Degree Profile")
     print("  - frc: Forman-Ricci Curvature")
-    print("  - orc: Ollivier-Ricci Curvature (skipped - very slow)")
+    print("  - orc: Ollivier-Ricci Curvature (very slow)")
     print("  - rwpe_we_k20: Random Walk Positional Encoding (WE type, k=20)")
     print("  - lape_normalized_k8: Laplacian Positional Encoding (Normalized, k=8)")
     print("Graph-level encodings: {dataset_name}_g_{encoding_suffix}.pt")
@@ -665,15 +737,24 @@ def main() -> None:
             continue
 
         # Process with hypergraph encodings
-        if HYPERGRAPH_ENCODINGS_AVAILABLE:
+        if (args.level in ["hypergraph", "both"]) and HYPERGRAPH_ENCODINGS_AVAILABLE:
             process_dataset_with_hypergraph_encodings(
-                dataset, dataset_name, output_dir_hg, verbose=False
+                dataset,
+                dataset_name,
+                output_dir_hg,
+                verbose=args.verbose,
+                encoding_type_filter=args.encoding,
             )
 
         # Process with graph encodings
-        process_dataset_with_graph_encodings(
-            dataset, dataset_name, output_dir_g, verbose=False
-        )
+        if args.level in ["graph", "both"]:
+            process_dataset_with_graph_encodings(
+                dataset,
+                dataset_name,
+                output_dir_g,
+                verbose=args.verbose,
+                encoding_type_filter=args.encoding,
+            )
 
     print("\n🎉 Finished processing all datasets!")
 

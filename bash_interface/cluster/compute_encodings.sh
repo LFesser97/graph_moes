@@ -4,13 +4,13 @@
 # ============================================================================
 # This script computes hypergraph and graph encodings for all datasets in the
 # graph_datasets directory. It handles:
-#   - Hypergraph encodings: LDP, FRC, RWPE, LAPE (ORC skipped - very slow)
-#   - Graph encodings: LDP, FRC, ORC, RWPE, LAPE (all combined)
+#   - Hypergraph encodings: LDP, FRC, ORC, RWPE, LAPE
+#   - Graph encodings: LDP, RWPE, LAPE, ORC
 #
 # The script:
 #   1. Sets up the conda environment
 #   2. Installs/clones the Hypergraph_Encodings repo if needed
-#   3. Runs the encoding computation script
+#   3. Runs the encoding computation script with optional arguments
 #
 # Output files are saved to:
 #   - graph_datasets_with_hg_encodings/{dataset}_hg_{encoding_suffix}.pt
@@ -18,7 +18,20 @@
 #   - graph_datasets_with_g_encodings/{dataset}_g_{encoding_suffix}.pt
 #     - e.g., mutag_g_ldp.pt, mutag_g_rwpe_k16.pt, mutag_g_lape_k8.pt, mutag_g_orc.pt
 #
-# Usage: sbatch compute_encodings.sh
+# Usage (run all encodings sequentially):
+#   sbatch compute_encodings.sh
+#
+# Usage (run specific encoding type in parallel):
+#   sbatch compute_encodings.sh --level graph --encoding orc
+#   sbatch compute_encodings.sh --level graph --encoding ldp
+#   sbatch compute_encodings.sh --level hypergraph --encoding frc
+#
+# Arguments:
+#   --level: Encoding level - "hypergraph", "graph", or "both" (default: "both")
+#   --encoding: Specific encoding type - "ldp", "frc", "orc", "rwpe", or "lape" (default: all)
+#   --verbose: Enable verbose output
+#
+# For parallel execution, submit multiple jobs with different --level and --encoding combinations.
 # ============================================================================
 
 #SBATCH --job-name=compute_encodings
@@ -231,11 +244,19 @@ python -c "import torch_geometric; print(f'   PyG: {torch_geometric.__version__}
 python -c "import numpy; print(f'   NumPy: {numpy.__version__}')" 2>/dev/null || log_message "   ⚠️  NumPy not found"
 python -c "import sys; sys.path.insert(0, '$HG_ENCODINGS_SRC_DIR'); from encodings_hnns.encodings import HypergraphEncodings; print('   ✅ HypergraphEncodings importable')" 2>/dev/null || log_message "   ⚠️  HypergraphEncodings not importable"
 
+# Parse script arguments (pass through to Python script)
+SCRIPT_ARGS="$@"
+
 # Run the encoding computation script
 log_message "🚀 Starting encoding computation..."
-log_message "   This may take several hours depending on dataset sizes"
+if [ -n "$SCRIPT_ARGS" ]; then
+    log_message "   Arguments: $SCRIPT_ARGS"
+    log_message "   (Running specific encoding/level - suitable for parallel execution)"
+else
+    log_message "   (Running all encodings sequentially - may take several hours)"
+fi
 
-python scripts/compute_encodings_for_datasets.py
+python scripts/compute_encodings_for_datasets.py $SCRIPT_ARGS
 
 EXIT_CODE=$?
 
