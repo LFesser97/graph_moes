@@ -189,6 +189,18 @@ def main() -> None:
         action="store_true",
         help="Force recomputation even if cache exists",
     )
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default=None,
+        help="Process a single dataset (overrides --datasets if provided)",
+    )
+    parser.add_argument(
+        "--n-jobs",
+        type=int,
+        default=None,
+        help="Number of parallel jobs for TMD computation (default: all CPUs)",
+    )
 
     args = parser.parse_args()
 
@@ -213,8 +225,14 @@ def main() -> None:
             print("   Please specify --data-dir")
             sys.exit(1)
 
+    # Determine which datasets to process
+    if args.dataset:
+        datasets_to_process = [args.dataset]
+    else:
+        datasets_to_process = args.datasets
+
     # Process each dataset
-    for dataset_name in args.datasets:
+    for dataset_name in datasets_to_process:
         print(f"\n{'='*60}")
         print(f"Processing {dataset_name}")
         print(f"{'='*60}")
@@ -239,6 +257,7 @@ def main() -> None:
                 L=args.L,
                 verbose=True,
                 cache_path=cache_path if not args.no_cache else None,
+                n_jobs=args.n_jobs,
             )
 
             # Compute class-distance ratios

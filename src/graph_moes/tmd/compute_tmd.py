@@ -1,5 +1,6 @@
 """Functions for computing pairwise TMD and class-distance ratios."""
 
+import multiprocessing as mp
 import os
 from typing import List, Optional, Tuple, Union
 
@@ -68,16 +69,38 @@ def extract_labels(
     return labels_array, num_classes, label_counts
 
 
+def _compute_single_tmd_pair(
+    args: Tuple[int, int, List[Data], Union[float, List[float]], int],
+) -> Tuple[int, int, float]:
+    """Compute TMD for a single pair of graphs (for multiprocessing).
+
+    Args:
+        args: Tuple of (i, j, dataset, w, L) where:
+            - i, j: indices of the two graphs
+            - dataset: List of graphs (needed for indexing)
+            - w: TMD weighting constant(s)
+            - L: TMD computation tree depth
+
+    Returns:
+        Tuple of (i, j, tmd_value)
+    """
+    i, j, dataset, w, L = args
+    tmd_value = TMD(dataset[i], dataset[j], w=w, L=L)
+    return (i, j, tmd_value)
+
+
 def compute_tmd_matrix(
     dataset: List[Data],
     w: Union[float, List[float]] = 1.0,
     L: int = 4,
     verbose: bool = True,
     cache_path: Optional[str] = None,
+    n_jobs: Optional[int] = None,
 ) -> np.ndarray:
     """Compute pairwise TMD matrix for all graphs in a dataset.
 
     Computes TMD for all pairs (n choose 2) and returns a symmetric matrix.
+    Can use multiprocessing to parallelize pairwise TMD computations.
 
     Args:
         dataset: List of PyTorch Geometric Data objects
@@ -87,6 +110,8 @@ def compute_tmd_matrix(
         verbose: Whether to print progress
         cache_path: Optional path to save/load the TMD matrix. If file exists,
                    it will be loaded instead of recomputing.
+        n_jobs: Number of parallel jobs to use. If None, uses all available CPUs.
+                If 1, runs sequentially. Default: None (all CPUs)
 
     Returns:
         Symmetric numpy array of shape (n, n) where n is the number of graphs.
@@ -107,24 +132,69 @@ def compute_tmd_matrix(
 
     tmd_matrix = np.zeros((n, n))
 
-    # Compute pairwise TMD (only upper triangle, then mirror)
-    total_pairs = n * (n - 1) // 2
-    computed = 0
-
+    # Set diagonal to 0 (distance to itself)
     for i in range(n):
-        # Diagonal is always 0 (distance to itself)
         tmd_matrix[i, i] = 0.0
 
-        for j in range(i + 1, n):
+    # Prepare arguments for pairwise TMD computation
+    total_pairs = n * (n - 1) // 2
+    pair_args = [(i, j, dataset, w, L) for i in range(n) for j in range(i + 1, n)]
+
+    # Determine number of jobs
+    if n_jobs is None:
+        n_jobs = mp.cpu_count()
+    elif n_jobs < 1:
+        n_jobs = 1
+
+    if verbose:
+        if n_jobs > 1:
+            print(f"   Using {n_jobs} parallel workers...")
+        else:
+            print(f"   Running sequentially (n_jobs=1)...")
+
+    # Compute pairwise TMD
+    if n_jobs == 1:
+        # Sequential computation
+        computed = 0
+        for i, j, dataset, w, L in pair_args:
             tmd_value = TMD(dataset[i], dataset[j], w=w, L=L)
             tmd_matrix[i, j] = tmd_value
             tmd_matrix[j, i] = tmd_value  # Symmetric
 
             computed += 1
-            if verbose and computed % 10 == 0:
+            if verbose and computed % max(1, total_pairs // 100) == 0:
                 print(
                     f"   Progress: {computed}/{total_pairs} pairs ({100*computed/total_pairs:.1f}%)"
                 )
+    else:
+        # Parallel computation using multiprocessing
+        # Use fork context (similar to OllivierRicci.py) for better compatibility
+        try:
+            ctx = mp.get_context("fork")
+        except (ValueError, RuntimeError):
+            # Fallback to default context if fork is not available
+            ctx = mp
+
+        computed = 0
+        with ctx.Pool(processes=n_jobs) as pool:
+            # Use imap_unordered for better progress tracking
+            chunksize = max(1, total_pairs // (n_jobs * 4))
+            if chunksize == 0:
+                chunksize = 1
+
+            results = pool.imap_unordered(
+                _compute_single_tmd_pair, pair_args, chunksize=chunksize
+            )
+
+            for i, j, tmd_value in results:
+                tmd_matrix[i, j] = tmd_value
+                tmd_matrix[j, i] = tmd_value  # Symmetric
+
+                computed += 1
+                if verbose and computed % max(1, total_pairs // 100) == 0:
+                    print(
+                        f"   Progress: {computed}/{total_pairs} pairs ({100*computed/total_pairs:.1f}%)"
+                    )
 
     if verbose:
         print("✅ TMD matrix computation complete!")
