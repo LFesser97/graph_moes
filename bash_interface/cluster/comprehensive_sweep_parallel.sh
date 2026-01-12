@@ -10,8 +10,8 @@
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 624
-#   - Base experiments (no encoding): 104
+# Total experiments: 936
+#   - Base experiments per encoding variant: 104
 #     - 64 single layer experiments:
 #       - GCN: 8 datasets × 2 (skip/no-skip) = 16
 #       - GIN: 8 datasets × 2 (skip/no-skip) = 16
@@ -19,7 +19,8 @@
 #       - MLP: 8 datasets × 1 (no skip) = 8
 #       - Unitary: 8 datasets × 1 (no skip) = 8
 #     - 40 MoE experiments: 6 combinations × 8 datasets
-#   - With encodings: 104 × 5 = 520 experiments (5 encoding types)
+#   - Encoding variants: 9 (None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc)
+#   - Total: 104 × 9 = 936 experiments
 #     Encoding types: hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc
 # Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
 # Each experiment runs 200 trials to ensure proper test set coverage
@@ -29,9 +30,9 @@
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-624             # Total experiments: 104 base + (104 × 5 encodings) = 624
+#SBATCH --array=1-936             # Total experiments: 104 base × 9 encoding variants = 936
 #SBATCH --ntasks=1
-#SBATCH --time=48:00:00           # Long time for comprehensive sweep
+#SBATCH --time=96:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=64GB               # Sufficient memory
 #SBATCH --output=logs_comprehensive/Parallel_comprehensive_sweep_%A_%a.log  # %A = array job ID, %a = task ID
 #SBATCH --partition=mweber_gpu
