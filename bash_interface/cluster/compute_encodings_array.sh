@@ -190,10 +190,11 @@ if [ "$level" = "hypergraph" ]; then
         log_message "✅ Hypergraph_Encodings already accessible"
     else
         log_message "📦 Installing Hypergraph_Encodings (this will install dependencies like hypernetx)..."
-        if pip install -e . > /dev/null 2>&1; then
+        if pip install -e . 2>&1 | while read line; do log_message "   $line"; done; then
             log_message "✅ Successfully installed Hypergraph_Encodings"
         else
-            log_message "⚠️  pip install -e . failed, but continuing (may already be installed)"
+            PIP_EXIT_CODE=${PIPESTATUS[0]}
+            log_message "⚠️  pip install -e . failed with exit code $PIP_EXIT_CODE, but continuing (may already be installed)"
         fi
     fi
     
