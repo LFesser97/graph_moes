@@ -175,7 +175,7 @@ def get_args_from_input() -> AttrDict:
         help="enable wandb logging",
     )
     parser.add_argument(
-        "--wandb_project", type=str, default="MOE_new", help="wandb project name"
+        "--wandb_project", type=str, default="MOE_3", help="wandb project name"
     )
     parser.add_argument(
         "--wandb_entity",

@@ -43,7 +43,7 @@ echo "🚀 Setting up WandB environment for Comprehensive Graph MoE experiments.
 
 export WANDB_API_KEY="ea7c6eeb5a095b531ef60cc784bfeb87d47ea0b0"
 export WANDB_ENTITY="weber-geoml-harvard-university"
-export WANDB_PROJECT="MOE_new"
+export WANDB_PROJECT="MOE_3"
 export WANDB_DIR="./wandb"
 export WANDB_CACHE_DIR="./wandb/.cache"
 
