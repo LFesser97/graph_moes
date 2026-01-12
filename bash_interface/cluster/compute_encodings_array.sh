@@ -178,7 +178,21 @@ if [ "$level" = "hypergraph" ]; then
     
     log_message "✅ Hypergraph_Encodings repo found at: $HYPERGRAPH_REPO"
     
-    # Install the Hypergraph_Encodings package (installs dependencies like hypernetx)
+    # Install hypernetx first (required dependency)
+    log_message "📦 Checking/installing hypernetx (required dependency)..."
+    if python -c "import hypernetx" 2>/dev/null; then
+        log_message "✅ hypernetx already installed"
+    else
+        log_message "📦 Installing hypernetx..."
+        if pip install hypernetx 2>&1 | while read line; do log_message "   $line"; done; then
+            log_message "✅ Successfully installed hypernetx"
+        else
+            log_message "⚠️  Failed to install hypernetx"
+            exit 1
+        fi
+    fi
+    
+    # Install the Hypergraph_Encodings package
     log_message "📦 Installing Hypergraph_Encodings package..."
     cd "$HYPERGRAPH_REPO" || {
         log_message "❌ Failed to change to Hypergraph_Encodings directory"
@@ -189,7 +203,7 @@ if [ "$level" = "hypergraph" ]; then
     if python -c "import sys; sys.path.insert(0, '${HYPERGRAPH_REPO}/src'); from encodings_hnns.encodings import HypergraphEncodings" 2>/dev/null; then
         log_message "✅ Hypergraph_Encodings already accessible"
     else
-        log_message "📦 Installing Hypergraph_Encodings (this will install dependencies like hypernetx)..."
+        log_message "📦 Installing Hypergraph_Encodings..."
         if pip install -e . 2>&1 | while read line; do log_message "   $line"; done; then
             log_message "✅ Successfully installed Hypergraph_Encodings"
         else
