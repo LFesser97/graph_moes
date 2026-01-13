@@ -10,17 +10,17 @@
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 936
-#   - Base experiments per encoding variant: 104
+# Total experiments: 1296
+#   - Base experiments per encoding variant: 144
 #     - 64 single layer experiments:
 #       - GCN: 8 datasets × 2 (skip/no-skip) = 16
 #       - GIN: 8 datasets × 2 (skip/no-skip) = 16
 #       - SAGE: 8 datasets × 2 (skip/no-skip) = 16
 #       - MLP: 8 datasets × 1 (no skip) = 8
 #       - Unitary: 8 datasets × 1 (no skip) = 8
-#     - 40 MoE experiments: 6 combinations × 8 datasets
+#     - 80 MoE experiments: 6 combinations × 8 datasets × 2 router types (MLP, GNN)
 #   - Encoding variants: 9 (None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc)
-#   - Total: 104 × 9 = 936 experiments
+#   - Total: 144 × 9 = 1296 experiments
 #     Encoding types: hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc
 # Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
 # Each experiment runs 200 trials to ensure proper test set coverage
@@ -30,10 +30,10 @@
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-936             # Total experiments: 104 base × 9 encoding variants = 936
+#SBATCH --array=1-1296            # Total experiments: 144 base × 9 encoding variants = 1296
 #SBATCH --ntasks=1
-#SBATCH --time=96:00:00           # Long time for comprehensive sweep
-#SBATCH --mem=64GB               # Sufficient memory
+#SBATCH --time=192:00:00           # Long time for comprehensive sweep
+#SBATCH --mem=128GB               # Sufficient memory
 #SBATCH --output=logs_comprehensive/Parallel_comprehensive_sweep_%A_%a.log  # %A = array job ID, %a = task ID
 #SBATCH --partition=mweber_gpu
 #SBATCH --gpus=1
@@ -362,15 +362,15 @@ datasets=(enzymes proteins mutag imdb collab reddit mnist cifar)
 task_id=${SLURM_ARRAY_TASK_ID:-1}
 
 # Encoding variants: None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc
-declare -a dataset_encodings=("None" "hg_ldp" "hg_frc" "hg_rwpe_we_k20" "hg_lape_normalized_k8" "g_ldp" "g_rwpe_k16" "g_lape_k8" "g_orc")
+declare -a dataset_encodings=("hg_ldp" "hg_rwpe_we_k20" "hg_lape_normalized_k8" "g_rwpe_k16" "g_lape_k8" "g_orc" "hg_frc" "g_ldp" "None" )
 num_encoding_variants=${#dataset_encodings[@]}
 
-# Base experiments per encoding variant: 104
+# Base experiments per encoding variant: 144
 #   - 64 single layer experiments:
 #     - GCN, GIN, SAGE: 3 × 8 datasets × 2 (skip/no-skip) = 48
 #     - MLP, Unitary: 2 × 8 datasets × 1 (no skip) = 16
-#   - 40 MoE experiments: 6 combinations × 8 datasets
-base_experiments_per_variant=104
+#   - 80 MoE experiments: 6 combinations × 8 datasets × 2 router types (MLP, GNN)
+base_experiments_per_variant=144
 
 # Calculate which encoding variant and base experiment this task corresponds to
 encoding_variant_idx=$(((task_id - 1) / base_experiments_per_variant))
@@ -475,17 +475,35 @@ if [ "$base_experiment_id" -le 64 ]; then
 else
     # MoE experiment
     experiment_type="moe"
-    moe_id=$((base_experiment_id - 65))  # Adjust for 64 single layer experiments instead of 40
+    moe_id=$((base_experiment_id - 65))  # Adjust for 64 single layer experiments
+    
+    # Calculate dataset, MoE combination, and router type
+    # MoE experiments are organized as: 6 combinations × 8 datasets × 2 router types
+    num_datasets=${#datasets[@]}
+    num_moe_combinations=${#moe_combinations[@]}
+    num_router_types=2  # MLP and GNN
+    
+    # Calculate router type (0 = MLP, 1 = GNN)
+    router_type_idx=$((moe_id % num_router_types))
+    remaining_id=$((moe_id / num_router_types))
     
     # Calculate dataset and MoE combination
-    num_datasets=${#datasets[@]}
-    dataset_idx=$((moe_id % num_datasets))
-    combo_idx=$((moe_id / num_datasets))
+    dataset_idx=$((remaining_id % num_datasets))
+    combo_idx=$((remaining_id / num_datasets))
     
     dataset=${datasets[$dataset_idx]}
     layer_combo=${moe_combinations[$combo_idx]}
     
-    log_message "🧪 MoE Experiment $task_id (base=$base_experiment_id): ${dataset}_MoE_${layer_combo} (encoding=${dataset_encoding})"
+    # Set router type and router layer type
+    if [ "$router_type_idx" -eq 0 ]; then
+        router_type="MLP"
+        router_layer_type="MLP"
+    else
+        router_type="GNN"
+        router_layer_type="GIN"  # Default for GNN router
+    fi
+    
+    log_message "🧪 MoE Experiment $task_id (base=$base_experiment_id): ${dataset}_MoE_${layer_combo} (router=${router_type}, encoding=${dataset_encoding})"
     
     # For MoE, use the first layer type in combination as base for hyperparameters
     first_layer=$(echo "$layer_combo" | grep -o '"[^"]*"' | head -1 | tr -d '"')
@@ -501,13 +519,16 @@ else
     # Create a clean name from layer combination
     clean_combo=$(echo "$layer_combo" | tr -d '[]",' | tr ' ' '_')
     encoding_suffix=$([ "$dataset_encoding" != "None" ] && echo "_${dataset_encoding}" || echo "")
-    wandb_run_name="${dataset}_MoE_${clean_combo}${encoding_suffix}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
+    router_suffix="_${router_type}"
+    wandb_run_name="${dataset}_MoE_${clean_combo}${router_suffix}${encoding_suffix}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
     
     # Build command arguments for MoE
     moe_cmd_args=(
         --num_trials 200
         --dataset "$dataset"
         --layer_types "$layer_combo"
+        --router_type "$router_type"
+        --router_layer_type "$router_layer_type"
         --learning_rate "$learning_rate"
         --hidden_dim "$hidden_dim"
         --num_layers "$num_layer"
@@ -515,7 +536,7 @@ else
         --patience "$patience"
         --wandb_enabled
         --wandb_name "$wandb_run_name"
-        --wandb_tags '["cluster", "comprehensive", "moe", "research_hyperparams", "dataset_encoding_'${dataset_encoding}'"]'
+        --wandb_tags '["cluster", "comprehensive", "moe", "research_hyperparams", "dataset_encoding_'${dataset_encoding}'", "router_'${router_type}'"]'
     )
     
     # Add dataset_encoding if not None

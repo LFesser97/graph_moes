@@ -47,6 +47,9 @@ class MoE(nn.Module):
         for lt in args.layer_types:
             ex_args = copy.deepcopy(args)
             ex_args.layer_type = lt
+            # Enable skip connections by default for experts that support them (GCN, GIN, SAGE)
+            if lt in ["GCN", "GIN", "SAGE"]:
+                ex_args.skip_connection = True
             self.experts.append(
                 UnitaryGCN(ex_args) if lt == "Unitary" else GNN(ex_args)
             )
@@ -120,12 +123,12 @@ class MoE_E(nn.Module):
 
         # Instantiate experts
         self.experts = nn.ModuleList()
-
-        # Instantiate experts
-        self.experts = nn.ModuleList()
         for lt in args.layer_types:
             ex_args = copy.deepcopy(args)
             ex_args.layer_type = lt
+            # Enable skip connections by default for experts that support them (GCN, GIN, SAGE)
+            if lt in ["GCN", "GIN", "SAGE"]:
+                ex_args.skip_connection = True
             self.experts.append(
                 UnitaryGCN(ex_args) if lt == "Unitary" else GNN(ex_args)
             )

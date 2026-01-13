@@ -784,10 +784,16 @@ for key in datasets:
             }
             # Add router configuration ONLY for MoE models
             if args.layer_types is not None:
-                wandb_config["router_type"] = getattr(args, "router_type", "MLP")
-                wandb_config["router_layer_type"] = getattr(
-                    args, "router_layer_type", "GIN"
-                )
+                router_type = getattr(args, "router_type", "MLP")
+                wandb_config["router_type"] = router_type
+                # If router_type is MLP, set router_layer_type to MLP for consistency
+                # (router_layer_type is only used when router_type is GNN)
+                if router_type == "MLP":
+                    wandb_config["router_layer_type"] = "MLP"
+                else:
+                    wandb_config["router_layer_type"] = getattr(
+                        args, "router_layer_type", "GIN"
+                    )
                 wandb_config["router_depth"] = getattr(args, "router_depth", 4)
                 wandb_config["router_dropout"] = getattr(args, "router_dropout", 0.1)
 
@@ -857,12 +863,16 @@ for key in datasets:
                 }
                 # Add router info ONLY for MoE models
                 if args.layer_types is not None:
-                    log_dict["groupby/router_type"] = getattr(
-                        args, "router_type", "MLP"
-                    )
-                    log_dict["groupby/router_layer_type"] = getattr(
-                        args, "router_layer_type", "GIN"
-                    )
+                    router_type = getattr(args, "router_type", "MLP")
+                    log_dict["groupby/router_type"] = router_type
+                    # If router_type is MLP, set router_layer_type to MLP for consistency
+                    # (router_layer_type is only used when router_type is GNN)
+                    if router_type == "MLP":
+                        log_dict["groupby/router_layer_type"] = "MLP"
+                    else:
+                        log_dict["groupby/router_layer_type"] = getattr(
+                            args, "router_layer_type", "GIN"
+                        )
                     log_dict["groupby/router_depth"] = getattr(args, "router_depth", 4)
                     log_dict["groupby/router_dropout"] = getattr(
                         args, "router_dropout", 0.1
@@ -1030,10 +1040,16 @@ for key in datasets:
         }
         # Add router configuration ONLY for MoE models
         if args.layer_types is not None:
-            summary_config["router_type"] = getattr(args, "router_type", "MLP")
-            summary_config["router_layer_type"] = getattr(
-                args, "router_layer_type", "GIN"
-            )
+            router_type = getattr(args, "router_type", "MLP")
+            summary_config["router_type"] = router_type
+            # If router_type is MLP, set router_layer_type to MLP for consistency
+            # (router_layer_type is only used when router_type is GNN)
+            if router_type == "MLP":
+                summary_config["router_layer_type"] = "MLP"
+            else:
+                summary_config["router_layer_type"] = getattr(
+                    args, "router_layer_type", "GIN"
+                )
             summary_config["router_depth"] = getattr(args, "router_depth", 4)
             summary_config["router_dropout"] = getattr(args, "router_dropout", 0.1)
 
