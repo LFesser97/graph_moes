@@ -427,7 +427,12 @@ if [ "$base_experiment_id" -le 40 ]; then
     fi
     
     dataset=${datasets[$dataset_idx]}
-    use_skip=$([ "$skip_variant" -eq 1 ] && [ "$layer_type" in "GCN GIN SAGE" ] && echo "true" || echo "false")
+    # Set use_skip based on skip_variant (skip_variant=1 means use skip connections)
+    if [ "$skip_variant" -eq 1 ]; then
+        use_skip="true"
+    else
+        use_skip="false"
+    fi
     
     log_message "🧪 Single Layer Experiment $task_id (base=$base_experiment_id): ${dataset}_${layer_type} (skip=${use_skip}, encoding=${dataset_encoding})"
     

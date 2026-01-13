@@ -784,10 +784,12 @@ for key in datasets:
             }
             # Add router configuration ONLY for MoE models
             if args.layer_types is not None:
-                wandb_config["router_type"] = args.router_type
-                wandb_config["router_layer_type"] = args.router_layer_type
-                wandb_config["router_depth"] = args.router_depth
-                wandb_config["router_dropout"] = args.router_dropout
+                wandb_config["router_type"] = getattr(args, "router_type", "MLP")
+                wandb_config["router_layer_type"] = getattr(
+                    args, "router_layer_type", "GIN"
+                )
+                wandb_config["router_depth"] = getattr(args, "router_depth", 4)
+                wandb_config["router_dropout"] = getattr(args, "router_dropout", 0.1)
 
             wandb.init(
                 project=args.wandb_project,
@@ -855,10 +857,16 @@ for key in datasets:
                 }
                 # Add router info ONLY for MoE models
                 if args.layer_types is not None:
-                    log_dict["groupby/router_type"] = args.router_type
-                    log_dict["groupby/router_layer_type"] = args.router_layer_type
-                    log_dict["groupby/router_depth"] = args.router_depth
-                    log_dict["groupby/router_dropout"] = args.router_dropout
+                    log_dict["groupby/router_type"] = getattr(
+                        args, "router_type", "MLP"
+                    )
+                    log_dict["groupby/router_layer_type"] = getattr(
+                        args, "router_layer_type", "GIN"
+                    )
+                    log_dict["groupby/router_depth"] = getattr(args, "router_depth", 4)
+                    log_dict["groupby/router_dropout"] = getattr(
+                        args, "router_dropout", 0.1
+                    )
                 wandb.log(log_dict)
 
         finally:
@@ -889,7 +897,8 @@ for key in datasets:
     # Generate detailed model name for MOE models
     if args.layer_types is not None:
         expert_combo = "_".join(args.layer_types)
-        detailed_model_name = f"{args.layer_type}_{args.router_type}_{expert_combo}"
+        router_type = getattr(args, "router_type", "MLP")
+        detailed_model_name = f"{args.layer_type}_{router_type}_{expert_combo}"
     else:
         detailed_model_name = args.layer_type
     # Add skip_connection suffix if applicable
@@ -927,7 +936,7 @@ for key in datasets:
             task_type="classification",
             output_dir="results",
             layer_types=args.layer_types if args.layer_types else None,
-            router_type=args.router_type,
+            router_type=getattr(args, "router_type", "MLP"),
         )
         if original_plot_path:
             print(f"📊 Average accuracy plot (by index) saved to: {original_plot_path}")
@@ -1021,10 +1030,12 @@ for key in datasets:
         }
         # Add router configuration ONLY for MoE models
         if args.layer_types is not None:
-            summary_config["router_type"] = args.router_type
-            summary_config["router_layer_type"] = args.router_layer_type
-            summary_config["router_depth"] = args.router_depth
-            summary_config["router_dropout"] = args.router_dropout
+            summary_config["router_type"] = getattr(args, "router_type", "MLP")
+            summary_config["router_layer_type"] = getattr(
+                args, "router_layer_type", "GIN"
+            )
+            summary_config["router_depth"] = getattr(args, "router_depth", 4)
+            summary_config["router_dropout"] = getattr(args, "router_dropout", 0.1)
 
         wandb.init(
             project=args.wandb_project,
@@ -1072,10 +1083,16 @@ for key in datasets:
         }
         # Add router info ONLY for MoE models
         if args.layer_types is not None:
-            summary_log_dict["groupby/router_type"] = args.router_type
-            summary_log_dict["groupby/router_layer_type"] = args.router_layer_type
-            summary_log_dict["groupby/router_depth"] = args.router_depth
-            summary_log_dict["groupby/router_dropout"] = args.router_dropout
+            summary_log_dict["groupby/router_type"] = getattr(
+                args, "router_type", "MLP"
+            )
+            summary_log_dict["groupby/router_layer_type"] = getattr(
+                args, "router_layer_type", "GIN"
+            )
+            summary_log_dict["groupby/router_depth"] = getattr(args, "router_depth", 4)
+            summary_log_dict["groupby/router_dropout"] = getattr(
+                args, "router_dropout", 0.1
+            )
         wandb.log(summary_log_dict)
 
         # Create a summary table
