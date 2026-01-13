@@ -97,19 +97,19 @@ def load_all_datasets(data_directory: str) -> Dict[str, List[Data]]:
     print("📊 Loading datasets...")
 
     # TU datasets
-    tu_datasets = [
-        "MUTAG",
-        "ENZYMES",
-        "PROTEINS",
-        "IMDB-BINARY",
-        "COLLAB",
-        "REDDIT-BINARY",
-    ]
-    for ds_name in tu_datasets:
+    # Map dataset names to match run_graph_classification.py naming convention
+    tu_datasets = {
+        "MUTAG": "mutag",
+        "ENZYMES": "enzymes",
+        "PROTEINS": "proteins",
+        "IMDB-BINARY": "imdb",  # Match run_graph_classification.py naming
+        "COLLAB": "collab",  # Match run_graph_classification.py naming
+        "REDDIT-BINARY": "reddit",  # Match run_graph_classification.py naming
+    }
+    for ds_name, short_name in tu_datasets.items():
         try:
             print(f"  ⏳ Loading {ds_name}...")
             dataset = list(TUDataset(root=data_directory, name=ds_name))
-            short_name = ds_name.lower().replace("-", "_")
             datasets[short_name] = dataset
             print(f"  ✅ {ds_name} loaded: {len(dataset)} graphs")
         except Exception as e:
