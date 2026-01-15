@@ -505,6 +505,18 @@ if hasattr(args, "dataset_encoding") and args.dataset_encoding is not None:
 
     print(f"📁 Encoded datasets directory: {encoded_data_dir}")
     print(f"📁 Encoded datasets directory exists: {encoded_data_dir.exists()}")
+    print(f"📁 Encoded datasets directory (absolute): {encoded_data_dir.resolve()}")
+
+    # List some example files in the directory for debugging
+    try:
+        existing_files = list(encoded_data_dir.glob("*.pt"))
+        print(f"📋 Found {len(existing_files)} .pt files in directory")
+        if len(existing_files) > 0:
+            print(
+                f"   Example files (first 10): {[f.name for f in existing_files[:10]]}"
+            )
+    except Exception as e:
+        print(f"   ⚠️  Could not list files in directory: {e}")
 
     # Load encoded datasets
     # If --dataset is specified, only try to load encodings for that dataset
@@ -517,6 +529,8 @@ if hasattr(args, "dataset_encoding") and args.dataset_encoding is not None:
     print(
         f"🔍 Checking encodings for {len(datasets_to_check)} dataset(s): {datasets_to_check}"
     )
+    print(f"🔍 Encoding type: {dataset_encoding} (suffix: {encoding_suffix})")
+    print(f"🔍 File pattern: {file_pattern}")
 
     encoded_datasets = {}
     skipped_datasets = []
@@ -533,9 +547,11 @@ if hasattr(args, "dataset_encoding") and args.dataset_encoding is not None:
             filename = file_pattern.format(dataset_name=dataset_name)
 
         encoded_file_path = encoded_data_dir / filename
-        print(
-            f"  🔍 Looking for: {encoded_file_path} (exists: {encoded_file_path.exists()})"
-        )
+        print(f"  🔍 Dataset: {dataset_name}")
+        print(f"     WHERE WE ARE LOOKING: {encoded_file_path}")
+        print(f"     Absolute path: {encoded_file_path.resolve()}")
+        print(f"     Filename constructed: {filename}")
+        print(f"     File exists: {encoded_file_path.exists()}")
 
         if encoded_file_path.exists():
             try:

@@ -430,6 +430,10 @@ def process_dataset_with_hypergraph_encodings(
     print(
         f"\n🔄 Processing {dataset_name} with hypergraph encodings ({len(dataset)} graphs)..."
     )
+    print(
+        "  ℹ️  Note: Hypergraph encodings lift graphs to hypergraphs (cliques→hyperedges),"
+    )
+    print("     compute encodings on hypergraph structure, then expand back to graphs.")
 
     # Log dataset statistics
     print(f"  Dataset info:")
@@ -564,6 +568,8 @@ def process_dataset_with_graph_encodings(
     print(
         f"\n🔄 Processing {dataset_name} with graph encodings ({len(dataset)} graphs)..."
     )
+    print("  ℹ️  Note: Graph encodings are computed directly on the graph structure")
+    print("     (no hypergraph transformation step).")
 
     # Log dataset statistics
     print(f"  Dataset info:")
