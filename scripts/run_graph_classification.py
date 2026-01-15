@@ -504,10 +504,23 @@ if hasattr(args, "dataset_encoding") and args.dataset_encoding is not None:
         )
 
     print(f"📁 Encoded datasets directory: {encoded_data_dir}")
+    print(f"📁 Encoded datasets directory exists: {encoded_data_dir.exists()}")
 
     # Load encoded datasets
+    # If --dataset is specified, only try to load encodings for that dataset
+    # Otherwise, try to load encodings for all datasets (some may not have encodings)
+    datasets_to_check = (
+        [args.dataset]
+        if hasattr(args, "dataset") and args.dataset
+        else list(datasets.keys())
+    )
+    print(
+        f"🔍 Checking encodings for {len(datasets_to_check)} dataset(s): {datasets_to_check}"
+    )
+
     encoded_datasets = {}
-    for dataset_name in list(datasets.keys()):
+    skipped_datasets = []
+    for dataset_name in datasets_to_check:
         if dataset_encoding.startswith("hg_"):
             filename = file_pattern.format(
                 dataset_name=dataset_name, encoding_suffix=encoding_suffix
@@ -520,6 +533,9 @@ if hasattr(args, "dataset_encoding") and args.dataset_encoding is not None:
             filename = file_pattern.format(dataset_name=dataset_name)
 
         encoded_file_path = encoded_data_dir / filename
+        print(
+            f"  🔍 Looking for: {encoded_file_path} (exists: {encoded_file_path.exists()})"
+        )
 
         if encoded_file_path.exists():
             try:
@@ -532,19 +548,27 @@ if hasattr(args, "dataset_encoding") and args.dataset_encoding is not None:
                     f"  ❌ Failed to load {dataset_name} with {dataset_encoding}: {e}"
                 )
                 print(
-                    f"     Skipping experiment - pre-computed encoding file exists but failed to load"
+                    f"     Skipping {dataset_name} - encoding file exists but failed to load"
                 )
-                import sys
-
-                sys.exit(0)  # Exit gracefully, skip this experiment
+                skipped_datasets.append(dataset_name)
         else:
-            print(f"  ❌ Encoded dataset file not found: {encoded_file_path}")
-            print(
-                f"     Skipping experiment - pre-computed encoding required but not found"
-            )
-            import sys
+            print(f"  ⚠️  Encoded dataset file not found: {encoded_file_path}")
+            print(f"     Skipping {dataset_name} - encoding file not found")
+            skipped_datasets.append(dataset_name)
 
-            sys.exit(0)  # Exit gracefully, skip this experiment
+    # Check if we have any encoded datasets
+    if len(encoded_datasets) == 0:
+        print(f"  ❌ No encoded datasets found for encoding: {dataset_encoding}")
+        print(f"     Skipping experiment - at least one encoded dataset is required")
+        import sys
+
+        sys.exit(0)  # Exit gracefully, skip this experiment
+
+    # Warn about skipped datasets
+    if skipped_datasets:
+        print(
+            f"  ⚠️  Skipped {len(skipped_datasets)} dataset(s) without encodings: {', '.join(skipped_datasets)}"
+        )
 
     # Replace datasets with encoded versions
     datasets = encoded_datasets
