@@ -1003,6 +1003,12 @@ for key in datasets:
     val_mean = 100 * np.mean(validation_accuracies)
     test_mean = 100 * np.mean(test_accuracies)
     energy_mean = 100 * np.mean(energies)
+    # Standard deviations (raw)
+    train_std = 100 * np.std(train_accuracies) if num_trials_actual > 0 else 0
+    val_std = 100 * np.std(validation_accuracies) if num_trials_actual > 0 else 0
+    test_std = 100 * np.std(test_accuracies) if num_trials_actual > 0 else 0
+    energy_std = 100 * np.std(energies) if num_trials_actual > 0 else 0
+    # Confidence intervals (2 * std / sqrt(n) for 95% CI)
     train_ci = (
         2 * np.std(train_accuracies) / (num_trials_actual**0.5)
         if num_trials_actual > 0
@@ -1028,7 +1034,8 @@ for key in datasets:
         f"RESULTS FOR dataset: {key} (model: {args.layer_type}), dataset_encoding: {dataset_encoding_str}:\n"
     )
     log_to_file(f"average acc: {test_mean}\n")
-    log_to_file(f"plus/minus:  {test_ci}\n\n")
+    log_to_file(f"plus/minus (CI):  {test_ci}\n")
+    log_to_file(f"std deviation: {test_std}\n\n")
     results.append(
         {
             "dataset": key,
@@ -1039,12 +1046,16 @@ for key in datasets:
             "alpha": args.alpha,
             "eps": args.eps,
             "test_mean": test_mean,
+            "test_std": test_std,
             "test_ci": test_ci,
             "val_mean": val_mean,
+            "val_std": val_std,
             "val_ci": val_ci,
             "train_mean": train_mean,
+            "train_std": train_std,
             "train_ci": train_ci,
             "energy_mean": energy_mean,
+            "energy_std": energy_std,
             "energy_ci": energy_ci,
             "last_layer_fa": args.last_layer_fa,
             "run_duration": run_duration,
@@ -1107,12 +1118,16 @@ for key in datasets:
         # Log aggregate statistics
         summary_log_dict = {
             "summary/test_mean": test_mean,
+            "summary/test_std": test_std,
             "summary/test_ci": test_ci,
             "summary/val_mean": val_mean,
+            "summary/val_std": val_std,
             "summary/val_ci": val_ci,
             "summary/train_mean": train_mean,
+            "summary/train_std": train_std,
             "summary/train_ci": train_ci,
             "summary/energy_mean": energy_mean,
+            "summary/energy_std": energy_std,
             "summary/energy_ci": energy_ci,
             "summary/run_duration": run_duration,
             "summary/num_trials_actual": num_trials_actual,
@@ -1183,9 +1198,17 @@ for key in datasets:
         df.to_csv(f, mode="a", header=f.tell() == 0)
 
     print(f"\n🎯 FINAL RESULTS for {key.upper()}:")
-    print(f"   📈 Test Accuracy: {test_mean:.2f}% ± {test_ci:.2f}%")
-    print(f"   📊 Validation Accuracy: {val_mean:.2f}% ± {val_ci:.2f}%")
-    print(f"   🏃 Training Accuracy: {train_mean:.2f}% ± {train_ci:.2f}%")
-    print(f"   ⚡ Energy: {energy_mean:.2f}% ± {energy_ci:.2f}%")
+    print(
+        f"   📈 Test Accuracy: {test_mean:.2f}% ± {test_std:.2f}% (std) / ± {test_ci:.2f}% (95% CI)"
+    )
+    print(
+        f"   📊 Validation Accuracy: {val_mean:.2f}% ± {val_std:.2f}% (std) / ± {val_ci:.2f}% (95% CI)"
+    )
+    print(
+        f"   🏃 Training Accuracy: {train_mean:.2f}% ± {train_std:.2f}% (std) / ± {train_ci:.2f}% (95% CI)"
+    )
+    print(
+        f"   ⚡ Energy: {energy_mean:.2f}% ± {energy_std:.2f}% (std) / ± {energy_ci:.2f}% (95% CI)"
+    )
     print(f"   ⏱️  Duration: {run_duration:.2f}s")
     print(f"   💾 Results saved to: {csv_filename}")
