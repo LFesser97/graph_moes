@@ -1080,6 +1080,12 @@ for key in datasets:
         # - no encodings: None (using normal datasets)
         encoding_category = get_encoding_category(encoding_source_dir)
 
+        # Determine layer combination string (for both MoE and single layer models)
+        if args.layer_types is not None:
+            layer_combination = str(args.layer_types)  # e.g., "['GCN', 'GIN']"
+        else:
+            layer_combination = args.layer_type  # e.g., "GCN"
+
         summary_config = {
             **dict(args),
             "dataset": key,
@@ -1088,6 +1094,9 @@ for key in datasets:
             "required_test_appearances": required_test_appearances,
             "dataset_encoding": dataset_encoding_str,
             "encoding_category": encoding_category,
+            "is_moe": args.layer_types is not None,
+            "layer_combination": layer_combination,
+            "model_type": "MoE" if args.layer_types is not None else args.layer_type,
         }
         # Add router configuration ONLY for MoE models
         if args.layer_types is not None:
@@ -1116,6 +1125,12 @@ for key in datasets:
         )
 
         # Log aggregate statistics
+        # Determine layer combination string (for both MoE and single layer models)
+        if args.layer_types is not None:
+            layer_combination = str(args.layer_types)  # e.g., "['GCN', 'GIN']"
+        else:
+            layer_combination = args.layer_type  # e.g., "GCN"
+
         summary_log_dict = {
             "summary/test_mean": test_mean,
             "summary/test_std": test_std,
@@ -1134,6 +1149,12 @@ for key in datasets:
             "summary/min_test_appearances": min(test_appearances.values()),
             "summary/max_test_appearances": max(test_appearances.values()),
             "summary/graphs_with_sufficient_appearances": graphs_with_sufficient_appearances,
+            # Model metadata
+            "summary/is_moe": args.layer_types is not None,
+            "summary/layer_combination": layer_combination,
+            "summary/model_type": (
+                "MoE" if args.layer_types is not None else args.layer_type
+            ),
             # Log individual trial results for analysis
             "trials/train_accs": train_accuracies,
             "trials/val_accs": validation_accuracies,

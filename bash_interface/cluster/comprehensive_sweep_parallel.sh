@@ -4,23 +4,24 @@
 # ============================================================================
 # This script runs a comprehensive hyperparameter sweep for graph neural network
 # experiments using SLURM array jobs for parallel execution. It tests both single
-# layer architectures (GCN, GIN, SAGE, MLP, Unitary) and MoE (Mixture of Experts)
+# layer architectures (GCN, GIN, SAGE, MLP, Unitary, GPS) and MoE (Mixture of Experts)
 # combinations across multiple datasets.
 #
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 1296
-#   - Base experiments per encoding variant: 144
-#     - 64 single layer experiments:
+# Total experiments: 1368
+#   - Base experiments per encoding variant: 152
+#     - 72 single layer experiments:
 #       - GCN: 8 datasets × 2 (skip/no-skip) = 16
 #       - GIN: 8 datasets × 2 (skip/no-skip) = 16
 #       - SAGE: 8 datasets × 2 (skip/no-skip) = 16
 #       - MLP: 8 datasets × 1 (no skip) = 8
 #       - Unitary: 8 datasets × 1 (no skip) = 8
+#       - GPS: 8 datasets × 1 (no skip) = 8
 #     - 80 MoE experiments: 6 combinations × 8 datasets × 2 router types (MLP, GNN)
 #   - Encoding variants: 9 (None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc)
-#   - Total: 144 × 9 = 1296 experiments
+#   - Total: 152 × 9 = 1368 experiments
 #     Encoding types: hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc
 # Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
 # Each experiment runs 200 trials to ensure proper test set coverage
@@ -30,7 +31,7 @@
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-1296            # Total experiments: 144 base × 9 encoding variants = 1296
+#SBATCH --array=1-1368            # Total experiments: 152 base × 9 encoding variants = 1368
 #SBATCH --ntasks=1
 #SBATCH --time=192:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=128GB               # Sufficient memory
@@ -368,9 +369,9 @@ num_encoding_variants=${#dataset_encodings[@]}
 # Base experiments per encoding variant: 144
 #   - 64 single layer experiments:
 #     - GCN, GIN, SAGE: 3 × 8 datasets × 2 (skip/no-skip) = 48
-#     - MLP, Unitary: 2 × 8 datasets × 1 (no skip) = 16
+#     - MLP, Unitary, GPS: 3 × 8 datasets × 1 (no skip) = 24
 #   - 80 MoE experiments: 6 combinations × 8 datasets × 2 router types (MLP, GNN)
-base_experiments_per_variant=144
+base_experiments_per_variant=152
 
 # Calculate which encoding variant and base experiment this task corresponds to
 encoding_variant_idx=$(((task_id - 1) / base_experiments_per_variant))
@@ -380,7 +381,7 @@ dataset_encoding=${dataset_encodings[$encoding_variant_idx]}
 
 log_message "📦 Task $task_id: Using dataset_encoding=$dataset_encoding (variant $((encoding_variant_idx + 1))/$num_encoding_variants), base_experiment=$base_experiment_id"
 
-if [ "$base_experiment_id" -le 64 ]; then
+if [ "$base_experiment_id" -le 72 ]; then
     # Single layer experiment
     experiment_type="single"
     adjusted_id=$((task_id - 1))
@@ -389,9 +390,9 @@ if [ "$base_experiment_id" -le 64 ]; then
     num_datasets=${#datasets[@]}
     
     # Determine which layer type and skip variant
-    # Layer order: GCN (0-15), GIN (16-31), SAGE (32-47), MLP (48-55), Unitary (56-63)
+    # Layer order: GCN (0-15), GIN (16-31), SAGE (32-47), MLP (48-55), Unitary (56-63), GPS (64-71)
     # For GCN, GIN, SAGE: each has 16 tasks (8 datasets × 2 skip variants)
-    # For MLP, Unitary: each has 8 tasks (8 datasets × 1 skip variant = no skip)
+    # For MLP, Unitary, GPS: each has 8 tasks (8 datasets × 1 skip variant = no skip)
     
     if [ "$adjusted_id" -lt 16 ]; then
         # GCN: tasks 0-15
@@ -417,12 +418,18 @@ if [ "$base_experiment_id" -le 64 ]; then
         layer_base_id=$((adjusted_id - 48))
         dataset_idx=$((layer_base_id % num_datasets))
         skip_variant=0  # MLP doesn't support skip connections
-    else
+    elif [ "$adjusted_id" -lt 64 ]; then
         # Unitary: tasks 56-63
         layer_type="Unitary"
         layer_base_id=$((adjusted_id - 56))
         dataset_idx=$((layer_base_id % num_datasets))
         skip_variant=0  # Unitary doesn't support skip connections
+    else
+        # GPS: tasks 64-71
+        layer_type="GPS"
+        layer_base_id=$((adjusted_id - 64))
+        dataset_idx=$((layer_base_id % num_datasets))
+        skip_variant=0  # GPS doesn't support skip connections
     fi
     
     dataset=${datasets[$dataset_idx]}
@@ -475,7 +482,7 @@ if [ "$base_experiment_id" -le 64 ]; then
 else
     # MoE experiment
     experiment_type="moe"
-    moe_id=$((base_experiment_id - 65))  # Adjust for 64 single layer experiments
+    moe_id=$((base_experiment_id - 73))  # Adjust for 72 single layer experiments (16+16+16+8+8+8 = 72)
     
     # Calculate dataset, MoE combination, and router type
     # MoE experiments are organized as: 6 combinations × 8 datasets × 2 router types
