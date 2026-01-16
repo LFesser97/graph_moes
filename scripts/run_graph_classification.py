@@ -975,8 +975,9 @@ for key in datasets:
 
     # Generate and save average accuracy per graph plots (by index and by accuracy)
     try:
-        # Use dataset_encoding instead of deprecated encoding parameter
+        # Use full detailed encoding name (e.g., "hg_rwpe_we_k20", "g_lape_k8") for plot filenames
         dataset_encoding_for_plots = getattr(args, "dataset_encoding", None)
+        skip_connection = getattr(args, "skip_connection", False)
         original_plot_path, sorted_plot_path = load_and_plot_average_per_graph(
             graph_dict_filename,
             dataset_name=key,
@@ -987,6 +988,7 @@ for key in datasets:
             output_dir="results",
             layer_types=args.layer_types if args.layer_types else None,
             router_type=getattr(args, "router_type", "MLP"),
+            skip_connection=skip_connection,
         )
         if original_plot_path:
             print(f"📊 Average accuracy plot (by index) saved to: {original_plot_path}")
@@ -1210,11 +1212,17 @@ for key in datasets:
         wandb.finish()
 
     # Log every time a dataset is completed
+    # Use full detailed encoding name (e.g., "hg_rwpe_we_k20", "g_lape_k8", not abbreviated)
     dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
-    df = pd.DataFrame(results)
-    csv_filename = (
-        f"results/graph_classification_{args.layer_type}_enc{dataset_encoding_str}.csv"
+    skip_connection = getattr(args, "skip_connection", False)
+    skip_str = "true" if skip_connection else "false"
+    # Create more precise CSV filename with skip and encoding info (using full detailed encoding name)
+    encoding_part = (
+        f"encodings_{dataset_encoding_str}"
+        if dataset_encoding_str != "None"
+        else "encodings_none"
     )
+    csv_filename = f"results/graph_classification_{args.layer_type}_skip_{skip_str}_{encoding_part}.csv"
     with open(csv_filename, "a") as f:
         df.to_csv(f, mode="a", header=f.tell() == 0)
 

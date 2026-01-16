@@ -46,10 +46,17 @@ echo "🚀 Setting up WandB environment for Comprehensive Graph MoE experiments.
 export WANDB_API_KEY="ea7c6eeb5a095b531ef60cc784bfeb87d47ea0b0"
 export WANDB_ENTITY="weber-geoml-harvard-university"
 export WANDB_PROJECT="MOE_3"
-export WANDB_DIR="./wandb"
-export WANDB_CACHE_DIR="./wandb/.cache"
+# Use temp directory for WandB files (gets cleaned up automatically on cluster)
+# This avoids filling up home directory with wandb files
+WANDB_TMP_DIR="${TMPDIR:-/tmp}/wandb_${SLURM_JOB_ID:-$$}"
+export WANDB_DIR="${WANDB_TMP_DIR}"
+export WANDB_CACHE_DIR="${WANDB_TMP_DIR}/.cache"
+# Disable code saving to reduce disk usage
+export WANDB_DISABLE_CODE=true
+# Sync immediately instead of caching (minimizes local storage)
+export WANDB_SYNC_MODE="now"
 
-mkdir -p ./wandb logs logs_comprehensive
+mkdir -p "${WANDB_TMP_DIR}" logs logs_comprehensive
 
 # Disable user site-packages to prevent conflicts (also set in activation, but set here too)
 export PYTHONNOUSERSITE=1

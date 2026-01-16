@@ -184,6 +184,7 @@ def load_and_plot_average_per_graph(
     output_dir: str = "results",
     layer_types: Optional[list] = None,
     router_type: str = "MLP",
+    skip_connection: bool = False,
 ) -> Tuple[str, str]:
     """
     Load graph_dict from pickle file and create average accuracy/error plots.
@@ -197,6 +198,9 @@ def load_and_plot_average_per_graph(
         num_layers: Number of layers in the model
         task_type: "classification" or "regression"
         output_dir: Directory to save the plots
+        layer_types: List of expert types for MOE models
+        router_type: Router type for MOE models
+        skip_connection: Whether skip connections were used
 
     Returns:
         Tuple of (original_plot_path, sorted_plot_path)
@@ -219,8 +223,13 @@ def load_and_plot_average_per_graph(
         return "", ""
 
     # Create and save original plot (ordered by graph index)
-    # Include encoding in filename if provided
-    encoding_suffix = f"_enc{encoding}" if encoding else ""
+    # Include encoding and skip connection in filename
+    # Use full detailed encoding name (e.g., "hg_rwpe_we_k20", "g_lape_k8", not abbreviated)
+    skip_str = "skip_true" if skip_connection else "skip_false"
+    encoding_str = (
+        encoding if encoding else "none"
+    )  # encoding should be full detailed name like "hg_rwpe_we_k20"
+    encoding_suffix = f"_encodings_{encoding_str}"
     detailed_model_name = get_detailed_model_name(layer_type, layer_types, router_type)
     original_plot_path = plot_average_per_graph(
         graph_indices,
@@ -231,7 +240,7 @@ def load_and_plot_average_per_graph(
         num_layers,
         task_type,
         output_dir,
-        save_filename=f"{dataset_name}_{detailed_model_name}{encoding_suffix}_by_index.png",
+        save_filename=f"{dataset_name}_{detailed_model_name}_{skip_str}{encoding_suffix}_by_index.png",
         layer_types=layer_types,
         router_type=router_type,
     )
@@ -251,7 +260,7 @@ def load_and_plot_average_per_graph(
         num_layers,
         task_type,
         output_dir,
-        save_filename=f"{dataset_name}_{detailed_model_name}{encoding_suffix}_by_accuracy.png",
+        save_filename=f"{dataset_name}_{detailed_model_name}_{skip_str}{encoding_suffix}_by_accuracy.png",
         layer_types=layer_types,
         router_type=router_type,
     )
