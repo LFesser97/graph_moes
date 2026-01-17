@@ -412,7 +412,7 @@ default_args = AttrDict(
         "layer_types": None,
         # WandB defaults
         "wandb_enabled": False,
-        "wandb_project": "MOE_3",
+        "wandb_project": "MOE_4",
         "wandb_entity": "weber-geoml-harvard-university",
         "wandb_name": None,
         "wandb_dir": "./wandb",

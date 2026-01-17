@@ -122,7 +122,7 @@ see the performance of each model of each graph (repeated ten times)
 **CURRENT STATUS (December 28, 2025):**
 
 **✅ Currently running in main sweep (8 datasets - Graph Classification)**: enzymes, proteins, mutag, imdb, collab, reddit, mnist, cifar
-**📊 Available on WandB (MOE_3 project)**: All 8 main sweep datasets above
+**📊 Available on WandB (MOE_4 project)**: All 8 main sweep datasets above
 **❌ Excluded from graph classification**: pattern (node classification - requires different experimental setup), cluster (disabled LRGB dataset)
 
 **🔄 IN PROGRESS - Additional datasets setup:**
