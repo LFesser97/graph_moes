@@ -166,6 +166,12 @@ def get_args_from_input() -> AttrDict:
         default=False,
         help="whether to use skip/residual connections (for GCN, GIN, SAGE)",
     )
+    parser.add_argument(
+        "--normalize_features",
+        action="store_true",
+        default=False,
+        help="whether to normalize node features (L2 normalization per node)",
+    )
 
     # WandB arguments
     parser.add_argument(

@@ -729,7 +729,7 @@ for key in datasets:
     # Add progress bar for trials
     experiment_id = None
     if args.wandb_enabled:
-        # Create a unique experiment group ID (include skip_connection if relevant)
+        # Create a unique experiment group ID (include skip_connection and normalize_features if relevant)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         skip_suffix = (
             "_skip"
@@ -737,17 +737,14 @@ for key in datasets:
             and args.layer_type in ["GCN", "GIN", "SAGE"]
             else ""
         )
+        norm_suffix = "_norm" if getattr(args, "normalize_features", False) else ""
         dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
         dataset_encoding_suffix = (
             f"_enc{dataset_encoding_str}" if dataset_encoding_str != "None" else ""
         )
-        experiment_id = (
-            f"{key}_{args.layer_type}{skip_suffix}{dataset_encoding_suffix}_{timestamp}"
-        )
+        experiment_id = f"{key}_{args.layer_type}{skip_suffix}{norm_suffix}{dataset_encoding_suffix}_{timestamp}"
         if args.wandb_name:
-            experiment_id = (
-                f"{args.wandb_name}{skip_suffix}{dataset_encoding_suffix}_{timestamp}"
-            )
+            experiment_id = f"{args.wandb_name}{skip_suffix}{norm_suffix}{dataset_encoding_suffix}_{timestamp}"
         print(f"🔬 WandB Experiment Group: {experiment_id}")
 
     trial = 0
@@ -821,6 +818,7 @@ for key in datasets:
                     str(args.layer_types) if args.layer_types else args.layer_type
                 ),
                 "skip_connection": getattr(args, "skip_connection", False),
+                "normalize_features": getattr(args, "normalize_features", False),
             }
             # Add router configuration ONLY for MoE models
             if args.layer_types is not None:
@@ -900,6 +898,9 @@ for key in datasets:
                     ),
                     "groupby/num_layers": args.num_layers,
                     "groupby/skip_connection": getattr(args, "skip_connection", False),
+                    "groupby/normalize_features": getattr(
+                        args, "normalize_features", False
+                    ),
                 }
                 # Add router info ONLY for MoE models
                 if args.layer_types is not None:
@@ -959,6 +960,10 @@ for key in datasets:
     ]:
         detailed_model_name = f"{detailed_model_name}_skip"
 
+    # Add normalize_features suffix if applicable
+    if getattr(args, "normalize_features", False):
+        detailed_model_name = f"{detailed_model_name}_norm"
+
     # Use only pre-computed encoding for filename (legacy encoding is deprecated)
     dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
     graph_dict_filename = f"results/{args.num_layers}_layers/{key}_{detailed_model_name}_enc{dataset_encoding_str}_graph_dict.pickle"
@@ -978,6 +983,7 @@ for key in datasets:
         # Use full detailed encoding name (e.g., "hg_rwpe_we_k20", "g_lape_k8") for plot filenames
         dataset_encoding_for_plots = getattr(args, "dataset_encoding", None)
         skip_connection = getattr(args, "skip_connection", False)
+        normalize_features = getattr(args, "normalize_features", False)
         original_plot_path, sorted_plot_path = load_and_plot_average_per_graph(
             graph_dict_filename,
             dataset_name=key,
@@ -989,6 +995,7 @@ for key in datasets:
             layer_types=args.layer_types if args.layer_types else None,
             router_type=getattr(args, "router_type", "MLP"),
             skip_connection=skip_connection,
+            normalize_features=normalize_features,
         )
         if original_plot_path:
             print(f"📊 Average accuracy plot (by index) saved to: {original_plot_path}")
@@ -1065,6 +1072,8 @@ for key in datasets:
             "min_test_appearances": min(test_appearances.values()),
             "max_test_appearances": max(test_appearances.values()),
             "graphs_with_sufficient_appearances": graphs_with_sufficient_appearances,
+            "skip_connection": getattr(args, "skip_connection", False),
+            "normalize_features": getattr(args, "normalize_features", False),
         }
     )
 
@@ -1099,6 +1108,8 @@ for key in datasets:
             "is_moe": args.layer_types is not None,
             "layer_combination": layer_combination,
             "model_type": "MoE" if args.layer_types is not None else args.layer_type,
+            "skip_connection": getattr(args, "skip_connection", False),
+            "normalize_features": getattr(args, "normalize_features", False),
         }
         # Add router configuration ONLY for MoE models
         if args.layer_types is not None:
@@ -1174,6 +1185,7 @@ for key in datasets:
             ),
             "groupby/num_layers": args.num_layers,
             "groupby/skip_connection": getattr(args, "skip_connection", False),
+            "groupby/normalize_features": getattr(args, "normalize_features", False),
         }
         # Add router info ONLY for MoE models
         if args.layer_types is not None:
@@ -1215,14 +1227,17 @@ for key in datasets:
     # Use full detailed encoding name (e.g., "hg_rwpe_we_k20", "g_lape_k8", not abbreviated)
     dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
     skip_connection = getattr(args, "skip_connection", False)
+    normalize_features = getattr(args, "normalize_features", False)
     skip_str = "true" if skip_connection else "false"
-    # Create more precise CSV filename with skip and encoding info (using full detailed encoding name)
+    norm_str = "true" if normalize_features else "false"
+    # Create more precise CSV filename with skip, normalize, and encoding info (using full detailed encoding name)
     encoding_part = (
         f"encodings_{dataset_encoding_str}"
         if dataset_encoding_str != "None"
         else "encodings_none"
     )
-    csv_filename = f"results/graph_classification_{args.layer_type}_skip_{skip_str}_{encoding_part}.csv"
+    csv_filename = f"results/graph_classification_{args.layer_type}_skip_{skip_str}_norm_{norm_str}_{encoding_part}.csv"
+    df = pd.DataFrame(results)
     with open(csv_filename, "a") as f:
         df.to_csv(f, mode="a", header=f.tell() == 0)
 

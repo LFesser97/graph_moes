@@ -185,6 +185,7 @@ def load_and_plot_average_per_graph(
     layer_types: Optional[list] = None,
     router_type: str = "MLP",
     skip_connection: bool = False,
+    normalize_features: bool = False,
 ) -> Tuple[str, str]:
     """
     Load graph_dict from pickle file and create average accuracy/error plots.
@@ -223,9 +224,10 @@ def load_and_plot_average_per_graph(
         return "", ""
 
     # Create and save original plot (ordered by graph index)
-    # Include encoding and skip connection in filename
+    # Include encoding, skip connection, and normalize_features in filename
     # Use full detailed encoding name (e.g., "hg_rwpe_we_k20", "g_lape_k8", not abbreviated)
     skip_str = "skip_true" if skip_connection else "skip_false"
+    norm_str = "norm_true" if normalize_features else "norm_false"
     encoding_str = (
         encoding if encoding else "none"
     )  # encoding should be full detailed name like "hg_rwpe_we_k20"
@@ -240,7 +242,7 @@ def load_and_plot_average_per_graph(
         num_layers,
         task_type,
         output_dir,
-        save_filename=f"{dataset_name}_{detailed_model_name}_{skip_str}{encoding_suffix}_by_index.png",
+        save_filename=f"{dataset_name}_{detailed_model_name}_{skip_str}_{norm_str}{encoding_suffix}_by_index.png",
         layer_types=layer_types,
         router_type=router_type,
     )
@@ -260,7 +262,7 @@ def load_and_plot_average_per_graph(
         num_layers,
         task_type,
         output_dir,
-        save_filename=f"{dataset_name}_{detailed_model_name}_{skip_str}{encoding_suffix}_by_accuracy.png",
+        save_filename=f"{dataset_name}_{detailed_model_name}_{skip_str}_{norm_str}{encoding_suffix}_by_accuracy.png",
         layer_types=layer_types,
         router_type=router_type,
     )

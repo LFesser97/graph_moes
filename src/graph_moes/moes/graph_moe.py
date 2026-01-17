@@ -42,6 +42,9 @@ class MoE(nn.Module):
         ), "args.layer_types must be a list of two expert type strings"
         self.args = args
 
+        # Store normalization flag
+        self.normalize_features = getattr(args, "normalize_features", False)
+
         # Instantiate experts
         self.experts = nn.ModuleList()
         for lt in args.layer_types:
@@ -80,6 +83,13 @@ class MoE(nn.Module):
                 Example: weights[0] = [0.7, 0.3] means graph 0 uses 70% expert 0, 30% expert 1.
                 Only returned if return_weights=True
         """
+        # Normalize features if requested (before routing and expert processing)
+        if self.normalize_features:
+            x_norm = torch.norm(graph.x.float(), p=2, dim=1, keepdim=True)
+            graph.x = graph.x / (
+                x_norm + 1e-8
+            )  # Add small epsilon to avoid division by zero
+
         # Router computes logits for each graph in the batch
         logits = self.router(
             graph
@@ -121,6 +131,9 @@ class MoE_E(nn.Module):
         ), "args.layer_types must be a list of two expert type strings"
         self.args = args
 
+        # Store normalization flag
+        self.normalize_features = getattr(args, "normalize_features", False)
+
         # Instantiate experts
         self.experts = nn.ModuleList()
         for lt in args.layer_types:
@@ -161,6 +174,13 @@ class MoE_E(nn.Module):
                 Example: weights[0] = [0.7, 0.3] means graph 0 uses 70% expert 0, 30% expert 1.
                 Only returned if return_weights=True
         """
+        # Normalize features if requested (before routing and expert processing)
+        if self.normalize_features:
+            x_norm = torch.norm(graph.x.float(), p=2, dim=1, keepdim=True)
+            graph.x = graph.x / (
+                x_norm + 1e-8
+            )  # Add small epsilon to avoid division by zero
+
         # Router computes logits for each graph in the batch
         logits = self.router(
             graph
