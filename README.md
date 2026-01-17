@@ -1,6 +1,49 @@
 [![Ruff](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml/badge.svg)](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml)
 [![pytest](https://github.com/LFesser97/graph_moes/actions/workflows/pytest.yml/badge.svg)](https://github.com/LFesser97/graph_moes/actions/workflows/pytest.yml)
 
+
+
+# TODO (1/9)
+
+* Investigate tmd
+
+top priorities:
+try to increase accuracies to match "Can ... be strong baseline for"
+[ with Skip connections or potentially encodings]
+add router type to wandb
+add hencodings
+Read GPS paper and instead of 50% 50% weight, let an Router decide.
+add peptides
+
+1 - add skip connection to eg (GCN, GIN, etc etc)
+[It's just adding input to conv layer and adding it to the output]+ 
+Check if Dropout is included +
+add encodings
+check the Can ... be strong baseline for
+what we should expect. They also use ENCODINGS!
+Look at the paper (main text table 5)
+
+2 - Also look at normalization [Section 3 in the paper].
+
+4 - Compute the hg encodings once and make sure they are fully correct and then upload them.
+
+add to wandb: the router type
+
+2 - Add global attention as an expert.
+
+3 - Try to add Global attention layer as router (imagine MOE as 
+extension of GPS)
+
+
+Later: check that sage does not do better than
+all moe connections. 
+
+4 - encodings + hg encodings
+
+(no tmd, no rewiring...)
+
+
+
 # TODO (12/10)
 
 * Investigate tmd
@@ -73,7 +116,8 @@ enzymes, peptides-struct, peptides-func
 MAKE SURE I CAN RERUN ON THE CLUSTER. CLEAN UP.
 **Target Datasets (15 total):**
 - ✅ **Available & Loaded (14):** ZINC, MNIST, CIFAR10, PATTERN, CLUSTER, Peptides-func, PascalVOC-SP, COCO-SP, MalNet-Tiny, ogbg-molhiv, ogbg-molpcba, ogbg-ppa, ogbg-code2
-- ⚠️ **Commented Out (1):** Peptides-struct (needs uncommenting in `run_graph_regression.py`)
+[PASCAL, OGB are huge]
+- ⚠️ **Commented Out (1):** Peptides-struct (needs uncommenting in `run_graph_regression.py`) [TO ADD NEXT 1/9]
 
 **Note:** ogbg-code2 is in classification script but has `output_dim=1` (regression) - verify task type.
 
