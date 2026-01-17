@@ -48,6 +48,7 @@ default_args = AttrDict(
         "num_relations": 2,
         "last_layer_fa": False,
         "skip_connection": False,  # Whether to use skip/residual connections (for GCN, GIN, SAGE)
+        "normalize_features": False,  # Whether to L2 normalize node features
     }
 )
 

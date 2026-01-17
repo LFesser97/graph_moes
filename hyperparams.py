@@ -135,8 +135,19 @@ def get_args_from_input() -> AttrDict:
     )
     parser.add_argument("--borf_batch_add", type=int, help="BORF batch addition size")
     parser.add_argument("--borf_batch_remove", type=int, help="BORF batch removal size")
+    # DEPRECATED: On-the-fly encoding computation is deprecated in favor of pre-computed
+    # dataset encodings via --dataset_encoding. This argument is kept for backwards
+    # compatibility but should not be used in new experiments. Use --dataset_encoding instead.
     parser.add_argument(
-        "--encoding", type=str, help="type of encoding to use for node features"
+        "--encoding",
+        type=str,
+        help="type of encoding to use for node features (DEPRECATED: use --dataset_encoding instead)",
+    )
+    parser.add_argument(
+        "--dataset_encoding",
+        type=str,
+        default=None,
+        help="pre-computed dataset encoding to use: None (normal), hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8 (hypergraph), or g_ldp, g_rwpe_k16, g_lape_k8, g_orc (graph)",
     )
     parser.add_argument(
         "--router_hidden_layers",
@@ -155,6 +166,12 @@ def get_args_from_input() -> AttrDict:
         default=False,
         help="whether to use skip/residual connections (for GCN, GIN, SAGE)",
     )
+    parser.add_argument(
+        "--normalize_features",
+        action="store_true",
+        default=False,
+        help="whether to normalize node features (L2 normalization per node)",
+    )
 
     # WandB arguments
     parser.add_argument(
@@ -164,7 +181,7 @@ def get_args_from_input() -> AttrDict:
         help="enable wandb logging",
     )
     parser.add_argument(
-        "--wandb_project", type=str, default="MOE_new", help="wandb project name"
+        "--wandb_project", type=str, default="MOE_4", help="wandb project name"
     )
     parser.add_argument(
         "--wandb_entity",

@@ -102,6 +102,7 @@ class GNN(torch.nn.Module):
         self.layers = ModuleList(layers)
         self.dropout = Dropout(p=args.dropout)
         self.act_fn = ReLU()
+        self.normalize_features = getattr(args, "normalize_features", False)
 
         # Initialize skip connection projection layers (for dimension mismatches)
         self.skip_connection = getattr(args, "skip_connection", False)
@@ -179,6 +180,10 @@ class GNN(torch.nn.Module):
     ) -> Union[torch.Tensor, float]:
         x, edge_index, _, batch = graph.x, graph.edge_index, graph.ptr, graph.batch
         x = x.float()
+        # Normalize features if requested (L2 normalization per node)
+        if self.normalize_features:
+            x_norm = torch.norm(x, p=2, dim=1, keepdim=True)
+            x = x / (x_norm + 1e-8)  # Add small epsilon to avoid division by zero
         for i, layer in enumerate(self.layers):
             # Store input for skip connection (only for supported layer types)
             use_skip = self.skip_connection and self.layer_type in [
@@ -244,6 +249,7 @@ class GPS(torch.nn.Module):
         num_layers = len(list(args.hidden_layers)) + 1
         attn_type = "performer"
         output_dim = args.output_dim
+        self.normalize_features = getattr(args, "normalize_features", False)
 
         # self.node_emb = Linear(1, channels - pe_dim)
         self.node_emb = Linear(input_dim, channels)
@@ -279,7 +285,12 @@ class GPS(torch.nn.Module):
         # x_pe = self.pe_norm(pe)
         # x = torch.cat((self.node_emb(x.squeeze(-1)), self.pe_lin(x_pe)), 1)
         # x = torch.cat((self.node_emb(x), self.pe_lin(x_pe)), 1)
-        x = self.node_emb(x.float())
+        x = x.float()
+        # Normalize features if requested (L2 normalization per node)
+        if self.normalize_features:
+            x_norm = torch.norm(x, p=2, dim=1, keepdim=True)
+            x = x / (x_norm + 1e-8)  # Add small epsilon to avoid division by zero
+        x = self.node_emb(x)
         # edge_attr = self.edge_emb(edge_attr)
 
         for conv in self.convs:
@@ -299,6 +310,7 @@ class UnitaryGCN(nn.Module):
         hidden_layer_dim = args.hidden_dim
         self.T = 20
         self.dropout = Dropout(p=args.dropout)
+        self.normalize_features = getattr(args, "normalize_features", False)
         self.conv_layers = nn.ModuleList()
         self.conv_layers.append(UnitaryGCNConvLayer(input_dim, hidden_dim))
         for _ in range(num_layers):
@@ -310,6 +322,12 @@ class UnitaryGCN(nn.Module):
         self.reset_parameters()
 
     def forward(self, data):
+        # Normalize features if requested (L2 normalization per node)
+        if self.normalize_features:
+            x_norm = torch.norm(data.x.float(), p=2, dim=1, keepdim=True)
+            data.x = data.x / (
+                x_norm + 1e-8
+            )  # Add small epsilon to avoid division by zero
         for conv in self.conv_layers:
             data = conv(data)
         x = global_mean_pool(data.x.real, data.batch)  # Global pooling over nodes
@@ -332,6 +350,7 @@ class OrthogonalGCN(nn.Module):
         hidden_layer_dim = 64
         self.T = 20
         self.dropout = Dropout(p=args.dropout)
+        self.normalize_features = getattr(args, "normalize_features", False)
         self.conv_layers = nn.ModuleList()
         self.conv_layers.append(OrthogonalGCNConvLayer(input_dim, hidden_dim))
         for _ in range(num_layers):
@@ -343,6 +362,12 @@ class OrthogonalGCN(nn.Module):
         self.reset_parameters()
 
     def forward(self, data):
+        # Normalize features if requested (L2 normalization per node)
+        if self.normalize_features:
+            x_norm = torch.norm(data.x.float(), p=2, dim=1, keepdim=True)
+            data.x = data.x / (
+                x_norm + 1e-8
+            )  # Add small epsilon to avoid division by zero
         for conv in self.conv_layers:
             data = conv(data)
         x = global_mean_pool(data.x.real, data.batch)  # Global pooling over nodes
