@@ -47,6 +47,7 @@ default_args = AttrDict(
         "layer_type": "R-GCN",
         "num_relations": 2,
         "last_layer_fa": False,
+        "skip_connection": False,  # Whether to use skip/residual connections (for GCN, GIN, SAGE)
     }
 )
 

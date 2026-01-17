@@ -103,6 +103,22 @@ class GNN(torch.nn.Module):
         self.dropout = Dropout(p=args.dropout)
         self.act_fn = ReLU()
 
+        # Initialize skip connection projection layers (for dimension mismatches)
+        self.skip_connection = getattr(args, "skip_connection", False)
+        if self.skip_connection and self.layer_type in ["GCN", "GIN", "SAGE"]:
+            self.skip_proj = ModuleList()
+            for i, (in_features, out_features) in enumerate(
+                zip(num_features[:-1], num_features[1:])
+            ):
+                if in_features != out_features:
+                    # Project input to match output dimension for skip connection
+                    self.skip_proj.append(Linear(in_features, out_features))
+                else:
+                    # No projection needed, use identity
+                    self.skip_proj.append(None)
+        else:
+            self.skip_proj = None
+
         if self.args.last_layer_fa:
             if self.layer_type == "R-GCN" or self.layer_type == "GCN":
                 self.last_layer_transform = torch.nn.Linear(
@@ -164,6 +180,14 @@ class GNN(torch.nn.Module):
         x, edge_index, _, batch = graph.x, graph.edge_index, graph.ptr, graph.batch
         x = x.float()
         for i, layer in enumerate(self.layers):
+            # Store input for skip connection (only for supported layer types)
+            use_skip = self.skip_connection and self.layer_type in [
+                "GCN",
+                "GIN",
+                "SAGE",
+            ]
+            x_skip = x if use_skip else None
+
             # MLP layers ignore graph structure
             if self.layer_type == "MLP":
                 x_new = layer(x)
@@ -177,6 +201,14 @@ class GNN(torch.nn.Module):
                     x_new = layer(x, edge_index, edge_type=graph.edge_type)
                 else:
                     x_new = layer(x, edge_index)
+
+            # Apply skip/residual connection for GCN, GIN, SAGE (if enabled)
+            if use_skip and x_skip is not None:
+                # Project skip connection if dimensions don't match
+                if self.skip_proj is not None and self.skip_proj[i] is not None:
+                    x_skip = self.skip_proj[i](x_skip)
+                x_new = x_new + x_skip  # Residual connection
+
             if i != self.num_layers - 1:
                 x_new = self.act_fn(x_new)
                 x_new = self.dropout(x_new)

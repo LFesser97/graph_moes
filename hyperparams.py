@@ -149,6 +149,12 @@ def get_args_from_input() -> AttrDict:
         type=ast.literal_eval,
         help="the expert GNNs to be used for an MoE",
     )
+    parser.add_argument(
+        "--skip_connection",
+        action="store_true",
+        default=False,
+        help="whether to use skip/residual connections (for GCN, GIN, SAGE)",
+    )
 
     # WandB arguments
     parser.add_argument(

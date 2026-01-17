@@ -304,26 +304,38 @@ for key in datasets:
             if args.wandb_name:
                 trial_run_name = f"{args.wandb_name}_trial_{trial + 1:02d}"
 
+            # Build config dictionary
+            wandb_config = {
+                **dict(args),
+                "trial_num": trial,
+                "dataset": key,
+                # Add grouping variables:
+                "dataset_name": key,
+                "is_moe": hasattr(args, "layer_types") and args.layer_types is not None,
+                "model_type": (
+                    "MoE"
+                    if hasattr(args, "layer_types") and args.layer_types
+                    else args.layer_type
+                ),
+                "num_layers": args.num_layers,
+            }
+            # Add router configuration ONLY for MoE models
+            if hasattr(args, "layer_types") and args.layer_types is not None:
+                if hasattr(args, "router_type"):
+                    wandb_config["router_type"] = args.router_type
+                if hasattr(args, "router_layer_type"):
+                    wandb_config["router_layer_type"] = args.router_layer_type
+                if hasattr(args, "router_depth"):
+                    wandb_config["router_depth"] = args.router_depth
+                if hasattr(args, "router_dropout"):
+                    wandb_config["router_dropout"] = args.router_dropout
+
             wandb.init(
                 project=args.wandb_project,
                 entity=args.wandb_entity,
                 name=trial_run_name,
                 group=experiment_id,  # Group all trials together
-                config={
-                    **dict(args),
-                    "trial_num": trial,
-                    "dataset": key,
-                    # Add grouping variables:
-                    "dataset_name": key,
-                    "is_moe": hasattr(args, "layer_types")
-                    and args.layer_types is not None,
-                    "model_type": (
-                        "MoE"
-                        if hasattr(args, "layer_types") and args.layer_types
-                        else args.layer_type
-                    ),
-                    "num_layers": args.num_layers,
-                },
+                config=wandb_config,
                 dir=args.wandb_dir,
                 tags=list(args.wandb_tags or []) + [f"trial_{trial}"],
                 reinit=True,  # Allow multiple runs in same process
@@ -358,32 +370,40 @@ for key in datasets:
 
             # Log final trial results to this trial's wandb run
             if args.wandb_enabled:
-                wandb.log(
-                    {
-                        "final/train_mae": train_acc,
-                        "final/val_mae": validation_acc,
-                        "final/test_mae": test_acc,
-                        "final/energy": energy,
-                        "final/min_test_appearances": min_appearances,
-                        "final/max_test_appearances": max_appearances,
-                        # Add grouping variables:
-                        "groupby/dataset": key,
-                        "groupby/model_type": (
-                            "MoE"
-                            if hasattr(args, "layer_types") and args.layer_types
-                            else args.layer_type
-                        ),
-                        "groupby/is_moe": hasattr(args, "layer_types")
-                        and args.layer_types is not None,
-                        "groupby/moe_layers": (
-                            "+".join(args.layer_types)
-                            if hasattr(args, "layer_types")
-                            and args.layer_types is not None
-                            else None
-                        ),
-                        "groupby/num_layers": args.num_layers,
-                    }
-                )
+                log_dict = {
+                    "final/train_mae": train_acc,
+                    "final/val_mae": validation_acc,
+                    "final/test_mae": test_acc,
+                    "final/energy": energy,
+                    "final/min_test_appearances": min_appearances,
+                    "final/max_test_appearances": max_appearances,
+                    # Add grouping variables:
+                    "groupby/dataset": key,
+                    "groupby/model_type": (
+                        "MoE"
+                        if hasattr(args, "layer_types") and args.layer_types
+                        else args.layer_type
+                    ),
+                    "groupby/is_moe": hasattr(args, "layer_types")
+                    and args.layer_types is not None,
+                    "groupby/moe_layers": (
+                        "+".join(args.layer_types)
+                        if hasattr(args, "layer_types") and args.layer_types is not None
+                        else None
+                    ),
+                    "groupby/num_layers": args.num_layers,
+                }
+                # Add router info ONLY for MoE models
+                if hasattr(args, "layer_types") and args.layer_types is not None:
+                    if hasattr(args, "router_type"):
+                        log_dict["groupby/router_type"] = args.router_type
+                    if hasattr(args, "router_layer_type"):
+                        log_dict["groupby/router_layer_type"] = args.router_layer_type
+                    if hasattr(args, "router_depth"):
+                        log_dict["groupby/router_depth"] = args.router_depth
+                    if hasattr(args, "router_dropout"):
+                        log_dict["groupby/router_dropout"] = args.router_dropout
+                wandb.log(log_dict)
 
         finally:
             # Finish this trial's wandb run
@@ -498,61 +518,83 @@ for key in datasets:
         if args.wandb_name:
             summary_run_name = f"{args.wandb_name}_SUMMARY"
 
+        # Build config dictionary for summary run
+        summary_config = {
+            **dict(args),
+            "dataset": key,
+            "run_type": "summary",
+            "num_trials": num_trials_actual,
+            "required_test_appearances": required_test_appearances,
+            # Add grouping variables:
+            "groupby/dataset": key,
+            "groupby/model_type": (
+                "MoE"
+                if hasattr(args, "layer_types") and args.layer_types
+                else args.layer_type
+            ),
+            "groupby/is_moe": hasattr(args, "layer_types")
+            and args.layer_types is not None,
+            "groupby/moe_layers": (
+                "+".join(args.layer_types)
+                if hasattr(args, "layer_types") and args.layer_types is not None
+                else None
+            ),
+            "groupby/num_layers": args.num_layers,
+        }
+        # Add router configuration ONLY for MoE models
+        if hasattr(args, "layer_types") and args.layer_types is not None:
+            if hasattr(args, "router_type"):
+                summary_config["router_type"] = args.router_type
+            if hasattr(args, "router_layer_type"):
+                summary_config["router_layer_type"] = args.router_layer_type
+            if hasattr(args, "router_depth"):
+                summary_config["router_depth"] = args.router_depth
+            if hasattr(args, "router_dropout"):
+                summary_config["router_dropout"] = args.router_dropout
+
         wandb.init(
             project=args.wandb_project,
             entity=args.wandb_entity,
             name=summary_run_name,
             group=experiment_id,
-            config={
-                **dict(args),
-                "dataset": key,
-                "run_type": "summary",
-                "num_trials": num_trials_actual,
-                "required_test_appearances": required_test_appearances,
-                # Add grouping variables:
-                "groupby/dataset": key,
-                "groupby/model_type": (
-                    "MoE"
-                    if hasattr(args, "layer_types") and args.layer_types
-                    else args.layer_type
-                ),
-                "groupby/is_moe": hasattr(args, "layer_types")
-                and args.layer_types is not None,
-                "groupby/moe_layers": (
-                    "+".join(args.layer_types)
-                    if hasattr(args, "layer_types") and args.layer_types is not None
-                    else None
-                ),
-                "groupby/num_layers": args.num_layers,
-            },
+            config=summary_config,
             dir=args.wandb_dir,
             tags=list(args.wandb_tags or []) + ["summary"],
             reinit=True,
         )
 
         # Log aggregate statistics
-        wandb.log(
-            {
-                "summary/test_mean": test_mean,
-                "summary/test_ci": test_ci,
-                "summary/val_mean": val_mean,
-                "summary/val_ci": val_ci,
-                "summary/train_mean": train_mean,
-                "summary/train_ci": train_ci,
-                "summary/energy_mean": energy_mean,
-                "summary/energy_ci": energy_ci,
-                "summary/run_duration": run_duration,
-                "summary/num_trials_actual": num_trials_actual,
-                "summary/min_test_appearances": min(test_appearances.values()),
-                "summary/max_test_appearances": max(test_appearances.values()),
-                "summary/graphs_with_sufficient_appearances": graphs_with_sufficient_appearances,
-                # Log individual trial results for analysis
-                "trials/train_maes": train_accuracies,
-                "trials/val_maes": validation_accuracies,
-                "trials/test_maes": test_accuracies,
-                "trials/energies": energies,
-            }
-        )
+        summary_log_dict = {
+            "summary/test_mean": test_mean,
+            "summary/test_ci": test_ci,
+            "summary/val_mean": val_mean,
+            "summary/val_ci": val_ci,
+            "summary/train_mean": train_mean,
+            "summary/train_ci": train_ci,
+            "summary/energy_mean": energy_mean,
+            "summary/energy_ci": energy_ci,
+            "summary/run_duration": run_duration,
+            "summary/num_trials_actual": num_trials_actual,
+            "summary/min_test_appearances": min(test_appearances.values()),
+            "summary/max_test_appearances": max(test_appearances.values()),
+            "summary/graphs_with_sufficient_appearances": graphs_with_sufficient_appearances,
+            # Log individual trial results for analysis
+            "trials/train_maes": train_accuracies,
+            "trials/val_maes": validation_accuracies,
+            "trials/test_maes": test_accuracies,
+            "trials/energies": energies,
+        }
+        # Add router info ONLY for MoE models
+        if hasattr(args, "layer_types") and args.layer_types is not None:
+            if hasattr(args, "router_type"):
+                summary_log_dict["groupby/router_type"] = args.router_type
+            if hasattr(args, "router_layer_type"):
+                summary_log_dict["groupby/router_layer_type"] = args.router_layer_type
+            if hasattr(args, "router_depth"):
+                summary_log_dict["groupby/router_depth"] = args.router_depth
+            if hasattr(args, "router_dropout"):
+                summary_log_dict["groupby/router_dropout"] = args.router_dropout
+        wandb.log(summary_log_dict)
 
         # Create a summary table
         trial_data = []
