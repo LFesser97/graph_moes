@@ -10,7 +10,7 @@
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 64
+# Total experiments: 96
 #   - Base experiments per encoding variant: 32
 #     - 24 single layer experiments:
 #       - GCN: 8 datasets × 1 (skip only) = 8
@@ -18,9 +18,9 @@
 #       - Unitary: 8 datasets × 1 (no skip) = 8
 #     - 8 MoE experiments: 1 combination × 8 datasets
 #       - ['GCN', 'Unitary']
-#   - Encoding variants: 2
-#     - hg_rwpe_we_k20, g_orc
-#   - Total: 32 × 2 = 64 experiments
+#   - Encoding variants: 3
+#     - None, g_ldp, g_rwpe_k16
+#   - Total: 32 × 3 = 96 experiments
 # Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
 # Each experiment runs 200 trials to ensure proper test set coverage
 # Skip connections are only applied to GCN, GIN, and SAGE (included in base experiments)
@@ -29,7 +29,7 @@
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-64              # Total experiments: 32 base × 2 encoding variants = 64
+#SBATCH --array=1-96              # Total experiments: 32 base × 3 encoding variants = 96
 #SBATCH --ntasks=1
 #SBATCH --time=96:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=64GB               # Sufficient memory
@@ -369,7 +369,7 @@ task_id=${SLURM_ARRAY_TASK_ID:-1}
 
 # Encoding variants: hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc (encodings only, excluding None)
 # declare -a dataset_encodings=("hg_ldp" "hg_frc" "hg_rwpe_we_k20" "hg_lape_normalized_k8" "g_ldp" "g_rwpe_k16" "g_lape_k8" "g_orc")
-declare -a dataset_encodings=("hg_rwpe_we_k20" "g_orc")
+declare -a dataset_encodings=("None" "g_ldp" "g_rwpe_k16")
 num_encoding_variants=${#dataset_encodings[@]}
 
 # Base experiments per encoding variant: 32
