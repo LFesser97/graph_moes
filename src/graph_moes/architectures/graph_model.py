@@ -322,6 +322,12 @@ class UnitaryGCN(nn.Module):
         self.reset_parameters()
 
     def forward(self, data):
+        # Normalize features if requested (L2 normalization per node)
+        if self.normalize_features:
+            x_norm = torch.norm(data.x.float(), p=2, dim=1, keepdim=True)
+            data.x = data.x / (
+                x_norm + 1e-8
+            )  # Add small epsilon to avoid division by zero
         for conv in self.conv_layers:
             data = conv(data)
         x = global_mean_pool(data.x.real, data.batch)  # Global pooling over nodes
