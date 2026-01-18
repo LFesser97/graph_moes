@@ -10,8 +10,8 @@
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 2736
-#   - Base experiments per encoding variant: 304 (152 × 2 normalization variants)
+# Total experiments: 1728
+#   - Base experiments per encoding variant: 432 (216 × 2 normalization variants)
 #     - 144 single layer experiments (72 × 2 normalization variants):
 #       - GCN: 8 datasets × 2 (skip/no-skip) × 2 (norm/no-norm) = 32
 #       - GIN: 8 datasets × 2 (skip/no-skip) × 2 (norm/no-norm) = 32
@@ -19,9 +19,9 @@
 #       - MLP: 8 datasets × 1 (no skip) × 2 (norm/no-norm) = 16
 #       - Unitary: 8 datasets × 1 (no skip) × 2 (norm/no-norm) = 16
 #       - GPS: 8 datasets × 1 (no skip) × 2 (norm/no-norm) = 16
-#     - 160 MoE experiments (80 × 2 normalization variants): 6 combinations × 8 datasets × 2 router types (MLP, GNN) × 2 (norm/no-norm)
-#   - Encoding variants: 9 (None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc)
-#   - Total: 304 × 9 = 2736 experiments
+#     - 288 MoE experiments (144 × 2 normalization variants): 9 combinations × 8 datasets × 2 router types (MLP, GNN) × 2 (norm/no-norm)
+#   - Encoding variants: 4 (hg_lape_normalized_k8, g_rwpe_k16, g_lape_k8, None)
+#   - Total: 432 × 4 = 1728 experiments
 #     Encoding types: hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc
 # Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
 # Each experiment runs 200 trials to ensure proper test set coverage
@@ -32,7 +32,7 @@
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-2736            # Total experiments: 304 base × 9 encoding variants = 2736
+#SBATCH --array=1-1728            # Total experiments: 432 base × 4 encoding variants = 1728
 #SBATCH --ntasks=1
 #SBATCH --time=192:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=128GB               # Sufficient memory
@@ -348,6 +348,7 @@ declare -a single_layer_types=(
     "SAGE"
     "MLP"
     "Unitary"
+    "GPS"
 )
 
 declare -a moe_combinations=(
@@ -357,6 +358,10 @@ declare -a moe_combinations=(
     '["GIN", "SAGE"]'
     '["GIN", "Unitary"]'
     '["SAGE", "Unitary"]'
+    '["SAGE", "GPS"]'
+    '["Unitary", "GPS"]'
+    '["GCN", "GPS"]'
+    '["GIN", "GPS"]'
 )
 
 # Load hyperparameter lookup function
@@ -371,15 +376,15 @@ datasets=(enzymes proteins mutag imdb collab reddit mnist cifar)
 task_id=${SLURM_ARRAY_TASK_ID:-1}
 
 # Encoding variants: None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc
-declare -a dataset_encodings=("hg_ldp" "hg_rwpe_we_k20" "hg_lape_normalized_k8" "g_rwpe_k16" "g_lape_k8" "g_orc" "hg_frc" "g_ldp" "None" )
+declare -a dataset_encodings=("hg_lape_normalized_k8" "g_rwpe_k16" "g_lape_k8" "None")
 num_encoding_variants=${#dataset_encodings[@]}
 
-# Base experiments per encoding variant: 304 (152 × 2 normalization variants)
+# Base experiments per encoding variant: 432 (216 × 2 normalization variants)
 #   - 144 single layer experiments (72 × 2 normalization variants):
 #     - GCN, GIN, SAGE: 3 × 8 datasets × 2 (skip/no-skip) × 2 (norm/no-norm) = 96
 #     - MLP, Unitary, GPS: 3 × 8 datasets × 1 (no skip) × 2 (norm/no-norm) = 48
-#   - 160 MoE experiments (80 × 2 normalization variants): 6 combinations × 8 datasets × 2 router types (MLP, GNN) × 2 (norm/no-norm)
-base_experiments_per_variant=304
+#   - 288 MoE experiments (144 × 2 normalization variants): 9 combinations × 8 datasets × 2 router types (MLP, GNN) × 2 (norm/no-norm)
+base_experiments_per_variant=432
 
 # Calculate which encoding variant and base experiment this task corresponds to
 encoding_variant_idx=$(((task_id - 1) / base_experiments_per_variant))
@@ -507,7 +512,7 @@ else
     moe_id=$((actual_base_experiment_id - 73))  # Adjust for 72 single layer experiments (16+16+16+8+8+8 = 72)
     
     # Calculate dataset, MoE combination, and router type
-    # MoE experiments are organized as: 6 combinations × 8 datasets × 2 router types
+    # MoE experiments are organized as: 9 combinations × 8 datasets × 2 router types
     num_datasets=${#datasets[@]}
     num_moe_combinations=${#moe_combinations[@]}
     num_router_types=2  # MLP and GNN
