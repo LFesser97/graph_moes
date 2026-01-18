@@ -75,6 +75,10 @@ def plot_average_per_graph(
     """
     Plot average accuracy (classification) or average error (regression) per graph.
 
+    This creates a "heterogeneity profile" - a visualization showing how model performance
+    varies across different graphs in the dataset. The profile reveals which graphs are
+    consistently easy/hard for the model to predict, helping identify data heterogeneity.
+
     Args:
         graph_indices: Array of graph indices (x-axis)
         average_values: Array of average values (y-axis)
@@ -224,6 +228,8 @@ def load_and_plot_average_per_graph(
         return "", ""
 
     # Create and save original plot (ordered by graph index)
+    # This creates a "heterogeneity profile by index" - shows performance variation across
+    # graphs in their original dataset order, revealing which graph indices are easier/harder.
     # Include encoding, skip connection, and normalize_features in filename
     # Use full detailed encoding name (e.g., "hg_rwpe_we_k20", "g_lape_k8", not abbreviated)
     skip_str = "skip_true" if skip_connection else "skip_false"
@@ -248,6 +254,9 @@ def load_and_plot_average_per_graph(
     )
 
     # Create sorted plot (ordered by highest average accuracy)
+    # This creates a "heterogeneity profile by accuracy" - shows performance distribution
+    # sorted from highest to lowest accuracy, revealing the overall distribution of
+    # model performance across the dataset.
     # Sort by average values in descending order (highest accuracy first)
     sort_indices = np.argsort(average_values)[::-1]  # Sort descending
     sorted_graph_indices = graph_indices[sort_indices]

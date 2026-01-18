@@ -978,7 +978,11 @@ for key in datasets:
         )
     print(f"💾 Graph correctness dictionary saved to: {graph_dict_filename}")
 
-    # Generate and save average accuracy per graph plots (by index and by accuracy)
+    # Generate and save heterogeneity profiles (average accuracy per graph plots)
+    # These plots show how model performance varies across different graphs, revealing
+    # data heterogeneity - which graphs are consistently easy/hard to predict.
+    # Two plots are created: one ordered by graph index (by_index), one ordered by
+    # accuracy (by_accuracy) to show the performance distribution.
     try:
         # Use full detailed encoding name (e.g., "hg_rwpe_we_k20", "g_lape_k8") for plot filenames
         dataset_encoding_for_plots = getattr(args, "dataset_encoding", None)

@@ -22,7 +22,8 @@
 #   - Total: 40 × 1 = 40 experiments
 # Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
 # Each experiment runs 200 trials to ensure proper test set coverage
-# Skip connections are only applied to GCN, GIN, and SAGE (included in base experiments)
+# Skip connections are enabled for GIN and SAGE (where applicable)
+# MoE experiments use GNN router (not MLP)
 #
 # Usage: sbatch comprehensive_sweep_parallel.sh
 # ============================================================================
@@ -502,6 +503,7 @@ else
         --num_trials 200
         --dataset "$dataset"
         --layer_types "$layer_combo"
+        --router_type GNN
         --learning_rate "$learning_rate"
         --hidden_dim "$hidden_dim"
         --num_layers "$num_layer"
@@ -509,7 +511,7 @@ else
         --patience "$patience"
         --wandb_enabled
         --wandb_name "$wandb_run_name"
-        --wandb_tags '["cluster", "comprehensive", "moe", "research_hyperparams", "dataset_encoding_'${dataset_encoding}'"]'
+        --wandb_tags '["cluster", "comprehensive", "moe", "research_hyperparams", "dataset_encoding_'${dataset_encoding}'", "router_GNN"]'
     )
     
     # Add dataset_encoding if not None
