@@ -10,17 +10,16 @@
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 32
-#   - Base experiments per encoding variant: 32
-#     - 24 single layer experiments:
-#       - GCN: 8 datasets × 1 (skip only) = 8
-#       - MLP: 8 datasets × 1 (no skip) = 8
-#       - Unitary: 8 datasets × 1 (no skip) = 8
-#     - 8 MoE experiments: 1 combination × 8 datasets
-#       - ['GCN', 'Unitary']
+# Total experiments: 40
+#   - Base experiments per encoding variant: 40
+#     - 16 single layer experiments:
+#       - GIN: 8 datasets × 1 (skip only) = 8
+#       - SAGE: 8 datasets × 1 (skip only) = 8
+#     - 24 MoE experiments: 3 combinations × 8 datasets
+#       - ['GCN', 'GIN'], ['GCN', 'SAGE'], ['GIN', 'Unitary']
 #   - Encoding variants: 1
 #     - hg_orc
-#   - Total: 32 × 1 = 32 experiments
+#   - Total: 40 × 1 = 40 experiments
 # Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
 # Each experiment runs 200 trials to ensure proper test set coverage
 # Skip connections are only applied to GCN, GIN, and SAGE (included in base experiments)
@@ -29,7 +28,7 @@
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-32              # Total experiments: 32 base × 1 encoding variant = 32
+#SBATCH --array=1-40              # Total experiments: 40 base × 1 encoding variant = 40
 #SBATCH --ntasks=1
 #SBATCH --time=96:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=64GB               # Sufficient memory
@@ -340,19 +339,19 @@ python -c "import numpy, pandas, torch, graph_moes; print('✅ Core packages ava
 
 # Define all layer type combinations
 declare -a single_layer_types=(
-    "GCN"
-    # "GIN" 
-    # "SAGE"
-    "MLP"
-    "Unitary"
+    # "GCN"
+    "GIN" 
+    "SAGE"
+    # "MLP"
+    # "Unitary"
 )
 
 declare -a moe_combinations=(
-    # '["GCN", "GIN"]'
-    # '["GCN", "SAGE"]'
-    '["GCN", "Unitary"]'
+    '["GCN", "GIN"]'
+    '["GCN", "SAGE"]'
+    # '["GCN", "Unitary"]'
     # '["GIN", "SAGE"]'
-    # '["GIN", "Unitary"]'
+    '["GIN", "Unitary"]'
     # '["SAGE", "Unitary"]'
 )
 
@@ -372,13 +371,12 @@ task_id=${SLURM_ARRAY_TASK_ID:-1}
 declare -a dataset_encodings=("hg_orc")
 num_encoding_variants=${#dataset_encodings[@]}
 
-# Base experiments per encoding variant: 32
-#   - 24 single layer experiments:
-#     - GCN: 8 datasets × 1 (skip only) = 8
-#     - MLP: 8 datasets × 1 (no skip) = 8
-#     - Unitary: 8 datasets × 1 (no skip) = 8
-#   - 8 MoE experiments: 1 combination × 8 datasets
-base_experiments_per_variant=32
+# Base experiments per encoding variant: 40
+#   - 16 single layer experiments:
+#     - GIN: 8 datasets × 1 (skip only) = 8
+#     - SAGE: 8 datasets × 1 (skip only) = 8
+#   - 24 MoE experiments: 3 combinations × 8 datasets
+base_experiments_per_variant=40
 
 # Calculate which encoding variant and base experiment this task corresponds to
 encoding_variant_idx=$(((task_id - 1) / base_experiments_per_variant))
@@ -388,7 +386,7 @@ dataset_encoding=${dataset_encodings[$encoding_variant_idx]}
 
 log_message "📦 Task $task_id: Using dataset_encoding=$dataset_encoding (variant $((encoding_variant_idx + 1))/$num_encoding_variants), base_experiment=$base_experiment_id"
 
-if [ "$base_experiment_id" -le 24 ]; then
+if [ "$base_experiment_id" -le 16 ]; then
     # Single layer experiment
     experiment_type="single"
     # Adjust for encoding variant offset
@@ -398,29 +396,22 @@ if [ "$base_experiment_id" -le 24 ]; then
     num_datasets=${#datasets[@]}
     
     # Determine which layer type
-    # Layer order: GCN (0-7), MLP (8-15), Unitary (16-23)
-    # For GCN: 8 tasks (8 datasets × 1 skip variant = skip only)
-    # For MLP: 8 tasks (8 datasets × 1 skip variant = no skip)
-    # For Unitary: 8 tasks (8 datasets × 1 skip variant = no skip)
+    # Layer order: GIN (0-7), SAGE (8-15)
+    # For GIN: 8 tasks (8 datasets × 1 skip variant = skip only)
+    # For SAGE: 8 tasks (8 datasets × 1 skip variant = skip only)
     
     if [ "$adjusted_id" -lt 8 ]; then
-        # GCN: tasks 0-7 (skip only)
-        layer_type="GCN"
+        # GIN: tasks 0-7 (skip only)
+        layer_type="GIN"
         layer_base_id=$adjusted_id
         dataset_idx=$((layer_base_id % num_datasets))
-        skip_variant=1  # Always use skip for GCN
-    elif [ "$adjusted_id" -lt 16 ]; then
-        # MLP: tasks 8-15 (no skip)
-        layer_type="MLP"
+        skip_variant=1  # Always use skip for GIN
+    else
+        # SAGE: tasks 8-15 (skip only)
+        layer_type="SAGE"
         layer_base_id=$((adjusted_id - 8))
         dataset_idx=$((layer_base_id % num_datasets))
-        skip_variant=0  # MLP doesn't support skip connections
-    else
-        # Unitary: tasks 16-23 (no skip)
-        layer_type="Unitary"
-        layer_base_id=$((adjusted_id - 16))
-        dataset_idx=$((layer_base_id % num_datasets))
-        skip_variant=0  # Unitary doesn't support skip connections
+        skip_variant=1  # Always use skip for SAGE
     fi
     
     dataset=${datasets[$dataset_idx]}
@@ -478,7 +469,7 @@ if [ "$base_experiment_id" -le 24 ]; then
 else
     # MoE experiment
     experiment_type="moe"
-    moe_id=$((base_experiment_id - 25))  # Adjust for 24 single layer experiments
+    moe_id=$((base_experiment_id - 17))  # Adjust for 16 single layer experiments
     
     # Calculate dataset and MoE combination
     num_datasets=${#datasets[@]}
