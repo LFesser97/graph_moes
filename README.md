@@ -46,34 +46,30 @@ all moe connections.
 
 # TODO (12/10)
 
-* Investigate tmd
+* REGENERATE ENCODINGS
+
+* Investigate tmd -> RE RUN
 
 top priorities:
 * try to increase accuracies to match "Can ... be strong baseline for"
 [ with Skip connections or potentially encodings]
+check the Can ... be strong baseline for
+what we should expect. They also use ENCODINGS!
+Look at the paper (main text table 5)
 
 
 add hencodings
 Read GPS paper and instead of 50% 50% weight, let an Router decide.
 add peptides
 
-1 - add skip connection to eg (GCN, GIN, etc etc)
-[It's just adding input to conv layer and adding it to the output]+ 
-Check if Dropout is included +
-add encodings
-check the Can ... be strong baseline for
-what we should expect. They also use ENCODINGS!
-Look at the paper (main text table 5)
 
-2 - Also look at normalization [Section 3 in the paper].
+- Also look at normalization [Section 3 in the paper].
 
-4 - Compute the hg encodings once and make sure they are fully correct and then upload them.
+- Compute the hg encodings once and make sure they are fully correct and then upload them.
 
-add to wandb: the router type
 
-2 - Add global attention as an expert.
-
-3 - Try to add Global attention layer as router (imagine MOE as 
+- Add global attention as an expert: ASK LUKAS
+ Try to add Global attention layer as router (imagine MOE as 
 extension of GPS)
 
 
@@ -86,17 +82,10 @@ all moe connections.
 
 
 
-* Ask Lukas about the weird plots. WHy do we get a very clear separation by indexing?
-[ IN PROGRESS]
-* Can GNN be strong baselines:
-- take these hyperparameters and these datasets. [TODO: check manually]
 
 * Add test suite for accuracies / pytest for all that
 * Merge current PR
 * Run a new PR with black/isort/ruff
-
-
-
 
 
 - Redo plotting + TMD
@@ -166,7 +155,7 @@ see the performance of each model of each graph (repeated ten times)
 **CURRENT STATUS (December 28, 2025):**
 
 **✅ Currently running in main sweep (8 datasets - Graph Classification)**: enzymes, proteins, mutag, imdb, collab, reddit, mnist, cifar
-**📊 Available on WandB (MOE_new project)**: All 8 main sweep datasets above
+**📊 Available on WandB (MOE_4 project)**: All 8 main sweep datasets above
 **❌ Excluded from graph classification**: pattern (node classification - requires different experimental setup), cluster (disabled LRGB dataset)
 
 **🔄 IN PROGRESS - Additional datasets setup:**

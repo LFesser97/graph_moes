@@ -75,6 +75,10 @@ def plot_average_per_graph(
     """
     Plot average accuracy (classification) or average error (regression) per graph.
 
+    This creates a "heterogeneity profile" - a visualization showing how model performance
+    varies across different graphs in the dataset. The profile reveals which graphs are
+    consistently easy/hard for the model to predict, helping identify data heterogeneity.
+
     Args:
         graph_indices: Array of graph indices (x-axis)
         average_values: Array of average values (y-axis)
@@ -184,6 +188,8 @@ def load_and_plot_average_per_graph(
     output_dir: str = "results",
     layer_types: Optional[list] = None,
     router_type: str = "MLP",
+    skip_connection: bool = False,
+    normalize_features: bool = False,
 ) -> Tuple[str, str]:
     """
     Load graph_dict from pickle file and create average accuracy/error plots.
@@ -197,6 +203,9 @@ def load_and_plot_average_per_graph(
         num_layers: Number of layers in the model
         task_type: "classification" or "regression"
         output_dir: Directory to save the plots
+        layer_types: List of expert types for MOE models
+        router_type: Router type for MOE models
+        skip_connection: Whether skip connections were used
 
     Returns:
         Tuple of (original_plot_path, sorted_plot_path)
@@ -219,6 +228,17 @@ def load_and_plot_average_per_graph(
         return "", ""
 
     # Create and save original plot (ordered by graph index)
+    # This creates a "heterogeneity profile by index" - shows performance variation across
+    # graphs in their original dataset order, revealing which graph indices are easier/harder.
+    # Include encoding, skip connection, and normalize_features in filename
+    # Use full detailed encoding name (e.g., "hg_rwpe_we_k20", "g_lape_k8", not abbreviated)
+    skip_str = "skip_true" if skip_connection else "skip_false"
+    norm_str = "norm_true" if normalize_features else "norm_false"
+    encoding_str = (
+        encoding if encoding else "none"
+    )  # encoding should be full detailed name like "hg_rwpe_we_k20"
+    encoding_suffix = f"_encodings_{encoding_str}"
+    detailed_model_name = get_detailed_model_name(layer_type, layer_types, router_type)
     original_plot_path = plot_average_per_graph(
         graph_indices,
         average_values,
@@ -228,12 +248,15 @@ def load_and_plot_average_per_graph(
         num_layers,
         task_type,
         output_dir,
-        save_filename=f"{dataset_name}_{get_detailed_model_name(layer_type, layer_types, router_type)}_by_index.png",
+        save_filename=f"{dataset_name}_{detailed_model_name}_{skip_str}_{norm_str}{encoding_suffix}_by_index.png",
         layer_types=layer_types,
         router_type=router_type,
     )
 
     # Create sorted plot (ordered by highest average accuracy)
+    # This creates a "heterogeneity profile by accuracy" - shows performance distribution
+    # sorted from highest to lowest accuracy, revealing the overall distribution of
+    # model performance across the dataset.
     # Sort by average values in descending order (highest accuracy first)
     sort_indices = np.argsort(average_values)[::-1]  # Sort descending
     sorted_graph_indices = graph_indices[sort_indices]
@@ -248,7 +271,7 @@ def load_and_plot_average_per_graph(
         num_layers,
         task_type,
         output_dir,
-        save_filename=f"{dataset_name}_{get_detailed_model_name(layer_type, layer_types, router_type)}_by_accuracy.png",
+        save_filename=f"{dataset_name}_{detailed_model_name}_{skip_str}_{norm_str}{encoding_suffix}_by_accuracy.png",
         layer_types=layer_types,
         router_type=router_type,
     )

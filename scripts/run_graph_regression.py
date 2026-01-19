@@ -139,7 +139,7 @@ default_args = AttrDict(
         "encoding": None,
         # WandB defaults
         "wandb_enabled": False,
-        "wandb_project": "MOE_new",
+        "wandb_project": "MOE_4",
         "wandb_entity": "weber-geoml-harvard-university",
         "wandb_name": None,
         "wandb_dir": "./wandb",
@@ -440,7 +440,11 @@ for key in datasets:
         )
     print(f"💾 Graph error dictionary saved to: {graph_dict_filename}")
 
-    # Generate and save average error per graph plot
+    # Generate and save heterogeneity profile (average error per graph plot)
+    # This plot shows how model performance varies across different graphs, revealing
+    # data heterogeneity - which graphs are consistently easier/harder to predict.
+    # Two plots are created: one ordered by graph index (by_index), one ordered by
+    # error (by_accuracy) to show the performance distribution.
     try:
         plot_path = load_and_plot_average_per_graph(
             graph_dict_filename,
@@ -493,6 +497,7 @@ for key in datasets:
             "dataset": key,
             "encoding": args.encoding,
             "layer_type": args.layer_type,
+            "num_layers": args.num_layers,
             "alpha": args.alpha,
             "eps": args.eps,
             "test_mean": test_mean,

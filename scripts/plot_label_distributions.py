@@ -16,6 +16,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from torch_geometric.data import Data
 
 # Add src to path for imports
 project_root = Path(__file__).parent.parent
@@ -29,6 +30,23 @@ try:
 except ImportError as e:
     print(f"❌ Failed to import required modules: {e}")
     sys.exit(1)
+
+
+def _convert_lrgb(dataset_tuple: torch.Tensor) -> Data:
+    """Convert LRGB dataset tuple format to PyTorch Geometric Data object.
+
+    Args:
+        dataset_tuple: Tuple containing (x, edge_attr, edge_index, y) tensors
+
+    Returns:
+        PyTorch Geometric Data object with node features, edges, and labels
+    """
+    x = dataset_tuple[0]
+    edge_attr = dataset_tuple[1]
+    edge_index = dataset_tuple[2]
+    y = dataset_tuple[3]
+
+    return Data(x=x, edge_index=edge_index, y=y, edge_attr=edge_attr)
 
 
 def extract_labels(dataset, dataset_name: str):
@@ -213,9 +231,10 @@ def main():
     """Main function to plot label distributions for all classification datasets."""
 
     # Use local data directory (adjust path if needed)
-    data_directory = os.path.join(project_root, "graph_datasets")
+    data_directory = os.path.join(project_root, "data")
 
-    # Alternative: use cluster path if local doesn't exist
+    # Alternative: use graph_datasets directory or cluster path if data doesn't exist
+    graph_datasets_directory = os.path.join(project_root, "graph_datasets")
     cluster_data_directory = (
         "/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/graph_datasets"
     )
@@ -223,12 +242,15 @@ def main():
     if os.path.exists(data_directory):
         print(f"📁 Using local data directory: {data_directory}")
         use_directory = data_directory
+    elif os.path.exists(graph_datasets_directory):
+        print(f"📁 Using graph_datasets directory: {graph_datasets_directory}")
+        use_directory = graph_datasets_directory
     elif os.path.exists(cluster_data_directory):
         print(f"📁 Using cluster data directory: {cluster_data_directory}")
         use_directory = cluster_data_directory
     else:
         print(
-            f"❌ Data directory not found at {data_directory} or {cluster_data_directory}"
+            f"❌ Data directory not found at {data_directory}, {graph_datasets_directory}, or {cluster_data_directory}"
         )
         print("   Please update the path in the script.")
         sys.exit(1)
@@ -293,6 +315,32 @@ def main():
             print(f"  ⚠️  Skipped {ds_name}: interactive prompt encountered")
         except Exception as e:
             print(f"  ⚠️  Failed to load {ds_name}: {e}")
+
+    # Peptides-func dataset (LRGB)
+    try:
+        print("  ⏳ Loading Peptides-func...")
+        peptides_func_path = os.path.join(use_directory, "peptidesfunc")
+        if os.path.exists(peptides_func_path):
+            peptides_train = torch.load(
+                os.path.join(peptides_func_path, "train.pt"), weights_only=False
+            )
+            peptides_val = torch.load(
+                os.path.join(peptides_func_path, "val.pt"), weights_only=False
+            )
+            peptides_test = torch.load(
+                os.path.join(peptides_func_path, "test.pt"), weights_only=False
+            )
+            peptides_func = (
+                [_convert_lrgb(peptides_train[i]) for i in range(len(peptides_train))]
+                + [_convert_lrgb(peptides_val[i]) for i in range(len(peptides_val))]
+                + [_convert_lrgb(peptides_test[i]) for i in range(len(peptides_test))]
+            )
+            datasets_to_plot["peptides_func"] = peptides_func
+            print(f"  ✅ Peptides-func loaded: {len(peptides_func)} graphs")
+        else:
+            print(f"  ⚠️  Peptides-func directory not found at {peptides_func_path}")
+    except Exception as e:
+        print(f"  ⚠️  Failed to load Peptides-func: {e}")
 
     print(
         f"\n📈 Generating label distribution plots for {len(datasets_to_plot)} datasets..."

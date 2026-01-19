@@ -7,11 +7,16 @@ and computer vision tasks (MNIST, CIFAR10 superpixels). It supports various GNN 
 The script handles dataset preprocessing, optional structural encodings (Laplacian eigenvectors,
 random walk features, curvature profiles), multi-trial training with statistical analysis,
 and comprehensive result logging for benchmarking different graph neural network approaches.
+
+Desired behavior:
+Skips the experiment if the encoding file doesn't exist: Instead of falling back to the
+original dataset, it exits gracefully with sys.exit(0) when the precomputed encoding file is missing or fails to load.
 """
 
 import os
 import time
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -351,19 +356,6 @@ datasets = {k: v for k, v in datasets.items() if v is not None and len(v) > 0}
 # datasets = {"collab": collab, "imdb": imdb, "proteins": proteins, "reddit": reddit}
 
 
-for key in datasets:
-    if key in ["reddit", "imdb", "collab"]:
-        for graph in datasets[key]:
-            n = graph.num_nodes
-            graph.x = torch.ones((n, 1))
-    # Handle GraphBench datasets that might not have node features
-    elif key.startswith("graphbench_"):
-        for graph in datasets[key]:
-            if not hasattr(graph, "x") or graph.x is None:
-                n = graph.num_nodes
-                graph.x = torch.ones((n, 1))
-
-
 def log_to_file(
     message: str, filename: str = "results/graph_classification.txt"
 ) -> None:
@@ -377,6 +369,25 @@ def log_to_file(
     file = open(filename, "a")
     file.write(message)
     file.close()
+
+
+def get_encoding_category(encoding_dir: str | None) -> str:
+    """Determine encoding category based on the directory used for loading encodings.
+
+    Args:
+        encoding_dir: Path to the directory where encodings were loaded from, or None if no encoding.
+
+    Returns:
+        Category string: "hypergraph", "graph", or "None"
+    """
+    if encoding_dir is None:
+        return "None"
+    elif "graph_datasets_with_hg_encodings" in encoding_dir:
+        return "hypergraph"
+    elif "graph_datasets_with_g_encodings" in encoding_dir:
+        return "graph"
+    else:
+        return "None"
 
 
 default_args = AttrDict(
@@ -396,11 +407,12 @@ default_args = AttrDict(
         "dataset": None,
         "last_layer_fa": False,
         "encoding": None,
+        "dataset_encoding": None,  # Pre-computed dataset encoding: None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8,
         "mlp": True,
         "layer_types": None,
         # WandB defaults
         "wandb_enabled": False,
-        "wandb_project": "MOE_new",
+        "wandb_project": "MOE_4",
         "wandb_entity": "weber-geoml-harvard-university",
         "wandb_name": None,
         "wandb_dir": "./wandb",
@@ -451,10 +463,149 @@ hyperparams = {
 results = []
 args = default_args
 args += get_args_from_input()
+
+# Track which encoding directory was used (for determining encoding_category later)
+encoding_source_dir: str | None = None
+
+# Load encoded datasets if dataset_encoding is specified
+if hasattr(args, "dataset_encoding") and args.dataset_encoding is not None:
+    dataset_encoding = args.dataset_encoding
+    print(f"\n📦 Loading datasets with encoding: {dataset_encoding}")
+
+    # Determine the encoding directory and file pattern
+    if dataset_encoding.startswith("hg_"):
+        # Hypergraph encodings: hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, etc.
+        encoding_suffix = dataset_encoding[
+            3:
+        ]  # Remove "hg_" prefix to get suffix (e.g., "rwpe_we_k20", "lape_normalized_k8")
+        encoded_data_dir = (
+            Path(data_directory).parent / "graph_datasets_with_hg_encodings"
+        )
+        encoding_source_dir = str(encoded_data_dir)  # Track the directory used
+        file_pattern = "{dataset_name}_hg_{encoding_suffix}.pt"
+    elif dataset_encoding.startswith("g_"):
+        # Graph encodings: g_ldp, g_rwpe_k16, g_lape_k8, g_orc, etc.
+        encoding_suffix = dataset_encoding[
+            2:
+        ]  # Remove "g_" prefix to get suffix (e.g., "ldp", "rwpe_k16", "lape_k8")
+        encoded_data_dir = (
+            Path(data_directory).parent / "graph_datasets_with_g_encodings"
+        )
+        encoding_source_dir = str(encoded_data_dir)  # Track the directory used
+        file_pattern = "{dataset_name}_g_{encoding_suffix}.pt"
+    else:
+        raise ValueError(
+            f"Unknown dataset_encoding: {dataset_encoding}. Expected: None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc"
+        )
+
+    if not encoded_data_dir.exists():
+        raise FileNotFoundError(
+            f"Encoded datasets directory not found: {encoded_data_dir}"
+        )
+
+    print(f"📁 Encoded datasets directory: {encoded_data_dir}")
+    print(f"📁 Encoded datasets directory exists: {encoded_data_dir.exists()}")
+    print(f"📁 Encoded datasets directory (absolute): {encoded_data_dir.resolve()}")
+
+    # List some example files in the directory for debugging
+    try:
+        existing_files = list(encoded_data_dir.glob("*.pt"))
+        print(f"📋 Found {len(existing_files)} .pt files in directory")
+        if len(existing_files) > 0:
+            print(
+                f"   Example files (first 10): {[f.name for f in existing_files[:10]]}"
+            )
+    except Exception as e:
+        print(f"   ⚠️  Could not list files in directory: {e}")
+
+    # Load encoded datasets
+    # If --dataset is specified, only try to load encodings for that dataset
+    # Otherwise, try to load encodings for all datasets (some may not have encodings)
+    datasets_to_check = (
+        [args.dataset]
+        if hasattr(args, "dataset") and args.dataset
+        else list(datasets.keys())
+    )
+    print(
+        f"🔍 Checking encodings for {len(datasets_to_check)} dataset(s): {datasets_to_check}"
+    )
+    print(f"🔍 Encoding type: {dataset_encoding} (suffix: {encoding_suffix})")
+    print(f"🔍 File pattern: {file_pattern}")
+
+    encoded_datasets = {}
+    skipped_datasets = []
+    for dataset_name in datasets_to_check:
+        if dataset_encoding.startswith("hg_"):
+            filename = file_pattern.format(
+                dataset_name=dataset_name, encoding_suffix=encoding_suffix
+            )
+        elif dataset_encoding.startswith("g_"):
+            filename = file_pattern.format(
+                dataset_name=dataset_name, encoding_suffix=encoding_suffix
+            )
+        else:
+            filename = file_pattern.format(dataset_name=dataset_name)
+
+        encoded_file_path = encoded_data_dir / filename
+        print(f"  🔍 Dataset: {dataset_name}")
+        print(f"     WHERE WE ARE LOOKING: {encoded_file_path}")
+        print(f"     Absolute path: {encoded_file_path.resolve()}")
+        print(f"     Filename constructed: {filename}")
+        print(f"     File exists: {encoded_file_path.exists()}")
+
+        if encoded_file_path.exists():
+            try:
+                print(f"  ⏳ Loading {dataset_name} with {dataset_encoding}...")
+                encoded_dataset = torch.load(encoded_file_path)
+                encoded_datasets[dataset_name] = encoded_dataset
+                print(f"  ✅ {dataset_name} loaded: {len(encoded_dataset)} graphs")
+            except Exception as e:
+                print(
+                    f"  ❌ Failed to load {dataset_name} with {dataset_encoding}: {e}"
+                )
+                print(
+                    f"     Skipping {dataset_name} - encoding file exists but failed to load"
+                )
+                skipped_datasets.append(dataset_name)
+        else:
+            print(f"  ⚠️  Encoded dataset file not found: {encoded_file_path}")
+            print(f"     Skipping {dataset_name} - encoding file not found")
+            skipped_datasets.append(dataset_name)
+
+    # Check if we have any encoded datasets
+    if len(encoded_datasets) == 0:
+        print(f"  ❌ No encoded datasets found for encoding: {dataset_encoding}")
+        print(f"     Skipping experiment - at least one encoded dataset is required")
+        import sys
+
+        sys.exit(0)  # Exit gracefully, skip this experiment
+
+    # Warn about skipped datasets
+    if skipped_datasets:
+        print(
+            f"  ⚠️  Skipped {len(skipped_datasets)} dataset(s) without encodings: {', '.join(skipped_datasets)}"
+        )
+
+    # Replace datasets with encoded versions
+    datasets = encoded_datasets
+    print(f"✅ Loaded {len(datasets)} datasets with encoding: {dataset_encoding}\n")
+
 if args.dataset:
     # restricts to just the given dataset if this mode is chosen
     name = args.dataset
     datasets = {name: datasets[name]}
+
+for key in datasets:
+    if key in ["reddit", "imdb", "collab"]:
+        for graph in datasets[key]:
+            n = graph.num_nodes
+            graph.x = torch.ones((n, 1))
+    # Handle GraphBench datasets that might not have node features
+    elif key.startswith("graphbench_"):
+        for graph in datasets[key]:
+            if not hasattr(graph, "x") or graph.x is None:
+                n = graph.num_nodes
+                graph.x = torch.ones((n, 1))
 
 for key in datasets:
     args += hyperparams[key]
@@ -462,75 +613,97 @@ for key in datasets:
     validation_accuracies = []
     test_accuracies = []
     energies = []
-    print(f"TESTING: {key} ({args.encoding} - layer {args.layer_type})")
-
     dataset = datasets[key]
 
-    # encode the dataset using the given encoding, if args.encoding is not None
-    if args.encoding in ["LAPE", "RWPE", "LCP", "LDP", "SUB", "EGO"]:
+    # Determine which encoding method is being used
+    dataset_encoding = getattr(args, "dataset_encoding", None)
+    if dataset_encoding is not None:
+        # New system: Pre-computed dataset encodings (preferred)
+        encoding_info = f"dataset_encoding={dataset_encoding}"
+        print(f"TESTING: {key} ({encoding_info}, layer={args.layer_type})")
+        # Skip any on-the-fly encoding if dataset_encoding is specified
+        pass
+    elif args.encoding is not None:
+        # DEPRECATED: On-the-fly encoding computation (args.encoding) is deprecated.
+        # This approach has been replaced with pre-computed dataset encodings via args.dataset_encoding,
+        # which loads pre-processed datasets from graph_datasets_with_hg_encodings/ or
+        # graph_datasets_with_g_encodings/. The code below is kept for backwards compatibility
+        # but should not be used in new experiments. Use --dataset_encoding instead.
+        encoding_info = (
+            f"encoding={args.encoding} (DEPRECATED - use --dataset_encoding instead)"
+        )
+        print(f"TESTING: {key} ({encoding_info}, layer={args.layer_type})")
+        print(
+            f"  ⚠️  WARNING: On-the-fly encoding ({args.encoding}) is deprecated. Use --dataset_encoding for pre-computed encodings."
+        )
+        if args.encoding in ["LAPE", "RWPE", "LCP", "LDP", "SUB", "EGO"]:
 
-        if os.path.exists(f"data/{key}_{args.encoding}.pt"):
-            print(f"✅ ENCODING ALREADY EXISTS: Loading {key}_{args.encoding}.pt")
-            dataset = torch.load(f"data/{key}_{args.encoding}.pt")
+            if os.path.exists(f"data/{key}_{args.encoding}.pt"):
+                print(f"✅ ENCODING ALREADY EXISTS: Loading {key}_{args.encoding}.pt")
+                dataset = torch.load(f"data/{key}_{args.encoding}.pt")
 
-        elif args.encoding == "LCP":
-            print(f"🔄 ENCODING STARTED: {args.encoding} for {key.upper()}...")
-            lcp = LocalCurvatureProfile()
-            for i in tqdm(
-                range(len(dataset)), desc=f"Encoding {key.upper()} with {args.encoding}"
-            ):
-                dataset[i] = lcp.compute_orc(dataset[i])
-                print(f"Graph {i} of {len(dataset)} encoded with {args.encoding}")
-            torch.save(dataset, f"data/{key}_{args.encoding}.pt")
-            print(f"💾 Encoded dataset saved to: data/{key}_{args.encoding}.pt")
+            elif args.encoding == "LCP":
+                print(f"🔄 ENCODING STARTED: {args.encoding} for {key.upper()}...")
+                lcp = LocalCurvatureProfile()
+                for i in tqdm(
+                    range(len(dataset)),
+                    desc=f"Encoding {key.upper()} with {args.encoding}",
+                ):
+                    dataset[i] = lcp.compute_orc(dataset[i])
+                    print(f"Graph {i} of {len(dataset)} encoded with {args.encoding}")
+                torch.save(dataset, f"data/{key}_{args.encoding}.pt")
+                print(f"💾 Encoded dataset saved to: data/{key}_{args.encoding}.pt")
 
-        else:
-            print("ENCODING STARTED...")
-            org_dataset_len = len(dataset)
-            drop_datasets = []
-            current_graph = 0
+            else:
+                print("ENCODING STARTED...")
+                org_dataset_len = len(dataset)
+                drop_datasets = []
+                current_graph = 0
 
-            for i in tqdm(
-                range(org_dataset_len),
-                desc=f"Encoding {key.upper()} with {args.encoding}",
-            ):
-                if args.encoding == "LAPE":
-                    num_nodes = dataset[i].num_nodes
-                    eigvecs = np.min([num_nodes, 8]) - 2
-                    transform = T.AddLaplacianEigenvectorPE(k=eigvecs)
+                for i in tqdm(
+                    range(org_dataset_len),
+                    desc=f"Encoding {key.upper()} with {args.encoding}",
+                ):
+                    if args.encoding == "LAPE":
+                        num_nodes = dataset[i].num_nodes
+                        eigvecs = np.min([num_nodes, 8]) - 2
+                        transform = T.AddLaplacianEigenvectorPE(k=eigvecs)
 
-                elif args.encoding == "RWPE":
-                    transform = T.AddRandomWalkPE(walk_length=16)
+                    elif args.encoding == "RWPE":
+                        transform = T.AddRandomWalkPE(walk_length=16)
 
-                elif args.encoding == "LDP":
-                    transform = T.LocalDegreeProfile()
+                    elif args.encoding == "LDP":
+                        transform = T.LocalDegreeProfile()
 
-                elif args.encoding == "SUB":
-                    transform = T.RootedRWSubgraph(walk_length=10)
+                    elif args.encoding == "SUB":
+                        transform = T.RootedRWSubgraph(walk_length=10)
 
-                elif args.encoding == "EGO":
-                    transform = T.RootedEgoNets(num_hops=2)
+                    elif args.encoding == "EGO":
+                        transform = T.RootedEgoNets(num_hops=2)
 
-                try:
-                    dataset[i] = transform(dataset[i])
-                    print(
-                        f"Graph {current_graph} of {org_dataset_len} encoded with {args.encoding}"
-                    )
-                    current_graph += 1
+                    try:
+                        dataset[i] = transform(dataset[i])
+                        print(
+                            f"Graph {current_graph} of {org_dataset_len} encoded with {args.encoding}"
+                        )
+                        current_graph += 1
 
-                except Exception:
-                    tqdm.write(
-                        f"⚠️  Graph {current_graph} dropped due to encoding error"
-                    )
-                    drop_datasets.append(i)
-                    current_graph += 1
+                    except Exception:
+                        tqdm.write(
+                            f"⚠️  Graph {current_graph} dropped due to encoding error"
+                        )
+                        drop_datasets.append(i)
+                        current_graph += 1
 
-            for i in sorted(drop_datasets, reverse=True):
-                dataset.pop(i)
+                for i in sorted(drop_datasets, reverse=True):
+                    dataset.pop(i)
 
-            # save the dataset to a file in the data folder
-            torch.save(dataset, f"data/{key}_{args.encoding}.pt")
-            print(f"💾 Encoded dataset saved to: data/{key}_{args.encoding}.pt")
+                # save the dataset to a file in the data folder
+                torch.save(dataset, f"data/{key}_{args.encoding}.pt")
+                print(f"💾 Encoded dataset saved to: data/{key}_{args.encoding}.pt")
+    else:
+        # No encoding - using original dataset
+        print(f"TESTING: {key} (no encoding, layer={args.layer_type})")
 
     # create a dictionary of the graphs in the dataset with the key being the graph index
     # graph_dict[graph_idx] = list of correctness values (1=correct, 0=incorrect) for each test appearance
@@ -556,7 +729,7 @@ for key in datasets:
     # Add progress bar for trials
     experiment_id = None
     if args.wandb_enabled:
-        # Create a unique experiment group ID (include skip_connection if relevant)
+        # Create a unique experiment group ID (include skip_connection and normalize_features if relevant)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         skip_suffix = (
             "_skip"
@@ -564,9 +737,14 @@ for key in datasets:
             and args.layer_type in ["GCN", "GIN", "SAGE"]
             else ""
         )
-        experiment_id = f"{key}_{args.layer_type}{skip_suffix}_{timestamp}"
+        norm_suffix = "_norm" if getattr(args, "normalize_features", False) else ""
+        dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
+        dataset_encoding_suffix = (
+            f"_enc{dataset_encoding_str}" if dataset_encoding_str != "None" else ""
+        )
+        experiment_id = f"{key}_{args.layer_type}{skip_suffix}{norm_suffix}{dataset_encoding_suffix}_{timestamp}"
         if args.wandb_name:
-            experiment_id = f"{args.wandb_name}{skip_suffix}_{timestamp}"
+            experiment_id = f"{args.wandb_name}{skip_suffix}{norm_suffix}{dataset_encoding_suffix}_{timestamp}"
         print(f"🔬 WandB Experiment Group: {experiment_id}")
 
     trial = 0
@@ -615,12 +793,21 @@ for key in datasets:
                 trial_run_name = f"{args.wandb_name}_trial_{trial + 1:02d}"
 
             # Build config dictionary
+            dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
+            # Determine encoding category based on the directory where encodings were loaded from:
+            # - hypergraph encodings: graph_datasets_with_hg_encodings
+            # - graph encodings: graph_datasets_with_g_encodings
+            # - no encodings: None (using normal datasets)
+            encoding_category = get_encoding_category(encoding_source_dir)
+
             wandb_config = {
                 **dict(args),
                 "trial_num": trial,
                 "dataset": key,
                 # Add grouping variables:
                 "dataset_name": key,  # For grouping by dataset
+                "dataset_encoding": dataset_encoding_str,  # Pre-computed dataset encoding
+                "encoding_category": encoding_category,  # Category: None, hypergraph, or graph
                 "is_moe": args.layer_types
                 is not None,  # Boolean for MoE vs single layer
                 "model_type": (
@@ -631,13 +818,22 @@ for key in datasets:
                     str(args.layer_types) if args.layer_types else args.layer_type
                 ),
                 "skip_connection": getattr(args, "skip_connection", False),
+                "normalize_features": getattr(args, "normalize_features", False),
             }
             # Add router configuration ONLY for MoE models
             if args.layer_types is not None:
-                wandb_config["router_type"] = args.router_type
-                wandb_config["router_layer_type"] = args.router_layer_type
-                wandb_config["router_depth"] = args.router_depth
-                wandb_config["router_dropout"] = args.router_dropout
+                router_type = getattr(args, "router_type", "MLP")
+                wandb_config["router_type"] = router_type
+                # If router_type is MLP, set router_layer_type to MLP for consistency
+                # (router_layer_type is only used when router_type is GNN)
+                if router_type == "MLP":
+                    wandb_config["router_layer_type"] = "MLP"
+                else:
+                    wandb_config["router_layer_type"] = getattr(
+                        args, "router_layer_type", "GIN"
+                    )
+                wandb_config["router_depth"] = getattr(args, "router_depth", 4)
+                wandb_config["router_dropout"] = getattr(args, "router_dropout", 0.1)
 
             wandb.init(
                 project=args.wandb_project,
@@ -688,6 +884,9 @@ for key in datasets:
                     "final/max_test_appearances": max_appearances,
                     # Add grouping variables:
                     "groupby/dataset": key,
+                    "groupby/dataset_encoding": getattr(args, "dataset_encoding", None)
+                    or "None",
+                    "groupby/encoding_category": encoding_category,
                     "groupby/model_type": (
                         "MoE" if args.layer_types else args.layer_type
                     ),
@@ -699,13 +898,26 @@ for key in datasets:
                     ),
                     "groupby/num_layers": args.num_layers,
                     "groupby/skip_connection": getattr(args, "skip_connection", False),
+                    "groupby/normalize_features": getattr(
+                        args, "normalize_features", False
+                    ),
                 }
                 # Add router info ONLY for MoE models
                 if args.layer_types is not None:
-                    log_dict["groupby/router_type"] = args.router_type
-                    log_dict["groupby/router_layer_type"] = args.router_layer_type
-                    log_dict["groupby/router_depth"] = args.router_depth
-                    log_dict["groupby/router_dropout"] = args.router_dropout
+                    router_type = getattr(args, "router_type", "MLP")
+                    log_dict["groupby/router_type"] = router_type
+                    # If router_type is MLP, set router_layer_type to MLP for consistency
+                    # (router_layer_type is only used when router_type is GNN)
+                    if router_type == "MLP":
+                        log_dict["groupby/router_layer_type"] = "MLP"
+                    else:
+                        log_dict["groupby/router_layer_type"] = getattr(
+                            args, "router_layer_type", "GIN"
+                        )
+                    log_dict["groupby/router_depth"] = getattr(args, "router_depth", 4)
+                    log_dict["groupby/router_dropout"] = getattr(
+                        args, "router_dropout", 0.1
+                    )
                 wandb.log(log_dict)
 
         finally:
@@ -736,7 +948,8 @@ for key in datasets:
     # Generate detailed model name for MOE models
     if args.layer_types is not None:
         expert_combo = "_".join(args.layer_types)
-        detailed_model_name = f"{args.layer_type}_{args.router_type}_{expert_combo}"
+        router_type = getattr(args, "router_type", "MLP")
+        detailed_model_name = f"{args.layer_type}_{router_type}_{expert_combo}"
     else:
         detailed_model_name = args.layer_type
     # Add skip_connection suffix if applicable
@@ -747,8 +960,13 @@ for key in datasets:
     ]:
         detailed_model_name = f"{detailed_model_name}_skip"
 
-    encoding_str = args.encoding if args.encoding else "None"
-    graph_dict_filename = f"results/{args.num_layers}_layers/{key}_{detailed_model_name}_{encoding_str}_graph_dict.pickle"
+    # Add normalize_features suffix if applicable
+    if getattr(args, "normalize_features", False):
+        detailed_model_name = f"{detailed_model_name}_norm"
+
+    # Use only pre-computed encoding for filename (legacy encoding is deprecated)
+    dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
+    graph_dict_filename = f"results/{args.num_layers}_layers/{key}_{detailed_model_name}_enc{dataset_encoding_str}_graph_dict.pickle"
     with open(graph_dict_filename, "wb") as f:
         pickle.dump(
             {
@@ -760,18 +978,28 @@ for key in datasets:
         )
     print(f"💾 Graph correctness dictionary saved to: {graph_dict_filename}")
 
-    # Generate and save average accuracy per graph plots (by index and by accuracy)
+    # Generate and save heterogeneity profiles (average accuracy per graph plots)
+    # These plots show how model performance varies across different graphs, revealing
+    # data heterogeneity - which graphs are consistently easy/hard to predict.
+    # Two plots are created: one ordered by graph index (by_index), one ordered by
+    # accuracy (by_accuracy) to show the performance distribution.
     try:
+        # Use full detailed encoding name (e.g., "hg_rwpe_we_k20", "g_lape_k8") for plot filenames
+        dataset_encoding_for_plots = getattr(args, "dataset_encoding", None)
+        skip_connection = getattr(args, "skip_connection", False)
+        normalize_features = getattr(args, "normalize_features", False)
         original_plot_path, sorted_plot_path = load_and_plot_average_per_graph(
             graph_dict_filename,
             dataset_name=key,
             layer_type=args.layer_type,
-            encoding=args.encoding,
+            encoding=dataset_encoding_for_plots,
             num_layers=args.num_layers,
             task_type="classification",
             output_dir="results",
             layer_types=args.layer_types if args.layer_types else None,
-            router_type=args.router_type,
+            router_type=getattr(args, "router_type", "MLP"),
+            skip_connection=skip_connection,
+            normalize_features=normalize_features,
         )
         if original_plot_path:
             print(f"📊 Average accuracy plot (by index) saved to: {original_plot_path}")
@@ -788,6 +1016,12 @@ for key in datasets:
     val_mean = 100 * np.mean(validation_accuracies)
     test_mean = 100 * np.mean(test_accuracies)
     energy_mean = 100 * np.mean(energies)
+    # Standard deviations (raw)
+    train_std = 100 * np.std(train_accuracies) if num_trials_actual > 0 else 0
+    val_std = 100 * np.std(validation_accuracies) if num_trials_actual > 0 else 0
+    test_std = 100 * np.std(test_accuracies) if num_trials_actual > 0 else 0
+    energy_std = 100 * np.std(energies) if num_trials_actual > 0 else 0
+    # Confidence intervals (2 * std / sqrt(n) for 95% CI)
     train_ci = (
         2 * np.std(train_accuracies) / (num_trials_actual**0.5)
         if num_trials_actual > 0
@@ -808,26 +1042,34 @@ for key in datasets:
         if num_trials_actual > 0
         else 0
     )
+    dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
     log_to_file(
-        f"RESULTS FOR dataset: {key} (model: {args.layer_type}), with encodings: {args.encoding}:\n"
+        f"RESULTS FOR dataset: {key} (model: {args.layer_type}), dataset_encoding: {dataset_encoding_str}:\n"
     )
     log_to_file(f"average acc: {test_mean}\n")
-    log_to_file(f"plus/minus:  {test_ci}\n\n")
+    log_to_file(f"plus/minus (CI):  {test_ci}\n")
+    log_to_file(f"std deviation: {test_std}\n\n")
     results.append(
         {
             "dataset": key,
+            "dataset_encoding": getattr(args, "dataset_encoding", None),
             "encoding": args.encoding,
             "layer_type": args.layer_type,
             "layer_types": args.layer_types,
+            "num_layers": args.num_layers,
             "alpha": args.alpha,
             "eps": args.eps,
             "test_mean": test_mean,
+            "test_std": test_std,
             "test_ci": test_ci,
             "val_mean": val_mean,
+            "val_std": val_std,
             "val_ci": val_ci,
             "train_mean": train_mean,
+            "train_std": train_std,
             "train_ci": train_ci,
             "energy_mean": energy_mean,
+            "energy_std": energy_std,
             "energy_ci": energy_ci,
             "last_layer_fa": args.last_layer_fa,
             "run_duration": run_duration,
@@ -835,6 +1077,8 @@ for key in datasets:
             "min_test_appearances": min(test_appearances.values()),
             "max_test_appearances": max(test_appearances.values()),
             "graphs_with_sufficient_appearances": graphs_with_sufficient_appearances,
+            "skip_connection": getattr(args, "skip_connection", False),
+            "normalize_features": getattr(args, "normalize_features", False),
         }
     )
 
@@ -845,19 +1089,47 @@ for key in datasets:
             summary_run_name = f"{args.wandb_name}_SUMMARY"
 
         # Build config dictionary for summary run
+        dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
+        # Determine encoding category based on the directory where encodings were loaded from:
+        # - hypergraph encodings: graph_datasets_with_hg_encodings
+        # - graph encodings: graph_datasets_with_g_encodings
+        # - no encodings: None (using normal datasets)
+        encoding_category = get_encoding_category(encoding_source_dir)
+
+        # Determine layer combination string (for both MoE and single layer models)
+        if args.layer_types is not None:
+            layer_combination = str(args.layer_types)  # e.g., "['GCN', 'GIN']"
+        else:
+            layer_combination = args.layer_type  # e.g., "GCN"
+
         summary_config = {
             **dict(args),
             "dataset": key,
             "run_type": "summary",
             "num_trials": num_trials_actual,
             "required_test_appearances": required_test_appearances,
+            "dataset_encoding": dataset_encoding_str,
+            "encoding_category": encoding_category,
+            "is_moe": args.layer_types is not None,
+            "layer_combination": layer_combination,
+            "model_type": "MoE" if args.layer_types is not None else args.layer_type,
+            "skip_connection": getattr(args, "skip_connection", False),
+            "normalize_features": getattr(args, "normalize_features", False),
         }
         # Add router configuration ONLY for MoE models
         if args.layer_types is not None:
-            summary_config["router_type"] = args.router_type
-            summary_config["router_layer_type"] = args.router_layer_type
-            summary_config["router_depth"] = args.router_depth
-            summary_config["router_dropout"] = args.router_dropout
+            router_type = getattr(args, "router_type", "MLP")
+            summary_config["router_type"] = router_type
+            # If router_type is MLP, set router_layer_type to MLP for consistency
+            # (router_layer_type is only used when router_type is GNN)
+            if router_type == "MLP":
+                summary_config["router_layer_type"] = "MLP"
+            else:
+                summary_config["router_layer_type"] = getattr(
+                    args, "router_layer_type", "GIN"
+                )
+            summary_config["router_depth"] = getattr(args, "router_depth", 4)
+            summary_config["router_dropout"] = getattr(args, "router_dropout", 0.1)
 
         wandb.init(
             project=args.wandb_project,
@@ -871,20 +1143,36 @@ for key in datasets:
         )
 
         # Log aggregate statistics
+        # Determine layer combination string (for both MoE and single layer models)
+        if args.layer_types is not None:
+            layer_combination = str(args.layer_types)  # e.g., "['GCN', 'GIN']"
+        else:
+            layer_combination = args.layer_type  # e.g., "GCN"
+
         summary_log_dict = {
             "summary/test_mean": test_mean,
+            "summary/test_std": test_std,
             "summary/test_ci": test_ci,
             "summary/val_mean": val_mean,
+            "summary/val_std": val_std,
             "summary/val_ci": val_ci,
             "summary/train_mean": train_mean,
+            "summary/train_std": train_std,
             "summary/train_ci": train_ci,
             "summary/energy_mean": energy_mean,
+            "summary/energy_std": energy_std,
             "summary/energy_ci": energy_ci,
             "summary/run_duration": run_duration,
             "summary/num_trials_actual": num_trials_actual,
             "summary/min_test_appearances": min(test_appearances.values()),
             "summary/max_test_appearances": max(test_appearances.values()),
             "summary/graphs_with_sufficient_appearances": graphs_with_sufficient_appearances,
+            # Model metadata
+            "summary/is_moe": args.layer_types is not None,
+            "summary/layer_combination": layer_combination,
+            "summary/model_type": (
+                "MoE" if args.layer_types is not None else args.layer_type
+            ),
             # Log individual trial results for analysis
             "trials/train_accs": train_accuracies,
             "trials/val_accs": validation_accuracies,
@@ -892,6 +1180,9 @@ for key in datasets:
             "trials/energies": energies,
             # Add grouping variables:
             "groupby/dataset": key,
+            "groupby/dataset_encoding": getattr(args, "dataset_encoding", None)
+            or "None",
+            "groupby/encoding_category": encoding_category,
             "groupby/model_type": "MoE" if args.layer_types else args.layer_type,
             "groupby/is_moe": args.layer_types is not None,
             "groupby/moe_layers": (
@@ -899,13 +1190,24 @@ for key in datasets:
             ),
             "groupby/num_layers": args.num_layers,
             "groupby/skip_connection": getattr(args, "skip_connection", False),
+            "groupby/normalize_features": getattr(args, "normalize_features", False),
         }
         # Add router info ONLY for MoE models
         if args.layer_types is not None:
-            summary_log_dict["groupby/router_type"] = args.router_type
-            summary_log_dict["groupby/router_layer_type"] = args.router_layer_type
-            summary_log_dict["groupby/router_depth"] = args.router_depth
-            summary_log_dict["groupby/router_dropout"] = args.router_dropout
+            router_type = getattr(args, "router_type", "MLP")
+            summary_log_dict["groupby/router_type"] = router_type
+            # If router_type is MLP, set router_layer_type to MLP for consistency
+            # (router_layer_type is only used when router_type is GNN)
+            if router_type == "MLP":
+                summary_log_dict["groupby/router_layer_type"] = "MLP"
+            else:
+                summary_log_dict["groupby/router_layer_type"] = getattr(
+                    args, "router_layer_type", "GIN"
+                )
+            summary_log_dict["groupby/router_depth"] = getattr(args, "router_depth", 4)
+            summary_log_dict["groupby/router_dropout"] = getattr(
+                args, "router_dropout", 0.1
+            )
         wandb.log(summary_log_dict)
 
         # Create a summary table
@@ -927,18 +1229,35 @@ for key in datasets:
         wandb.finish()
 
     # Log every time a dataset is completed
+    # Use full detailed encoding name (e.g., "hg_rwpe_we_k20", "g_lape_k8", not abbreviated)
+    dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
+    skip_connection = getattr(args, "skip_connection", False)
+    normalize_features = getattr(args, "normalize_features", False)
+    skip_str = "true" if skip_connection else "false"
+    norm_str = "true" if normalize_features else "false"
+    # Create more precise CSV filename with skip, normalize, and encoding info (using full detailed encoding name)
+    encoding_part = (
+        f"encodings_{dataset_encoding_str}"
+        if dataset_encoding_str != "None"
+        else "encodings_none"
+    )
+    csv_filename = f"results/graph_classification_{args.layer_type}_skip_{skip_str}_norm_{norm_str}_{encoding_part}.csv"
     df = pd.DataFrame(results)
-    with open(
-        f"results/graph_classification_{args.layer_type}_{args.encoding}.csv", "a"
-    ) as f:
+    with open(csv_filename, "a") as f:
         df.to_csv(f, mode="a", header=f.tell() == 0)
 
     print(f"\n🎯 FINAL RESULTS for {key.upper()}:")
-    print(f"   📈 Test Accuracy: {test_mean:.2f}% ± {test_ci:.2f}%")
-    print(f"   📊 Validation Accuracy: {val_mean:.2f}% ± {val_ci:.2f}%")
-    print(f"   🏃 Training Accuracy: {train_mean:.2f}% ± {train_ci:.2f}%")
-    print(f"   ⚡ Energy: {energy_mean:.2f}% ± {energy_ci:.2f}%")
-    print(f"   ⏱️  Duration: {run_duration:.2f}s")
     print(
-        f"   💾 Results saved to: results/graph_classification_{args.layer_type}_{args.encoding}.csv"
+        f"   📈 Test Accuracy: {test_mean:.2f}% ± {test_std:.2f}% (std) / ± {test_ci:.2f}% (95% CI)"
     )
+    print(
+        f"   📊 Validation Accuracy: {val_mean:.2f}% ± {val_std:.2f}% (std) / ± {val_ci:.2f}% (95% CI)"
+    )
+    print(
+        f"   🏃 Training Accuracy: {train_mean:.2f}% ± {train_std:.2f}% (std) / ± {train_ci:.2f}% (95% CI)"
+    )
+    print(
+        f"   ⚡ Energy: {energy_mean:.2f}% ± {energy_std:.2f}% (std) / ± {energy_ci:.2f}% (95% CI)"
+    )
+    print(f"   ⏱️  Duration: {run_duration:.2f}s")
+    print(f"   💾 Results saved to: {csv_filename}")
