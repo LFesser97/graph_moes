@@ -23,10 +23,16 @@ def parse_pickle_filename(filepath: Path) -> dict:
     """
     Parse pickle filename to extract model configuration.
 
+    Handles multiple filename formats:
+    - Old: {dataset}_{model}_skip_enc{encoding} or {dataset}_{model}_enc{encoding}
+    - New: {dataset}_{model}_norm_enc{encoding} or {dataset}_{model}_skip_enc{encoding}
+    - Encoding formats: encNone, encg_ldp, encg_rwpe_k16, enchg_orc, enchg_lape_normalized_k8
+
     Examples:
     - enzymes_GCN_skip_enchg_orc_graph_dict.pickle
     - enzymes_MLP_encNone_graph_dict.pickle
     - enzymes_MoE_MLP_GCN_Unitary_encg_ldp_graph_dict.pickle
+    - collab_GCN_norm_enchg_lape_normalized_k8_graph_dict.pickle
 
     Returns dict with: dataset, layer_type, encoding, num_layers, skip_connection, normalize_features, layer_types, router_type
     """
@@ -37,30 +43,47 @@ def parse_pickle_filename(filepath: Path) -> dict:
     num_layers_match = re.match(r"(\d+)_layers", parent_dir)
     num_layers = int(num_layers_match.group(1)) if num_layers_match else None
 
-    # Parse the filename
-    # Pattern: {dataset}_{model_config}_enc{encoding}
+    # Parse the filename - split on _enc to separate model and encoding
+    # Format: {dataset}_{model}[_skip][_norm]_enc{encoding}
     parts = filename.split("_enc")
-    dataset = parts[0].split("_")[0]
 
-    model_part = parts[0].replace(f"{dataset}_", "")
-    encoding = parts[1] if len(parts) > 1 else "None"
+    if len(parts) < 2:
+        # No encoding found - assume None
+        encoding = "None"
+        model_part_full = filename
+    else:
+        # Encoding part is after _enc (removed by split)
+        encoding_part = parts[1] if len(parts) > 1 else "None"
+        # Encoding formats: None, g_ldp, g_rwpe_k16, hg_orc, hg_lape_normalized_k8
+        if encoding_part == "None":
+            encoding = "None"
+        else:
+            encoding = encoding_part  # Already in correct format (g_ldp, hg_lape_normalized_k8, etc.)
+        model_part_full = parts[0]
 
-    # Parse model configuration
+    # Extract dataset (first part)
+    dataset = model_part_full.split("_")[0]
+    model_part = model_part_full.replace(f"{dataset}_", "")
+
+    # Parse model configuration flags
     skip_connection = False
     normalize_features = False
     layer_types = None
     router_type = "MLP"
     layer_type = None
 
-    # Check for skip
+    # Check for skip connection (format: _skip or _skip_)
     if "_skip" in model_part:
         skip_connection = True
         model_part = model_part.replace("_skip", "")
 
-    # Check for norm
+    # Check for normalization (format: _norm or _norm_)
     if "_norm" in model_part:
         normalize_features = True
         model_part = model_part.replace("_norm", "")
+
+    # Clean up any double underscores or trailing underscores
+    model_part = model_part.replace("__", "_").strip("_")
 
     # Check for MoE (has router type and expert types)
     if model_part.startswith("MoE_"):

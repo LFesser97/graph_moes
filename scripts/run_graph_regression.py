@@ -497,6 +497,7 @@ for key in datasets:
             "dataset": key,
             "encoding": args.encoding,
             "layer_type": args.layer_type,
+            "num_layers": args.num_layers,
             "alpha": args.alpha,
             "eps": args.eps,
             "test_mean": test_mean,
