@@ -12,7 +12,7 @@
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 1296
+# Total experiments: 1620
 #   - Base experiments per encoding variant: 324 (162 × 2 normalization variants)
 #     - 108 single layer experiments (54 × 2 normalization variants):
 #       - GCN: 6 datasets × 2 (skip/no-skip) × 2 (norm/no-norm) = 24
@@ -22,8 +22,8 @@
 #       - Unitary: 6 datasets × 1 (no skip) × 2 (norm/no-norm) = 12
 #       - GPS: 6 datasets × 1 (no skip) × 2 (norm/no-norm) = 12
 #     - 216 MoE experiments (108 × 2 normalization variants): 9 combinations × 6 datasets × 2 router types (MLP, GNN) × 2 (norm/no-norm)
-#   - Encoding variants: 4 (hg_lape_normalized_k8, g_rwpe_k16, g_lape_k8, None)
-#   - Total: 324 × 4 = 1296 experiments
+#   - Encoding variants: 5 (hg_lape_normalized_k8, hg_rwpe_we_k20, g_rwpe_k16, g_lape_k8, None)
+#   - Total: 324 × 5 = 1620 experiments
 #     Encoding types: hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc
 # Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
 # Note: mnist and cifar excluded (slow datasets)
@@ -35,7 +35,7 @@
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep_no_slow
-#SBATCH --array=1-1296            # Total experiments: 324 base × 4 encoding variants = 1296
+#SBATCH --array=1-1620            # Total experiments: 324 base × 5 encoding variants = 1620
 #SBATCH --ntasks=1
 #SBATCH --time=192:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=128GB               # Sufficient memory
@@ -380,7 +380,7 @@ datasets=(enzymes proteins mutag imdb collab reddit)
 task_id=${SLURM_ARRAY_TASK_ID:-1}
 
 # Encoding variants: None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc
-declare -a dataset_encodings=("hg_lape_normalized_k8" "g_rwpe_k16" "g_lape_k8" "None")
+declare -a dataset_encodings=("hg_lape_normalized_k8" "hg_rwpe_we_k20" "g_rwpe_k16" "g_lape_k8" "None")
 num_encoding_variants=${#dataset_encodings[@]}
 
 # Base experiments per encoding variant: 324 (162 × 2 normalization variants)
