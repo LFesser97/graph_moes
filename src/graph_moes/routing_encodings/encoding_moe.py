@@ -85,6 +85,38 @@ class EncodingMoE(nn.Module):
         # Store encoding dimensions for dimension checking
         self.encoding_dims = [config["encoding_dim"] for config in encoding_configs]
 
+        # Store expected input dimension from GNN model (first layer input size)
+        # This is the input_dim the GNN was initialized with (max across all encodings)
+        if hasattr(gnn_model, "layers") and len(gnn_model.layers) > 0:
+            first_layer = gnn_model.layers[0]
+            if hasattr(first_layer, "lin"):
+                # Get from first layer weight matrix (weight shape is [out_dim, in_dim])
+                self.expected_input_dim = first_layer.lin.weight.shape[1]
+            elif hasattr(first_layer, "weight"):
+                # Some layers might have weight directly
+                self.expected_input_dim = (
+                    first_layer.weight.shape[1]
+                    if len(first_layer.weight.shape) > 1
+                    else args.base_input_dim + max(self.encoding_dims)
+                )
+            else:
+                # Fallback: calculate from args
+                self.expected_input_dim = args.base_input_dim + max(self.encoding_dims)
+        elif hasattr(gnn_model, "args"):
+            # Get from GNN model args
+            self.expected_input_dim = gnn_model.args.input_dim
+        else:
+            # Fallback: calculate from args (max across all encoding combinations)
+            max_input_dims = []
+            for config in encoding_configs:
+                if config.get("replaces_base", False):
+                    max_input_dims.append(config["encoding_dim"])
+                else:
+                    max_input_dims.append(args.base_input_dim + config["encoding_dim"])
+            self.expected_input_dim = (
+                max(max_input_dims) if max_input_dims else args.base_input_dim
+            )
+
     def extract_encoding_features(
         self, base_graph: Data, encoded_graph: Data, encoding_config: Dict[str, Any]
     ) -> torch.Tensor:
@@ -214,6 +246,24 @@ class EncodingMoE(nn.Module):
                 augmented_features = torch.cat(
                     [base_graph.x.float(), encoding_features.float()], dim=-1
                 )
+
+            # Ensure features match the expected input dimension (pad if necessary)
+            # The GNN model was initialized with expert_input_dim (max across all encodings)
+            # So we need to pad/align all inputs to this dimension
+            if augmented_features.shape[1] < self.expected_input_dim:
+                # Pad with zeros to match expected dimension
+                num_nodes = augmented_features.shape[0]
+                pad_size = self.expected_input_dim - augmented_features.shape[1]
+                padding = torch.zeros(
+                    (num_nodes, pad_size),
+                    dtype=augmented_features.dtype,
+                    device=augmented_features.device,
+                )
+                augmented_features = torch.cat([augmented_features, padding], dim=-1)
+            elif augmented_features.shape[1] > self.expected_input_dim:
+                # Truncate if somehow larger (shouldn't happen but handle gracefully)
+                augmented_features = augmented_features[:, : self.expected_input_dim]
+
             augmented_graph.x = augmented_features
 
             # Process through GNN (this is one "expert")
