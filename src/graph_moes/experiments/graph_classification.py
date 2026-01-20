@@ -148,22 +148,27 @@ class Experiment:
                 encoding_configs.append(config)
 
             # Create GNN model that will be used by each encoding "expert"
-            # The input_dim needs to be base_input_dim + encoding_dim (largest)
+            # The input_dim needs to handle both cases:
+            # 1. If encoding replaces_base=True: use actual encoded graph dim (may be > encoding_dim)
+            # 2. If encoding replaces_base=False: use base_input_dim + encoding_dim
+            # We need the maximum input dimension across all encodings
+            max_input_dims = []
+            for config in encoding_configs:
+                if config.get("replaces_base", False):
+                    # Encoding replaces base - use only encoding_dim (extracted from file)
+                    # Even though file has base + encoding, we extract just the encoding part
+                    max_input_dims.append(config["encoding_dim"])
+                else:
+                    # Encoding appends to base - input_dim = base + encoding_dim
+                    max_input_dims.append(base_input_dim + config["encoding_dim"])
+
+            expert_input_dim = max(max_input_dims) if max_input_dims else base_input_dim
             max_encoding_dim = max(
                 config["encoding_dim"] for config in encoding_configs
             )
-            # Check if any encoding replaces base
             any_replaces_base = any(
                 config.get("replaces_base", False) for config in encoding_configs
             )
-            if any_replaces_base:
-                # If any replaces base, use max encoding dim as input
-                expert_input_dim = max(
-                    config["encoding_dim"] for config in encoding_configs
-                )
-            else:
-                # If all append, use base + max encoding dim
-                expert_input_dim = base_input_dim + max_encoding_dim
 
             # Debug logging
             print(f"🔧 EncodingMoE GNN initialization:")

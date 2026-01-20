@@ -90,29 +90,47 @@ class EncodingMoE(nn.Module):
     ) -> torch.Tensor:
         """Extract just the encoding features from an encoded graph.
 
+        NOTE: On the cluster, encoding files are saved as [original features] + [encodings].
+        So encoded_graph.x has shape [num_nodes, base_dim + encoding_dim].
+
         Handles two cases:
         1. Encoding appends to base (replaces_base=False): extract dims after base_input_dim
-        2. Encoding replaces base (replaces_base=True): use all features as encoding
+        2. Encoding replaces base (replaces_base=True): extract last encoding_dim dims (the encoding part)
 
         Args:
             base_graph: Graph with base features (original, no encoding)
-            encoded_graph: Graph with precomputed encoding (may include base + encoding)
+            encoded_graph: Graph with precomputed encoding (saved as base + encoding)
             encoding_config: Configuration dict with 'encoding_dim' and 'replaces_base'
 
         Returns:
             encoding_features: Tensor of shape [num_nodes, encoding_dim] with just the encoding
         """
-        if encoding_config.get("replaces_base", False):
-            # Encoding replaces base features - use all features
-            result = torch.as_tensor(encoded_graph.x, dtype=torch.float32)
-            return result
-        else:
-            # Encoding appends to base - extract the encoding part
-            base_dim = base_graph.x.shape[1]
-            encoded_dim = encoded_graph.x.shape[1]
-            encoding_dim = encoding_config["encoding_dim"]
+        base_dim = base_graph.x.shape[1]
+        encoded_dim = encoded_graph.x.shape[1]
+        encoding_dim = encoding_config["encoding_dim"]
 
-            # Check if encoded graph has base + encoding
+        if encoding_config.get("replaces_base", False):
+            # Encoding replaces base - extract the encoding part (last encoding_dim dims)
+            # Even though file has base + encoding, we only use the encoding part
+            if encoded_dim >= base_dim + encoding_dim:
+                # File has base + encoding: extract just the encoding part (after base)
+                result = torch.as_tensor(
+                    encoded_graph.x[:, base_dim : base_dim + encoding_dim],
+                    dtype=torch.float32,
+                )
+                return result
+            elif encoded_dim == encoding_dim:
+                # File has just encoding (unlikely but handle it)
+                result = torch.as_tensor(encoded_graph.x, dtype=torch.float32)
+                return result
+            else:
+                # Fallback: assume last encoding_dim dims are encoding
+                result = torch.as_tensor(
+                    encoded_graph.x[:, -encoding_dim:], dtype=torch.float32
+                )
+                return result
+        else:
+            # Encoding appends to base - extract the encoding part (after base dims)
             if encoded_dim >= base_dim + encoding_dim:
                 # Extract just the encoding part (after base dims)
                 result = torch.as_tensor(
@@ -186,11 +204,16 @@ class EncodingMoE(nn.Module):
                     base_graph, encoded_graph, config
                 )
 
-            # Create augmented graph: base + this encoding
+            # Create augmented graph: base + this encoding OR just encoding if replaces_base
             augmented_graph = base_graph.clone()
-            augmented_features = torch.cat(
-                [base_graph.x.float(), encoding_features], dim=-1
-            )
+            if config.get("replaces_base", False):
+                # Encoding replaces base - use only encoding features (no base)
+                augmented_features = encoding_features.float()
+            else:
+                # Encoding appends to base - concatenate base + encoding
+                augmented_features = torch.cat(
+                    [base_graph.x.float(), encoding_features.float()], dim=-1
+                )
             augmented_graph.x = augmented_features
 
             # Process through GNN (this is one "expert")
