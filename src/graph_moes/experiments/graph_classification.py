@@ -20,6 +20,8 @@ from tqdm import tqdm
 import wandb
 from graph_moes.architectures.graph_model import GNN, GPS, OrthogonalGCN, UnitaryGCN
 from graph_moes.moes.graph_moe import MoE, MoE_E
+from graph_moes.routing_encodings.encoding_moe import EncodingMoE
+from graph_moes.routing_encodings.encoding_utils import create_encoding_config
 
 default_args = AttrDict(
     {
@@ -70,12 +72,14 @@ class Experiment:
         train_dataset: Optional[Dataset] = None,
         validation_dataset: Optional[Dataset] = None,
         test_dataset: Optional[Dataset] = None,
+        encoding_moe_encoded_datasets: Optional[Dict[str, Dict[str, List]]] = None,
     ) -> None:
         self.args = default_args + args
         self.dataset = dataset
         self.train_dataset = train_dataset
         self.validation_dataset = validation_dataset
         self.test_dataset = test_dataset
+        self.encoding_moe_encoded_datasets = encoding_moe_encoded_datasets
         self.loss_fn = torch.nn.CrossEntropyLoss()
         self.categories = None
         self.wandb_active = wandb.run is not None
@@ -101,18 +105,115 @@ class Experiment:
             else:
                 self.args.num_relations = 2
 
-        if self.args.layer_type == "GPS":
+        # Check if EncodingMoE should be used
+        is_encoding_moe = (
+            hasattr(self.args, "encoding_moe_encodings")
+            and self.args.encoding_moe_encodings is not None
+            and len(self.args.encoding_moe_encodings) > 0
+        )
+
+        if is_encoding_moe:
+            # EncodingMoE: Initialize with base dataset dimensions + encoding configs
+            base_input_dim = self.args.input_dim
+
+            # Create encoding configurations
+            encoding_configs = []
+            for encoding_name in self.args.encoding_moe_encodings:
+                # Determine base input dim from dataset (for validation)
+                base_dim = (
+                    self.dataset[0].x.shape[1]
+                    if len(self.dataset) > 0
+                    else base_input_dim
+                )
+
+                # Try to get encoded dim from encoded_datasets if available
+                encoded_dim = None
+                if hasattr(self.args, "encoding_moe_encoded_datasets"):
+                    encoded_datasets = self.args.encoding_moe_encoded_datasets
+                    if encoding_name in encoded_datasets:
+                        # Find dataset name (should match current dataset)
+                        # For now, use first available dataset
+                        for dataset_name, encoded_dataset in encoded_datasets[
+                            encoding_name
+                        ].items():
+                            if len(encoded_dataset) > 0:
+                                encoded_dim = encoded_dataset[0].x.shape[1]
+                                break
+
+                config = create_encoding_config(
+                    encoding_name,
+                    base_input_dim=base_dim,
+                    encoded_input_dim=encoded_dim,
+                )
+                encoding_configs.append(config)
+
+            # Create GNN model that will be used by each encoding "expert"
+            # The input_dim needs to be base_input_dim + encoding_dim (largest)
+            max_encoding_dim = max(
+                config["encoding_dim"] for config in encoding_configs
+            )
+            # Check if any encoding replaces base
+            any_replaces_base = any(
+                config.get("replaces_base", False) for config in encoding_configs
+            )
+            if any_replaces_base:
+                # If any replaces base, use max encoding dim as input
+                expert_input_dim = max(
+                    config["encoding_dim"] for config in encoding_configs
+                )
+            else:
+                # If all append, use base + max encoding dim
+                expert_input_dim = base_input_dim + max_encoding_dim
+
+            # Create args for GNN expert
+            expert_args = copy.deepcopy(self.args)
+            expert_args.input_dim = expert_input_dim
+
+            # Initialize GNN expert model
+            if expert_args.layer_type == "GPS":
+                gnn_expert = GPS(expert_args).to(self.args.device)
+            elif expert_args.layer_type == "Orthogonal":
+                gnn_expert = OrthogonalGCN(expert_args).to(self.args.device)
+            elif expert_args.layer_type == "Unitary":
+                gnn_expert = UnitaryGCN(expert_args).to(self.args.device)
+            else:
+                gnn_expert = GNN(expert_args).to(self.args.device)
+
+            # Initialize EncodingMoE
+            encoding_moe_args = copy.deepcopy(self.args)
+            encoding_moe_args.base_input_dim = base_input_dim
+            encoding_moe_args.router_type = getattr(
+                self.args, "encoding_moe_router_type", "MLP"
+            )
+            self.model = EncodingMoE(
+                encoding_moe_args, encoding_configs, gnn_expert
+            ).to(self.args.device)
+
+            # Store for forward pass
+            self.is_encoding_moe = True
+            print(f"✅ Initialized EncodingMoE with {len(encoding_configs)} encodings")
+            for config in encoding_configs:
+                print(
+                    f"   - {config['encoding_name']}: dim={config['encoding_dim']}, replaces_base={config.get('replaces_base', False)}"
+                )
+        elif self.args.layer_type == "GPS":
             self.model = GPS(self.args).to(self.args.device)
+            self.is_encoding_moe = False
         elif self.args.layer_type == "Orthogonal":
             self.model = OrthogonalGCN(self.args).to(self.args.device)
+            self.is_encoding_moe = False
         elif self.args.layer_type == "Unitary":
             self.model = UnitaryGCN(self.args).to(self.args.device)
+            self.is_encoding_moe = False
         elif self.args.layer_type == "MoE":
             self.model = MoE(self.args).to(self.args.device)
+            self.is_encoding_moe = False
         elif self.args.layer_type == "MoE_E":
             self.model = MoE_E(self.args).to(self.args.device)
+            self.is_encoding_moe = False
         else:
             self.model = GNN(self.args).to(self.args.device)
+            self.is_encoding_moe = False
 
         if self.test_dataset is None:
             dataset_size = len(self.dataset)
@@ -182,22 +283,95 @@ class Experiment:
             routing_weights = []
             is_moe_model = isinstance(self.model, (MoE, MoE_E))
 
-            for graph in train_loader:
-                graph = graph.to(self.args.device)
-                # y = graph.y.to(self.args.device)
+            # For EncodingMoE, we need to load encoded datasets and create batches
+            if self.is_encoding_moe:
+                # Create DataLoaders for encoded datasets (same batch size and shuffle)
+                from torch_geometric.loader import DataLoader as PyGDataLoader
+
+                encoded_loaders = {}
+                dataset_name = getattr(self.args, "dataset", None)
+
+                if (
+                    self.encoding_moe_encoded_datasets
+                    and dataset_name
+                    and dataset_name in self.train_dataset.dataset
+                    if hasattr(self.train_dataset, "dataset")
+                    else False
+                ):
+                    # Find dataset name - try to get from args or infer
+                    # For now, assume dataset_name is available or infer from encoded_datasets keys
+                    if dataset_name:
+                        for encoding_name in self.args.encoding_moe_encodings:
+                            if (
+                                encoding_name in self.encoding_moe_encoded_datasets
+                                and dataset_name
+                                in self.encoding_moe_encoded_datasets[encoding_name]
+                            ):
+                                encoded_dataset = self.encoding_moe_encoded_datasets[
+                                    encoding_name
+                                ][dataset_name]
+                                # Split encoded dataset same way as base (use same indices)
+                                # For now, assume datasets are aligned - use same split
+                                encoded_train = (
+                                    [
+                                        encoded_dataset[i]
+                                        for i in range(len(encoded_dataset))
+                                        if i in train_indices
+                                    ]
+                                    if hasattr(self, "train_indices")
+                                    else encoded_dataset[: len(self.train_dataset)]
+                                )
+                                encoded_loaders[encoding_name] = PyGDataLoader(
+                                    encoded_train,
+                                    batch_size=self.args.batch_size,
+                                    shuffle=True,
+                                )
+
+                # Create iterator for encoded loaders
+                encoded_iterators = {
+                    name: iter(loader) for name, loader in encoded_loaders.items()
+                }
+
+            for batch_idx, base_graph in enumerate(train_loader):
+                base_graph = base_graph.to(self.args.device)
+                # y = base_graph.y.to(self.args.device)
 
                 # for OGB
-                y = graph.y.flatten()
+                y = base_graph.y.flatten()
                 y.to(self.args.device)
 
+                # Handle EncodingMoE forward pass
+                if self.is_encoding_moe:
+                    # Get encoded graphs for this batch
+                    encoded_graphs = {}
+                    for encoding_name in self.args.encoding_moe_encodings:
+                        if encoding_name in encoded_iterators:
+                            try:
+                                encoded_batch = next(encoded_iterators[encoding_name])
+                                encoded_batch = encoded_batch.to(self.args.device)
+                                encoded_graphs[encoding_name] = encoded_batch
+                            except StopIteration:
+                                # Reset iterator if exhausted (shouldn't happen with aligned datasets)
+                                encoded_iterators[encoding_name] = iter(
+                                    encoded_loaders[encoding_name]
+                                )
+                                encoded_batch = next(encoded_iterators[encoding_name])
+                                encoded_batch = encoded_batch.to(self.args.device)
+                                encoded_graphs[encoding_name] = encoded_batch
+
+                    # Forward pass through EncodingMoE
+                    out, weights = self.model(
+                        base_graph, encoded_graphs, return_weights=True
+                    )
+                    routing_weights.append(weights.detach().cpu())
                 # Get routing weights if MoE model
                 # weights shape: [batch_size, num_experts] where each row sums to 1.0
                 # Example: weights[0] = [0.7, 0.3] means first graph uses 70% expert 0, 30% expert 1
-                if is_moe_model:
-                    out, weights = self.model(graph, return_weights=True)
+                elif is_moe_model:
+                    out, weights = self.model(base_graph, return_weights=True)
                     routing_weights.append(weights.detach().cpu())
                 else:
-                    out = self.model(graph)
+                    out = self.model(base_graph)
 
                 loss = self.loss_fn(input=out, target=y)
                 total_loss += loss
