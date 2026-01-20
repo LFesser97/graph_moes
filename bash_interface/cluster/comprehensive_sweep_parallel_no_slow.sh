@@ -400,17 +400,18 @@ actual_base_experiment_id=$(( (base_experiment_id - 1) / 2 + 1 ))
 use_normalize=$([ "$normalize_variant" -eq 1 ] && echo "true" || echo "false")
 log_message "📦 Normalization variant: $normalize_variant (normalize=$use_normalize), actual_base_experiment=$actual_base_experiment_id"
 
-if [ "$actual_base_experiment_id" -le 12 ]; then
+if [ "$actual_base_experiment_id" -le 6 ]; then
     # Single layer experiment (GPS only)
+    # GPS: 6 datasets (normalization handled separately)
     experiment_type="single"
     adjusted_id=$((actual_base_experiment_id - 1))
     
     # Calculate dataset
     num_datasets=${#datasets[@]}
     
-    # Only GPS: 6 datasets × 2 norm variants = 12 total
+    # Only GPS: 6 datasets
     layer_type="GPS"
-    dataset_idx=$((adjusted_id % num_datasets))
+    dataset_idx=$adjusted_id  # Should be 0-5
     skip_variant=0  # GPS doesn't support skip connections
     
     dataset=${datasets[$dataset_idx]}
@@ -469,7 +470,7 @@ if [ "$actual_base_experiment_id" -le 12 ]; then
 else
     # MoE experiment
     experiment_type="moe"
-    moe_id=$((actual_base_experiment_id - 13))  # Adjust for 12 single layer experiments (GPS only)
+    moe_id=$((actual_base_experiment_id - 7))  # Adjust for 6 GPS experiments (GPS only, norm handled separately)
     
     # Calculate dataset and MoE combination
     # MoE experiments are organized as: 9 combinations × 6 datasets × 1 router type (GNN)

@@ -39,13 +39,17 @@ def get_encoding_info(encoding_name: str) -> Dict[str, Any]:
     """Get information about an encoding type.
 
     Args:
-        encoding_name: Name of encoding (e.g., "hg_lape_normalized_k8", "g_rwpe_k16")
+        encoding_name: Name of encoding (e.g., "hg_lape_normalized_k8", "g_rwpe_k16", "None")
 
     Returns:
         Dict with:
             - encoding_dim: int (dimension of encoding features)
             - replaces_base: bool (True if encoding replaces base features, False if appends)
     """
+    # Handle "None" encoding (no encoding, just base features)
+    if encoding_name == "None" or encoding_name is None:
+        return {"encoding_dim": 0, "replaces_base": False}
+
     if encoding_name in ENCODING_INFO:
         return ENCODING_INFO[encoding_name].copy()
 

@@ -13,6 +13,7 @@ Skips the experiment if the encoding file doesn't exist: Instead of falling back
 original dataset, it exits gracefully with sys.exit(0) when the precomputed encoding file is missing or fails to load.
 """
 
+import ast
 import os
 import time
 from datetime import datetime
@@ -601,17 +602,48 @@ if (
     and args.encoding_moe_encodings is not None
     and len(args.encoding_moe_encodings) > 0
 ):
+    # Parse encoding list: bash script may pass JSON string as single argument
+    encoding_list = args.encoding_moe_encodings
+
+    # Check if it's a single JSON string that needs parsing
+    if len(encoding_list) == 1 and isinstance(encoding_list[0], str):
+        encoding_str = encoding_list[0].strip()
+        # Check if it looks like JSON (starts with [ and ends with ])
+        if encoding_str.startswith("[") and encoding_str.endswith("]"):
+            try:
+                # Replace JSON null with Python None in string before parsing
+                encoding_str_python = encoding_str.replace("null", "None")
+                # Parse as Python literal (handles None correctly)
+                parsed_list = ast.literal_eval(encoding_str_python)
+                # Convert None back to string "None" for consistency
+                encoding_list = [e if e is not None else "None" for e in parsed_list]
+                print(
+                    f"   📝 Parsed JSON encoding list: {encoding_str} -> {encoding_list}"
+                )
+            except (ValueError, SyntaxError) as e:
+                print(f"   ⚠️  Failed to parse JSON encoding list: {e}, using as-is")
+
+    # Store parsed list back in args for consistency with rest of code
+    args.encoding_moe_encodings = encoding_list
+
     print(
-        f"\n🎯 EncodingMoE mode: Loading base dataset + {len(args.encoding_moe_encodings)} encodings"
+        f"\n🎯 EncodingMoE mode: Loading base dataset + {len(encoding_list)} encodings"
     )
-    print(f"   Encodings: {args.encoding_moe_encodings}")
+    print(f"   Encodings: {encoding_list}")
 
     # Keep original datasets as base (no encoding)
     encoding_moe_base_datasets = datasets.copy()
 
     # Load each encoding separately
     encoding_moe_encoded_datasets = {}
-    for encoding_name in args.encoding_moe_encodings:
+    for encoding_name in encoding_list:
+        # Handle "None" encoding (no encoding file to load, just use base dataset)
+        if encoding_name == "None" or encoding_name is None:
+            print(f"\n  📦 Encoding: None (using base dataset)")
+            # Store empty dict to indicate no encoding file, will use base dataset
+            encoding_moe_encoded_datasets["None"] = {}
+            continue
+
         print(f"\n  📦 Loading encoding: {encoding_name}")
 
         # Determine encoding directory and file pattern (same logic as dataset_encoding)
@@ -1251,7 +1283,7 @@ for key in datasets:
 
     # Check if regular MoE is enabled
     is_moe_results = args.layer_types is not None and not is_encoding_moe_results
-    
+
     results.append(
         {
             "dataset": key,
@@ -1293,9 +1325,7 @@ for key in datasets:
                 else None
             ),
             "router_type": (
-                getattr(args, "router_type", "MLP")
-                if is_moe_results
-                else None
+                getattr(args, "router_type", "MLP") if is_moe_results else None
             ),
             "router_layer_type": (
                 getattr(args, "router_layer_type", "GIN")
@@ -1307,14 +1337,10 @@ for key in datasets:
                 )
             ),
             "router_depth": (
-                getattr(args, "router_depth", 4)
-                if is_moe_results
-                else None
+                getattr(args, "router_depth", 4) if is_moe_results else None
             ),
             "router_dropout": (
-                getattr(args, "router_dropout", 0.1)
-                if is_moe_results
-                else None
+                getattr(args, "router_dropout", 0.1) if is_moe_results else None
             ),
             "skip_connection": getattr(args, "skip_connection", False),
             "normalize_features": getattr(args, "normalize_features", False),
