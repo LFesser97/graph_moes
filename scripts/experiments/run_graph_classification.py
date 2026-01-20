@@ -1192,6 +1192,7 @@ for key in datasets:
             ),
             skip_connection=skip_connection,
             normalize_features=normalize_features,
+            is_encoding_moe=is_encoding_moe_plots,
         )
         if original_plot_path:
             print(f"📊 Average accuracy plot (by index) saved to: {original_plot_path}")
@@ -1248,6 +1249,9 @@ for key in datasets:
         and len(args.encoding_moe_encodings) > 0
     )
 
+    # Check if regular MoE is enabled
+    is_moe_results = args.layer_types is not None and not is_encoding_moe_results
+    
     results.append(
         {
             "dataset": key,
@@ -1255,16 +1259,6 @@ for key in datasets:
             "encoding": args.encoding,
             "layer_type": args.layer_type,
             "layer_types": args.layer_types,
-            "encoding_moe_encodings": (
-                "+".join(args.encoding_moe_encodings)
-                if is_encoding_moe_results
-                else None
-            ),
-            "encoding_moe_router_type": (
-                getattr(args, "encoding_moe_router_type", "MLP")
-                if is_encoding_moe_results
-                else None
-            ),
             "num_layers": args.num_layers,
             "alpha": args.alpha,
             "eps": args.eps,
@@ -1286,6 +1280,42 @@ for key in datasets:
             "min_test_appearances": min(test_appearances.values()),
             "max_test_appearances": max(test_appearances.values()),
             "graphs_with_sufficient_appearances": graphs_with_sufficient_appearances,
+            "is_moe": is_moe_results,
+            "is_encoding_moe": is_encoding_moe_results,
+            "encoding_moe_encodings": (
+                "+".join(args.encoding_moe_encodings)
+                if is_encoding_moe_results
+                else None
+            ),
+            "encoding_moe_router_type": (
+                getattr(args, "encoding_moe_router_type", "MLP")
+                if is_encoding_moe_results
+                else None
+            ),
+            "router_type": (
+                getattr(args, "router_type", "MLP")
+                if is_moe_results
+                else None
+            ),
+            "router_layer_type": (
+                getattr(args, "router_layer_type", "GIN")
+                if is_moe_results and getattr(args, "router_type", "MLP") != "MLP"
+                else (
+                    "MLP"
+                    if is_moe_results and getattr(args, "router_type", "MLP") == "MLP"
+                    else None
+                )
+            ),
+            "router_depth": (
+                getattr(args, "router_depth", 4)
+                if is_moe_results
+                else None
+            ),
+            "router_dropout": (
+                getattr(args, "router_dropout", 0.1)
+                if is_moe_results
+                else None
+            ),
             "skip_connection": getattr(args, "skip_connection", False),
             "normalize_features": getattr(args, "normalize_features", False),
         }

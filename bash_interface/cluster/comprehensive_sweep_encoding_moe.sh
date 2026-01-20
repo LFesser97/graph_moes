@@ -15,7 +15,7 @@
 # Total experiments: TBD (calculated based on combinations)
 #   - Base model types: GCN, GIN, SAGE, MLP, Unitary, GPS (6 types)
 #   - Encoding combinations: multiple pairs of encodings
-#   - Router types: MLP, GNN (2 types)
+#   - Router types: GNN, MLP (2 types, GNN is default)
 #   - Skip connections: yes/no (for GCN, GIN, SAGE only)
 #   - Normalization: true/false (2 variants)
 #   - Datasets: 6 (enzymes, proteins, mutag, imdb, collab, reddit)
@@ -244,8 +244,8 @@ declare -a encoding_combinations=(
     "hg_frc,hg_orc"
 )
 
-# Define router types
-declare -a router_types=("MLP" "GNN")
+# Define router types (GNN first so it's the default/primary)
+declare -a router_types=("GNN" "MLP")
 
 # Calculate experiment dimensions
 num_datasets=${#datasets[@]}
@@ -277,7 +277,7 @@ task_idx=$((task_idx / num_norm_variants))
 skip_idx=$((task_idx % num_skip_variants))
 task_idx=$((task_idx / num_skip_variants))
 
-# Router type: 0 = MLP, 1 = GNN
+# Router type: 0 = GNN, 1 = MLP (GNN is default)
 router_idx=$((task_idx % num_router_types))
 task_idx=$((task_idx / num_router_types))
 

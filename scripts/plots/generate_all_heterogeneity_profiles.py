@@ -148,14 +148,21 @@ def main():
             encoding_str = encoding if encoding else "none"
             encoding_suffix = f"_encodings_{encoding_str}"
 
-            # Build model name
+            # Build model name with explicit router type and depth
+            # Check if this is EncodingMoE (would have "EncodingMoE" in layer_type)
+            is_encoding_moe = "EncodingMoE" in str(layer_type)
+            num_layers = config.get("num_layers")
+            depth_suffix = f"_L{num_layers}" if num_layers is not None else ""
+
             if config["layer_types"]:
                 expert_combo = "_".join(config["layer_types"])
-                detailed_model_name = (
-                    f"{layer_type}_{config['router_type']}_{expert_combo}"
-                )
+                detailed_model_name = f"{layer_type}_router_{config['router_type']}_{expert_combo}{depth_suffix}"
             else:
-                detailed_model_name = layer_type
+                detailed_model_name = (
+                    f"{layer_type}{depth_suffix}"
+                    if num_layers is not None
+                    else layer_type
+                )
 
             plot_filename_base = f"{dataset}_{detailed_model_name}_{skip_str}_{norm_str}{encoding_suffix}"
             by_index_path = results_dir / f"{plot_filename_base}_by_index.png"
@@ -172,6 +179,10 @@ def main():
             )
 
             # Generate plots
+            # Check if this is EncodingMoE (would have "EncodingMoE" in layer_type or filename)
+            is_encoding_moe_check = "EncodingMoE" in str(
+                layer_type
+            ) or "EncodingMoE" in str(pickle_file)
             original_plot_path, sorted_plot_path = load_and_plot_average_per_graph(
                 str(pickle_file),
                 dataset_name=dataset,
@@ -184,6 +195,7 @@ def main():
                 router_type=config["router_type"],
                 skip_connection=config["skip_connection"],
                 normalize_features=config["normalize_features"],
+                is_encoding_moe=is_encoding_moe_check,
             )
 
             if original_plot_path and sorted_plot_path:

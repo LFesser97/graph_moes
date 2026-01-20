@@ -3,6 +3,10 @@
 
 # TODO (12/10)
 
+TRY encodings MOE
+
+splits the bash/ into more meaningul parts too
+
 * REGENERATE ENCODINGS
 
 * Investigate tmd -> RE RUN

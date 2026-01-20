@@ -12,18 +12,13 @@
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 1620
-#   - Base experiments per encoding variant: 324 (162 × 2 normalization variants)
-#     - 108 single layer experiments (54 × 2 normalization variants):
-#       - GCN: 6 datasets × 2 (skip/no-skip) × 2 (norm/no-norm) = 24
-#       - GIN: 6 datasets × 2 (skip/no-skip) × 2 (norm/no-norm) = 24
-#       - SAGE: 6 datasets × 2 (skip/no-skip) × 2 (norm/no-norm) = 24
-#       - MLP: 6 datasets × 1 (no skip) × 2 (norm/no-norm) = 12
-#       - Unitary: 6 datasets × 1 (no skip) × 2 (norm/no-norm) = 12
+# Total experiments: 600
+#   - Base experiments per encoding variant: 120 (60 × 2 normalization variants)
+#     - 12 single layer experiments (6 × 2 normalization variants):
 #       - GPS: 6 datasets × 1 (no skip) × 2 (norm/no-norm) = 12
-#     - 216 MoE experiments (108 × 2 normalization variants): 9 combinations × 6 datasets × 2 router types (MLP, GNN) × 2 (norm/no-norm)
+#     - 108 MoE experiments (54 × 2 normalization variants): 9 combinations × 6 datasets × 1 router type (GNN) × 2 (norm/no-norm)
 #   - Encoding variants: 5 (hg_lape_normalized_k8, hg_rwpe_we_k20, g_rwpe_k16, g_lape_k8, None)
-#   - Total: 324 × 5 = 1620 experiments
+#   - Total: 120 × 5 = 600 experiments
 #     Encoding types: hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc
 # Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
 # Note: mnist and cifar excluded (slow datasets)
@@ -35,7 +30,7 @@
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep_no_slow
-#SBATCH --array=1-1620            # Total experiments: 324 base × 5 encoding variants = 1620
+#SBATCH --array=1-600             # Total experiments: 120 base × 5 encoding variants = 600
 #SBATCH --ntasks=1
 #SBATCH --time=192:00:00           # Long time for comprehensive sweep
 #SBATCH --mem=128GB               # Sufficient memory
@@ -347,11 +342,11 @@ python -c "import numpy, pandas, torch, graph_moes; print('✅ Core packages ava
 
 # Define all layer type combinations
 declare -a single_layer_types=(
-    "GCN"
-    "GIN" 
-    "SAGE"
-    "MLP"
-    "Unitary"
+    # "GCN"
+    # "GIN" 
+    # "SAGE"
+    # "MLP"
+    # "Unitary"
     "GPS"
 )
 
@@ -383,12 +378,11 @@ task_id=${SLURM_ARRAY_TASK_ID:-1}
 declare -a dataset_encodings=("hg_lape_normalized_k8" "hg_rwpe_we_k20" "g_rwpe_k16" "g_lape_k8" "None")
 num_encoding_variants=${#dataset_encodings[@]}
 
-# Base experiments per encoding variant: 324 (162 × 2 normalization variants)
-#   - 108 single layer experiments (54 × 2 normalization variants):
-#     - GCN, GIN, SAGE: 3 × 6 datasets × 2 (skip/no-skip) × 2 (norm/no-norm) = 72
-#     - MLP, Unitary, GPS: 3 × 6 datasets × 1 (no skip) × 2 (norm/no-norm) = 36
-#   - 216 MoE experiments (108 × 2 normalization variants): 9 combinations × 6 datasets × 2 router types (MLP, GNN) × 2 (norm/no-norm)
-base_experiments_per_variant=324
+# Base experiments per encoding variant: 120 (60 × 2 normalization variants)
+#   - 12 single layer experiments (6 × 2 normalization variants):
+#     - GPS: 6 datasets × 1 (no skip) × 2 (norm/no-norm) = 12
+#   - 108 MoE experiments (54 × 2 normalization variants): 9 combinations × 6 datasets × 1 router type (GNN) × 2 (norm/no-norm)
+base_experiments_per_variant=120
 
 # Calculate which encoding variant and base experiment this task corresponds to
 encoding_variant_idx=$(((task_id - 1) / base_experiments_per_variant))
@@ -406,59 +400,21 @@ actual_base_experiment_id=$(( (base_experiment_id - 1) / 2 + 1 ))
 use_normalize=$([ "$normalize_variant" -eq 1 ] && echo "true" || echo "false")
 log_message "📦 Normalization variant: $normalize_variant (normalize=$use_normalize), actual_base_experiment=$actual_base_experiment_id"
 
-if [ "$actual_base_experiment_id" -le 54 ]; then
-    # Single layer experiment
+if [ "$actual_base_experiment_id" -le 12 ]; then
+    # Single layer experiment (GPS only)
     experiment_type="single"
     adjusted_id=$((actual_base_experiment_id - 1))
     
-    # Calculate dataset, layer type, and skip connection flag
+    # Calculate dataset
     num_datasets=${#datasets[@]}
     
-    # Determine which layer type and skip variant
-    # Layer order: GCN (0-11), GIN (12-23), SAGE (24-35), MLP (36-41), Unitary (42-47), GPS (48-53)
-    # For GCN, GIN, SAGE: each has 12 tasks (6 datasets × 2 skip variants)
-    # For MLP, Unitary, GPS: each has 6 tasks (6 datasets × 1 skip variant = no skip)
-    
-    if [ "$adjusted_id" -lt 12 ]; then
-        # GCN: tasks 0-11
-        layer_type="GCN"
-        layer_base_id=$adjusted_id
-        dataset_idx=$((layer_base_id % num_datasets))
-        skip_variant=$((layer_base_id / num_datasets))  # 0 = no skip, 1 = skip
-    elif [ "$adjusted_id" -lt 24 ]; then
-        # GIN: tasks 12-23
-        layer_type="GIN"
-        layer_base_id=$((adjusted_id - 12))
-        dataset_idx=$((layer_base_id % num_datasets))
-        skip_variant=$((layer_base_id / num_datasets))  # 0 = no skip, 1 = skip
-    elif [ "$adjusted_id" -lt 36 ]; then
-        # SAGE: tasks 24-35
-        layer_type="SAGE"
-        layer_base_id=$((adjusted_id - 24))
-        dataset_idx=$((layer_base_id % num_datasets))
-        skip_variant=$((layer_base_id / num_datasets))  # 0 = no skip, 1 = skip
-    elif [ "$adjusted_id" -lt 42 ]; then
-        # MLP: tasks 36-41
-        layer_type="MLP"
-        layer_base_id=$((adjusted_id - 36))
-        dataset_idx=$((layer_base_id % num_datasets))
-        skip_variant=0  # MLP doesn't support skip connections
-    elif [ "$adjusted_id" -lt 48 ]; then
-        # Unitary: tasks 42-47
-        layer_type="Unitary"
-        layer_base_id=$((adjusted_id - 42))
-        dataset_idx=$((layer_base_id % num_datasets))
-        skip_variant=0  # Unitary doesn't support skip connections
-    else
-        # GPS: tasks 48-53
-        layer_type="GPS"
-        layer_base_id=$((adjusted_id - 48))
-        dataset_idx=$((layer_base_id % num_datasets))
-        skip_variant=0  # GPS doesn't support skip connections
-    fi
+    # Only GPS: 6 datasets × 2 norm variants = 12 total
+    layer_type="GPS"
+    dataset_idx=$((adjusted_id % num_datasets))
+    skip_variant=0  # GPS doesn't support skip connections
     
     dataset=${datasets[$dataset_idx]}
-    use_skip=$([ "$skip_variant" -eq 1 ] && [ "$layer_type" in "GCN GIN SAGE" ] && echo "true" || echo "false")
+    use_skip="false"  # GPS doesn't support skip connections
     
     log_message "🧪 Single Layer Experiment $task_id (base=$base_experiment_id, actual_base=$actual_base_experiment_id): ${dataset}_${layer_type} (skip=${use_skip}, normalize=${use_normalize}, encoding=${dataset_encoding})"
     
@@ -513,33 +469,23 @@ if [ "$actual_base_experiment_id" -le 54 ]; then
 else
     # MoE experiment
     experiment_type="moe"
-    moe_id=$((actual_base_experiment_id - 55))  # Adjust for 54 single layer experiments (12+12+12+6+6+6 = 54)
-    
-    # Calculate dataset, MoE combination, and router type
-    # MoE experiments are organized as: 9 combinations × 6 datasets × 2 router types
-    num_datasets=${#datasets[@]}
-    num_moe_combinations=${#moe_combinations[@]}
-    num_router_types=2  # MLP and GNN
-    
-    # Calculate router type (0 = MLP, 1 = GNN)
-    router_type_idx=$((moe_id % num_router_types))
-    remaining_id=$((moe_id / num_router_types))
+    moe_id=$((actual_base_experiment_id - 13))  # Adjust for 12 single layer experiments (GPS only)
     
     # Calculate dataset and MoE combination
-    dataset_idx=$((remaining_id % num_datasets))
-    combo_idx=$((remaining_id / num_datasets))
+    # MoE experiments are organized as: 9 combinations × 6 datasets × 1 router type (GNN)
+    num_datasets=${#datasets[@]}
+    num_moe_combinations=${#moe_combinations[@]}
+    
+    # Calculate dataset and MoE combination (no router cycling, only GNN)
+    dataset_idx=$((moe_id % num_datasets))
+    combo_idx=$((moe_id / num_datasets))
     
     dataset=${datasets[$dataset_idx]}
     layer_combo=${moe_combinations[$combo_idx]}
     
-    # Set router type and router layer type
-    if [ "$router_type_idx" -eq 0 ]; then
-        router_type="MLP"
-        router_layer_type="MLP"
-    else
-        router_type="GNN"
-        router_layer_type="GIN"  # Default for GNN router
-    fi
+    # Set router type to GNN (fixed)
+    router_type="GNN"
+    router_layer_type="GIN"  # Default for GNN router
     
     log_message "🧪 MoE Experiment $task_id (base=$base_experiment_id, actual_base=$actual_base_experiment_id): ${dataset}_MoE_${layer_combo} (router=${router_type}, normalize=${use_normalize}, encoding=${dataset_encoding})"
     
