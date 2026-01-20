@@ -408,6 +408,8 @@ default_args = AttrDict(
         "last_layer_fa": False,
         "encoding": None,
         "dataset_encoding": None,  # Pre-computed dataset encoding: None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8,
+        "encoding_moe_encodings": None,  # List of encodings for EncodingMoE (e.g., ["g_ldp", "g_orc"])
+        "encoding_moe_router_type": "MLP",  # Router type for EncodingMoE: "MLP" or "GNN"
         "mlp": True,
         "layer_types": None,
         # WandB defaults
@@ -590,6 +592,87 @@ if hasattr(args, "dataset_encoding") and args.dataset_encoding is not None:
     datasets = encoded_datasets
     print(f"✅ Loaded {len(datasets)} datasets with encoding: {dataset_encoding}\n")
 
+# Load datasets for EncodingMoE if encoding_moe_encodings is specified
+encoding_moe_base_datasets = None
+encoding_moe_encoded_datasets = None
+
+if (
+    hasattr(args, "encoding_moe_encodings")
+    and args.encoding_moe_encodings is not None
+    and len(args.encoding_moe_encodings) > 0
+):
+    print(
+        f"\n🎯 EncodingMoE mode: Loading base dataset + {len(args.encoding_moe_encodings)} encodings"
+    )
+    print(f"   Encodings: {args.encoding_moe_encodings}")
+
+    # Keep original datasets as base (no encoding)
+    encoding_moe_base_datasets = datasets.copy()
+
+    # Load each encoding separately
+    encoding_moe_encoded_datasets = {}
+    for encoding_name in args.encoding_moe_encodings:
+        print(f"\n  📦 Loading encoding: {encoding_name}")
+
+        # Determine encoding directory and file pattern (same logic as dataset_encoding)
+        if encoding_name.startswith("hg_"):
+            encoding_suffix = encoding_name[3:]
+            encoded_data_dir = (
+                Path(data_directory).parent / "graph_datasets_with_hg_encodings"
+            )
+            file_pattern = "{dataset_name}_hg_{encoding_suffix}.pt"
+        elif encoding_name.startswith("g_"):
+            encoding_suffix = encoding_name[2:]
+            encoded_data_dir = (
+                Path(data_directory).parent / "graph_datasets_with_g_encodings"
+            )
+            file_pattern = "{dataset_name}_g_{encoding_suffix}.pt"
+        else:
+            raise ValueError(
+                f"Unknown encoding format: {encoding_name}. Must start with 'hg_' or 'g_'"
+            )
+
+        if not encoded_data_dir.exists():
+            raise FileNotFoundError(
+                f"Encoded datasets directory not found: {encoded_data_dir}"
+            )
+
+        # Load encoded datasets for this encoding
+        encoded_datasets_for_encoding = {}
+        datasets_to_check = [args.dataset] if args.dataset else list(datasets.keys())
+
+        for dataset_name in datasets_to_check:
+            filename = file_pattern.format(
+                dataset_name=dataset_name, encoding_suffix=encoding_suffix
+            )
+            encoded_file_path = encoded_data_dir / filename
+
+            if encoded_file_path.exists():
+                try:
+                    print(f"    ⏳ Loading {dataset_name} with {encoding_name}...")
+                    encoded_dataset = torch.load(encoded_file_path, weights_only=False)
+                    encoded_datasets_for_encoding[dataset_name] = encoded_dataset
+                    print(
+                        f"    ✅ {dataset_name} loaded: {len(encoded_dataset)} graphs"
+                    )
+                except Exception as e:
+                    print(
+                        f"    ❌ Failed to load {dataset_name} with {encoding_name}: {e}"
+                    )
+            else:
+                print(f"    ⚠️  Encoded dataset file not found: {encoded_file_path}")
+
+        encoding_moe_encoded_datasets[encoding_name] = encoded_datasets_for_encoding
+        print(
+            f"  ✅ Loaded {len(encoded_datasets_for_encoding)} datasets with {encoding_name}"
+        )
+
+    print(f"\n✅ EncodingMoE datasets loaded successfully!")
+    print(f"   Base datasets: {len(encoding_moe_base_datasets)}")
+    print(
+        f"   Encoded datasets: {len(encoding_moe_encoded_datasets)} encodings × {len(encoding_moe_encoded_datasets.get(args.encoding_moe_encodings[0], {}))} datasets"
+    )
+
 if args.dataset:
     # restricts to just the given dataset if this mode is chosen
     name = args.dataset
@@ -742,9 +825,22 @@ for key in datasets:
         dataset_encoding_suffix = (
             f"_enc{dataset_encoding_str}" if dataset_encoding_str != "None" else ""
         )
-        experiment_id = f"{key}_{args.layer_type}{skip_suffix}{norm_suffix}{dataset_encoding_suffix}_{timestamp}"
+
+        # Add EncodingMoE suffix if enabled
+        encoding_moe_suffix = ""
+        if (
+            hasattr(args, "encoding_moe_encodings")
+            and args.encoding_moe_encodings is not None
+            and len(args.encoding_moe_encodings) > 0
+        ):
+            # Create compact encoding name (e.g., "g_ldp+g_orc")
+            encoding_names_str = "+".join(args.encoding_moe_encodings)
+            router_type = getattr(args, "encoding_moe_router_type", "MLP")
+            encoding_moe_suffix = f"_EncMoE_{encoding_names_str}_r{router_type}"
+
+        experiment_id = f"{key}_{args.layer_type}{skip_suffix}{norm_suffix}{dataset_encoding_suffix}{encoding_moe_suffix}_{timestamp}"
         if args.wandb_name:
-            experiment_id = f"{args.wandb_name}{skip_suffix}{norm_suffix}{dataset_encoding_suffix}_{timestamp}"
+            experiment_id = f"{args.wandb_name}{skip_suffix}{norm_suffix}{dataset_encoding_suffix}{encoding_moe_suffix}_{timestamp}"
         print(f"🔬 WandB Experiment Group: {experiment_id}")
 
     trial = 0
@@ -820,8 +916,25 @@ for key in datasets:
                 "skip_connection": getattr(args, "skip_connection", False),
                 "normalize_features": getattr(args, "normalize_features", False),
             }
-            # Add router configuration ONLY for MoE models
-            if args.layer_types is not None:
+
+            # Add EncodingMoE configuration if enabled
+            is_encoding_moe = (
+                hasattr(args, "encoding_moe_encodings")
+                and args.encoding_moe_encodings is not None
+                and len(args.encoding_moe_encodings) > 0
+            )
+            if is_encoding_moe:
+                wandb_config["is_encoding_moe"] = True
+                wandb_config["encoding_moe_encodings"] = args.encoding_moe_encodings
+                wandb_config["encoding_moe_router_type"] = getattr(
+                    args, "encoding_moe_router_type", "MLP"
+                )
+                wandb_config["model_type"] = "EncodingMoE"
+            else:
+                wandb_config["is_encoding_moe"] = False
+
+            # Add router configuration ONLY for MoE models (not EncodingMoE, which has its own router)
+            if args.layer_types is not None and not is_encoding_moe:
                 router_type = getattr(args, "router_type", "MLP")
                 wandb_config["router_type"] = router_type
                 # If router_type is MLP, set router_layer_type to MLP for consistency
@@ -848,8 +961,39 @@ for key in datasets:
             print(f"🚀 WandB Trial Run: {wandb.run.name}")
 
         try:
+            # Pass encoded datasets to Experiment if EncodingMoE is enabled
+            encoding_moe_encoded_datasets_for_key = None
+            if (
+                encoding_moe_encoded_datasets is not None
+                and key in encoding_moe_base_datasets
+            ):
+                # Extract encoded datasets for this specific dataset key
+                encoding_moe_encoded_datasets_for_key = {}
+                for encoding_name in args.encoding_moe_encodings:
+                    if (
+                        encoding_name in encoding_moe_encoded_datasets
+                        and key in encoding_moe_encoded_datasets[encoding_name]
+                    ):
+                        encoding_moe_encoded_datasets_for_key[encoding_name] = (
+                            encoding_moe_encoded_datasets[encoding_name][key]
+                        )
+
+            # Use base dataset if EncodingMoE is enabled, otherwise use regular dataset
+            dataset_to_use = (
+                encoding_moe_base_datasets[key]
+                if (
+                    encoding_moe_base_datasets is not None
+                    and key in encoding_moe_base_datasets
+                )
+                else dataset
+            )
+
             train_acc, validation_acc, test_acc, energy, dictionary, test_indices = (
-                Experiment(args=args, dataset=dataset).run()
+                Experiment(
+                    args=args,
+                    dataset=dataset_to_use,
+                    encoding_moe_encoded_datasets=encoding_moe_encoded_datasets_for_key,
+                ).run()
             )
 
             train_accuracies.append(train_acc)
@@ -902,8 +1046,25 @@ for key in datasets:
                         args, "normalize_features", False
                     ),
                 }
-                # Add router info ONLY for MoE models
-                if args.layer_types is not None:
+                # Add EncodingMoE info if enabled
+                is_encoding_moe = (
+                    hasattr(args, "encoding_moe_encodings")
+                    and args.encoding_moe_encodings is not None
+                    and len(args.encoding_moe_encodings) > 0
+                )
+                if is_encoding_moe:
+                    log_dict["groupby/is_encoding_moe"] = True
+                    log_dict["groupby/encoding_moe_encodings"] = "+".join(
+                        args.encoding_moe_encodings
+                    )
+                    log_dict["groupby/encoding_moe_router_type"] = getattr(
+                        args, "encoding_moe_router_type", "MLP"
+                    )
+                else:
+                    log_dict["groupby/is_encoding_moe"] = False
+
+                # Add router info ONLY for MoE models (not EncodingMoE, which has its own router)
+                if args.layer_types is not None and not is_encoding_moe:
                     router_type = getattr(args, "router_type", "MLP")
                     log_dict["groupby/router_type"] = router_type
                     # If router_type is MLP, set router_layer_type to MLP for consistency
@@ -945,13 +1106,28 @@ for key in datasets:
     import pickle
 
     os.makedirs(f"results/{args.num_layers}_layers", exist_ok=True)
+    # Check if EncodingMoE is enabled
+    is_encoding_moe = (
+        hasattr(args, "encoding_moe_encodings")
+        and args.encoding_moe_encodings is not None
+        and len(args.encoding_moe_encodings) > 0
+    )
+
     # Generate detailed model name for MOE models
-    if args.layer_types is not None:
+    if is_encoding_moe:
+        # EncodingMoE: use encoding names in model name
+        encoding_names_str = "_".join(args.encoding_moe_encodings)
+        router_type = getattr(args, "encoding_moe_router_type", "MLP")
+        detailed_model_name = (
+            f"EncodingMoE_{encoding_names_str}_r{router_type}_{args.layer_type}"
+        )
+    elif args.layer_types is not None:
         expert_combo = "_".join(args.layer_types)
         router_type = getattr(args, "router_type", "MLP")
         detailed_model_name = f"{args.layer_type}_{router_type}_{expert_combo}"
     else:
         detailed_model_name = args.layer_type
+
     # Add skip_connection suffix if applicable
     if getattr(args, "skip_connection", False) and args.layer_type in [
         "GCN",
@@ -965,8 +1141,12 @@ for key in datasets:
         detailed_model_name = f"{detailed_model_name}_norm"
 
     # Use only pre-computed encoding for filename (legacy encoding is deprecated)
-    dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
-    graph_dict_filename = f"results/{args.num_layers}_layers/{key}_{detailed_model_name}_enc{dataset_encoding_str}_graph_dict.pickle"
+    # For EncodingMoE, don't add dataset_encoding to filename since encodings are in model name
+    if is_encoding_moe:
+        graph_dict_filename = f"results/{args.num_layers}_layers/{key}_{detailed_model_name}_graph_dict.pickle"
+    else:
+        dataset_encoding_str = getattr(args, "dataset_encoding", None) or "None"
+        graph_dict_filename = f"results/{args.num_layers}_layers/{key}_{detailed_model_name}_enc{dataset_encoding_str}_graph_dict.pickle"
     with open(graph_dict_filename, "wb") as f:
         pickle.dump(
             {
@@ -988,6 +1168,14 @@ for key in datasets:
         dataset_encoding_for_plots = getattr(args, "dataset_encoding", None)
         skip_connection = getattr(args, "skip_connection", False)
         normalize_features = getattr(args, "normalize_features", False)
+
+        # Check if EncodingMoE is enabled for plot filename
+        is_encoding_moe_plots = (
+            hasattr(args, "encoding_moe_encodings")
+            and args.encoding_moe_encodings is not None
+            and len(args.encoding_moe_encodings) > 0
+        )
+
         original_plot_path, sorted_plot_path = load_and_plot_average_per_graph(
             graph_dict_filename,
             dataset_name=key,
@@ -997,7 +1185,11 @@ for key in datasets:
             task_type="classification",
             output_dir="results",
             layer_types=args.layer_types if args.layer_types else None,
-            router_type=getattr(args, "router_type", "MLP"),
+            router_type=(
+                getattr(args, "encoding_moe_router_type", "MLP")
+                if is_encoding_moe_plots
+                else getattr(args, "router_type", "MLP")
+            ),
             skip_connection=skip_connection,
             normalize_features=normalize_features,
         )
@@ -1049,6 +1241,13 @@ for key in datasets:
     log_to_file(f"average acc: {test_mean}\n")
     log_to_file(f"plus/minus (CI):  {test_ci}\n")
     log_to_file(f"std deviation: {test_std}\n\n")
+    # Check if EncodingMoE is enabled for results tracking
+    is_encoding_moe_results = (
+        hasattr(args, "encoding_moe_encodings")
+        and args.encoding_moe_encodings is not None
+        and len(args.encoding_moe_encodings) > 0
+    )
+
     results.append(
         {
             "dataset": key,
@@ -1056,6 +1255,16 @@ for key in datasets:
             "encoding": args.encoding,
             "layer_type": args.layer_type,
             "layer_types": args.layer_types,
+            "encoding_moe_encodings": (
+                "+".join(args.encoding_moe_encodings)
+                if is_encoding_moe_results
+                else None
+            ),
+            "encoding_moe_router_type": (
+                getattr(args, "encoding_moe_router_type", "MLP")
+                if is_encoding_moe_results
+                else None
+            ),
             "num_layers": args.num_layers,
             "alpha": args.alpha,
             "eps": args.eps,
@@ -1096,8 +1305,17 @@ for key in datasets:
         # - no encodings: None (using normal datasets)
         encoding_category = get_encoding_category(encoding_source_dir)
 
+        # Check if EncodingMoE is enabled
+        is_encoding_moe = (
+            hasattr(args, "encoding_moe_encodings")
+            and args.encoding_moe_encodings is not None
+            and len(args.encoding_moe_encodings) > 0
+        )
+
         # Determine layer combination string (for both MoE and single layer models)
-        if args.layer_types is not None:
+        if is_encoding_moe:
+            layer_combination = f"EncodingMoE({'+'.join(args.encoding_moe_encodings)})"
+        elif args.layer_types is not None:
             layer_combination = str(args.layer_types)  # e.g., "['GCN', 'GIN']"
         else:
             layer_combination = args.layer_type  # e.g., "GCN"
@@ -1110,14 +1328,27 @@ for key in datasets:
             "required_test_appearances": required_test_appearances,
             "dataset_encoding": dataset_encoding_str,
             "encoding_category": encoding_category,
-            "is_moe": args.layer_types is not None,
+            "is_moe": args.layer_types is not None and not is_encoding_moe,
+            "is_encoding_moe": is_encoding_moe,
             "layer_combination": layer_combination,
-            "model_type": "MoE" if args.layer_types is not None else args.layer_type,
+            "model_type": (
+                "EncodingMoE"
+                if is_encoding_moe
+                else "MoE" if args.layer_types is not None else args.layer_type
+            ),
             "skip_connection": getattr(args, "skip_connection", False),
             "normalize_features": getattr(args, "normalize_features", False),
         }
-        # Add router configuration ONLY for MoE models
-        if args.layer_types is not None:
+
+        # Add EncodingMoE configuration if enabled
+        if is_encoding_moe:
+            summary_config["encoding_moe_encodings"] = args.encoding_moe_encodings
+            summary_config["encoding_moe_router_type"] = getattr(
+                args, "encoding_moe_router_type", "MLP"
+            )
+
+        # Add router configuration ONLY for MoE models (not EncodingMoE, which has its own router)
+        if args.layer_types is not None and not is_encoding_moe:
             router_type = getattr(args, "router_type", "MLP")
             summary_config["router_type"] = router_type
             # If router_type is MLP, set router_layer_type to MLP for consistency
@@ -1143,11 +1374,22 @@ for key in datasets:
         )
 
         # Log aggregate statistics
+        # Check if EncodingMoE is enabled (reuse from summary_config section)
+        is_encoding_moe_summary = (
+            hasattr(args, "encoding_moe_encodings")
+            and args.encoding_moe_encodings is not None
+            and len(args.encoding_moe_encodings) > 0
+        )
+
         # Determine layer combination string (for both MoE and single layer models)
-        if args.layer_types is not None:
-            layer_combination = str(args.layer_types)  # e.g., "['GCN', 'GIN']"
+        if is_encoding_moe_summary:
+            layer_combination_summary = (
+                f"EncodingMoE({'+'.join(args.encoding_moe_encodings)})"
+            )
+        elif args.layer_types is not None:
+            layer_combination_summary = str(args.layer_types)  # e.g., "['GCN', 'GIN']"
         else:
-            layer_combination = args.layer_type  # e.g., "GCN"
+            layer_combination_summary = args.layer_type  # e.g., "GCN"
 
         summary_log_dict = {
             "summary/test_mean": test_mean,
@@ -1168,10 +1410,14 @@ for key in datasets:
             "summary/max_test_appearances": max(test_appearances.values()),
             "summary/graphs_with_sufficient_appearances": graphs_with_sufficient_appearances,
             # Model metadata
-            "summary/is_moe": args.layer_types is not None,
-            "summary/layer_combination": layer_combination,
+            "summary/is_moe": args.layer_types is not None
+            and not is_encoding_moe_summary,
+            "summary/is_encoding_moe": is_encoding_moe_summary,
+            "summary/layer_combination": layer_combination_summary,
             "summary/model_type": (
-                "MoE" if args.layer_types is not None else args.layer_type
+                "EncodingMoE"
+                if is_encoding_moe_summary
+                else "MoE" if args.layer_types is not None else args.layer_type
             ),
             # Log individual trial results for analysis
             "trials/train_accs": train_accuracies,
@@ -1183,8 +1429,14 @@ for key in datasets:
             "groupby/dataset_encoding": getattr(args, "dataset_encoding", None)
             or "None",
             "groupby/encoding_category": encoding_category,
-            "groupby/model_type": "MoE" if args.layer_types else args.layer_type,
-            "groupby/is_moe": args.layer_types is not None,
+            "groupby/model_type": (
+                "EncodingMoE"
+                if is_encoding_moe_summary
+                else "MoE" if args.layer_types else args.layer_type
+            ),
+            "groupby/is_moe": args.layer_types is not None
+            and not is_encoding_moe_summary,
+            "groupby/is_encoding_moe": is_encoding_moe_summary,
             "groupby/moe_layers": (
                 "+".join(args.layer_types) if args.layer_types is not None else None
             ),
@@ -1192,8 +1444,18 @@ for key in datasets:
             "groupby/skip_connection": getattr(args, "skip_connection", False),
             "groupby/normalize_features": getattr(args, "normalize_features", False),
         }
-        # Add router info ONLY for MoE models
-        if args.layer_types is not None:
+
+        # Add EncodingMoE grouping info if enabled
+        if is_encoding_moe_summary:
+            summary_log_dict["groupby/encoding_moe_encodings"] = "+".join(
+                args.encoding_moe_encodings
+            )
+            summary_log_dict["groupby/encoding_moe_router_type"] = getattr(
+                args, "encoding_moe_router_type", "MLP"
+            )
+
+        # Add router info ONLY for MoE models (not EncodingMoE, which has its own router)
+        if args.layer_types is not None and not is_encoding_moe_summary:
             router_type = getattr(args, "router_type", "MLP")
             summary_log_dict["groupby/router_type"] = router_type
             # If router_type is MLP, set router_layer_type to MLP for consistency
@@ -1235,13 +1497,31 @@ for key in datasets:
     normalize_features = getattr(args, "normalize_features", False)
     skip_str = "true" if skip_connection else "false"
     norm_str = "true" if normalize_features else "false"
-    # Create more precise CSV filename with skip, normalize, and encoding info (using full detailed encoding name)
-    encoding_part = (
-        f"encodings_{dataset_encoding_str}"
-        if dataset_encoding_str != "None"
-        else "encodings_none"
+
+    # Check if EncodingMoE is enabled for CSV filename
+    is_encoding_moe_csv = (
+        hasattr(args, "encoding_moe_encodings")
+        and args.encoding_moe_encodings is not None
+        and len(args.encoding_moe_encodings) > 0
     )
-    csv_filename = f"results/graph_classification_{args.layer_type}_skip_{skip_str}_norm_{norm_str}_{encoding_part}.csv"
+
+    # Create more precise CSV filename with skip, normalize, and encoding info
+    if is_encoding_moe_csv:
+        # For EncodingMoE, include encoding names in filename
+        encoding_names_csv = "_".join(args.encoding_moe_encodings)
+        router_type_csv = getattr(args, "encoding_moe_router_type", "MLP")
+        encoding_part = f"encmoe_{encoding_names_csv}_r{router_type_csv}"
+        model_name_csv = f"EncodingMoE_{args.layer_type}"
+    else:
+        # For regular models, use dataset_encoding
+        encoding_part = (
+            f"encodings_{dataset_encoding_str}"
+            if dataset_encoding_str != "None"
+            else "encodings_none"
+        )
+        model_name_csv = args.layer_type
+
+    csv_filename = f"results/graph_classification_{model_name_csv}_skip_{skip_str}_norm_{norm_str}_{encoding_part}.csv"
     df = pd.DataFrame(results)
     with open(csv_filename, "a") as f:
         df.to_csv(f, mode="a", header=f.tell() == 0)

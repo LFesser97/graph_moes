@@ -120,7 +120,7 @@ for layer_type in "${single_layer_types[@]}"; do
         log_message "🧪 Experiment $experiment_id: $wandb_run_name"
         
         # Run single layer experiment with research-based hyperparameters
-        python scripts/run_graph_classification.py \
+        python scripts/experiments/run_graph_classification.py \
             --num_trials 5 \
             --dataset "$dataset" \
             --layer_type "$layer_type" \
@@ -166,7 +166,7 @@ for layer_combo in "${moe_combinations[@]}"; do
         log_message "🧪 Experiment $experiment_id: $wandb_run_name"
         
         # Run MoE experiment with research-based hyperparameters
-        python scripts/run_graph_classification.py \
+        python scripts/experiments/run_graph_classification.py \
             --num_trials 5 \
             --dataset "$dataset" \
             --layer_types "$layer_combo" \

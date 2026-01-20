@@ -1972,7 +1972,7 @@ except:
         cmd_args+=(--normalize_features)
     fi
     
-    python scripts/run_graph_classification.py "${cmd_args[@]}"
+    python scripts/experiments/run_graph_classification.py "${cmd_args[@]}"
     
 else
     experiment_type="single"
@@ -2020,7 +2020,7 @@ else
         cmd_args+=(--normalize_features)
     fi
     
-    python scripts/run_graph_classification.py "${cmd_args[@]}"
+    python scripts/experiments/run_graph_classification.py "${cmd_args[@]}"
 fi
 
 # Check exit status

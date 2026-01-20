@@ -21,7 +21,7 @@ from graph_moes.plotting.visualize_graphs import (
 )
 
 # Add src directory to path to import graph_moes modules
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 src_dir = project_root / "src"
 sys.path.insert(0, str(src_dir))
 

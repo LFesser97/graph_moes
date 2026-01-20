@@ -508,7 +508,7 @@ if [ "$actual_base_experiment_id" -le 54 ]; then
     fi
     
     # Run single layer experiment
-    python scripts/run_graph_classification.py "${cmd_args[@]}"
+    python scripts/experiments/run_graph_classification.py "${cmd_args[@]}"
 
 else
     # MoE experiment
@@ -589,7 +589,7 @@ else
     fi
     
     # Run MoE experiment
-    python scripts/run_graph_classification.py "${moe_cmd_args[@]}"
+    python scripts/experiments/run_graph_classification.py "${moe_cmd_args[@]}"
 fi
 
 # Check exit status
