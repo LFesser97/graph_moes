@@ -165,11 +165,30 @@ class Experiment:
                 # If all append, use base + max encoding dim
                 expert_input_dim = base_input_dim + max_encoding_dim
 
+            # Debug logging
+            print(f"🔧 EncodingMoE GNN initialization:")
+            print(f"   base_input_dim: {base_input_dim}")
+            print(f"   max_encoding_dim: {max_encoding_dim}")
+            print(f"   any_replaces_base: {any_replaces_base}")
+            print(f"   expert_input_dim: {expert_input_dim}")
+            print(
+                f"   encoding_configs: {[(c['encoding_name'], c['encoding_dim']) for c in encoding_configs]}"
+            )
+
             # Create args for GNN expert
             expert_args = copy.deepcopy(self.args)
             expert_args.input_dim = expert_input_dim
+            print(f"   expert_args.input_dim (set to): {expert_args.input_dim}")
+
+            # Verify input_dim was set correctly
+            if expert_args.input_dim != expert_input_dim:
+                print(
+                    f"⚠️  Warning: expert_args.input_dim ({expert_args.input_dim}) != expert_input_dim ({expert_input_dim})"
+                )
+                expert_args.input_dim = expert_input_dim  # Force correct value
 
             # Initialize GNN expert model
+            print(f"   Initializing GNN with input_dim: {expert_args.input_dim}")
             if expert_args.layer_type == "GPS":
                 gnn_expert = GPS(expert_args).to(self.args.device)
             elif expert_args.layer_type == "Orthogonal":
@@ -178,6 +197,19 @@ class Experiment:
                 gnn_expert = UnitaryGCN(expert_args).to(self.args.device)
             else:
                 gnn_expert = GNN(expert_args).to(self.args.device)
+
+            # Verify the first layer has correct input dimension
+            if hasattr(gnn_expert, "layers") and len(gnn_expert.layers) > 0:
+                first_layer = gnn_expert.layers[0]
+                if hasattr(first_layer, "lin"):
+                    first_layer_input_dim = first_layer.lin.weight.shape[1]
+                    print(
+                        f"   ✅ First layer input_dim: {first_layer_input_dim} (expected: {expert_input_dim})"
+                    )
+                    if first_layer_input_dim != expert_input_dim:
+                        print(
+                            f"   ❌ Mismatch! Model initialized with wrong input_dim!"
+                        )
 
             # Initialize EncodingMoE
             encoding_moe_args = copy.deepcopy(self.args)
