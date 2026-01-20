@@ -176,16 +176,17 @@ class Experiment:
             )
 
             # Create args for GNN expert
-            expert_args = copy.deepcopy(self.args)
-            expert_args.input_dim = expert_input_dim
+            # Create a new AttrDict with updated input_dim to avoid deepcopy issues
+            expert_args_dict = dict(self.args)  # Convert to regular dict
+            expert_args_dict["input_dim"] = expert_input_dim
+            expert_args = AttrDict(expert_args_dict)
             print(f"   expert_args.input_dim (set to): {expert_args.input_dim}")
 
-            # Verify input_dim was set correctly
+            # Double-check the value is correct
             if expert_args.input_dim != expert_input_dim:
-                print(
-                    f"⚠️  Warning: expert_args.input_dim ({expert_args.input_dim}) != expert_input_dim ({expert_input_dim})"
+                raise ValueError(
+                    f"Failed to set expert_args.input_dim: got {expert_args.input_dim}, expected {expert_input_dim}"
                 )
-                expert_args.input_dim = expert_input_dim  # Force correct value
 
             # Initialize GNN expert model
             print(f"   Initializing GNN with input_dim: {expert_args.input_dim}")
@@ -208,7 +209,12 @@ class Experiment:
                     )
                     if first_layer_input_dim != expert_input_dim:
                         print(
-                            f"   ❌ Mismatch! Model initialized with wrong input_dim!"
+                            f"   ❌ Mismatch! Model initialized with wrong input_dim! Expected {expert_input_dim} but got {first_layer_input_dim}"
+                        )
+                        # This is a critical error - model won't work
+                        raise ValueError(
+                            f"GNN model initialized with wrong input_dim: {first_layer_input_dim} "
+                            f"but needs {expert_input_dim}. expert_args.input_dim was {expert_args.input_dim}"
                         )
 
             # Initialize EncodingMoE
