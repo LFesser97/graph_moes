@@ -3,11 +3,12 @@
 
 # TODO (12/10)
 
-TRY encodings MOE
+- TRY encodings MOE
 
-splits the bash/ into more meaningul parts too
+- splits the bash/ into more meaningul parts too
 
-* REGENERATE ENCODINGS
+* REGENERATE ENCODINGS: why do we not get the same result as what we had
+in the NEURIPS paper?
 
 * Investigate tmd -> RE RUN
 

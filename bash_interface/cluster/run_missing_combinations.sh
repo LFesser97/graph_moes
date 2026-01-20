@@ -99,29 +99,45 @@ if [ -d "$CONDA_ENVS_PATH/$ENV_NAME/bin" ] && [ -f "$CONDA_ENVS_PATH/$ENV_NAME/b
     if [[ "$python_path" == *"$ENV_NAME"* ]]; then
         log_message "✅ Environment activated"
     else
-        log_message "❌ Failed to activate $ENV_NAME environment"
-        exit 1
+        log_message "⚠️  Warning: Environment path may not be correct"
     fi
 else
-    log_message "❌ $ENV_NAME environment not found"
+    log_message "❌ Environment $ENV_NAME not found"
     exit 1
 fi
 
-# Navigate to project directory
+# Change to project directory
 cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes || {
-    log_message "❌ Failed to navigate to project directory"
+    log_message "❌ Failed to change to project directory"
     exit 1
 }
 
-log_message "📁 Project directory: $(pwd)"
+# Install/verify project dependencies
+log_message "📦 Verifying project installation..."
+if python -c "import graph_moes" 2>/dev/null; then
+    log_message "✅ graph_moes already installed"
+else
+    if pip install -e . --no-deps --quiet 2>/dev/null; then
+        log_message "✅ Project installed"
+    elif [ -d "src" ]; then
+        export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
+        log_message "✅ Project accessible via PYTHONPATH"
+    else
+        log_message "❌ Failed to install graph_moes project"
+        exit 1
+    fi
+fi
 
-# Add project root and src to PYTHONPATH
-export PYTHONPATH="$(pwd):$(pwd)/src:${PYTHONPATH}"
+# Quick verification
+python -c "import numpy, pandas, torch, graph_moes; print('✅ Core packages available')" || {
+    log_message "❌ Core packages not available"
+    exit 1
+}
 
 # Load hyperparameter lookup function
 source /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface/cluster/hyperparams_lookup.sh
 
-# Define combinations array (will be populated from Python)
+# Define combinations array
 declare -a combinations=(
   "enzymes:GCN:hg_lape_normalized_k8:false:false:None:None"
   "enzymes:GCN:hg_lape_normalized_k8:true:false:None:None"
@@ -1767,8 +1783,6 @@ declare -a combinations=(
   "reddit:MoE:None:false:true:GNN:["GIN", "GPS"]"
 )
 
-
-
 # Get combination for this task
 task_id=${SLURM_ARRAY_TASK_ID:-1}
 combination_str="${combinations[$((task_id - 1))]}"
@@ -1813,40 +1827,34 @@ try:
     if isinstance(data, (tuple, list)):
         print(json.dumps(list(data)))
     else:
-        print('[\"GCN\", \"GIN\"]')
+        print('["GCN", "GIN"]')
 except:
     # Fallback: assume it's already JSON
     try:
         data = json.loads(sys.stdin.read())
-        print(json.dumps(data) if isinstance(data, list) else '[\"GCN\", \"GIN\"]')
+        print(json.dumps(data) if isinstance(data, list) else '["GCN", "GIN"]')
     except:
-        print('[\"GCN\", \"GIN\"]')
+        print('["GCN", "GIN"]')
 " 2>/dev/null || echo '["GCN", "GIN"]')
     else
-        layer_combo='["GCN", "GIN"]'  # Default
+        layer_combo='["GCN", "GIN"]'
     fi
     
-    # Set router type
-    if [ "$router_type" != "None" ] && [ "$router_type" != "null" ]; then
-        router_type_val="$router_type"
-        if [ "$router_type_val" = "GNN" ]; then
-            router_layer_type="GIN"
-        else
-            router_layer_type="MLP"
-        fi
-    else
-        router_type_val="MLP"
+    router_type_val="$router_type"
+    if [ "$router_type_val" = "None" ] || [ -z "$router_type_val" ]; then
+        router_type_val="GNN"  # Default router for MoE
+    fi
+    
+    # Default router layer type (GIN for GNN router)
+    router_layer_type="GIN"
+    if [ "$router_type_val" = "MLP" ]; then
         router_layer_type="MLP"
     fi
     
-    # Extract first layer for hyperparameters
+    log_message "🧪 MoE Experiment: ${dataset}_MoE_${layer_combo} (router=${router_type_val}, skip=${use_skip}, normalize=${use_normalize}, encoding=${encoding})"
+    
+    # Get hyperparameters from first layer type
     first_layer=$(echo "$layer_combo" | python3 -c "import sys, json; layers=json.load(sys.stdin); print(layers[0] if isinstance(layers, list) and len(layers) > 0 else 'GCN')" 2>/dev/null || echo "GCN")
-    
-    log_message "🧪 MoE Experiment: ${dataset}_MoE (router=${router_type_val}, normalize=${use_normalize}, encoding=${encoding})"
-    log_message "   Layer combo: $layer_combo"
-    log_message "   First layer (for hyperparams): $first_layer"
-    
-    # Get hyperparameters
     get_hyperparams "$dataset" "$first_layer"
     
     learning_rate=$HYPERPARAM_LEARNING_RATE
@@ -1860,7 +1868,8 @@ except:
     encoding_suffix=$([ "$encoding" != "None" ] && echo "_${encoding}" || echo "")
     router_suffix="_${router_type_val}"
     norm_suffix=$([ "$use_normalize" = "true" ] && echo "_norm" || echo "")
-    wandb_run_name="${dataset}_MoE_${clean_combo}${router_suffix}${norm_suffix}${encoding_suffix}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
+    skip_suffix=$([ "$use_skip" = "true" ] && echo "_skip" || echo "")
+    wandb_run_name="${dataset}_MoE_router_${router_type_val}_${clean_combo}${skip_suffix}${norm_suffix}${encoding_suffix}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
     
     # Build command arguments for MoE
     cmd_args=(
@@ -1881,6 +1890,10 @@ except:
     
     if [ "$encoding" != "None" ]; then
         cmd_args+=(--dataset_encoding "$encoding")
+    fi
+    
+    if [ "$use_skip" = "true" ]; then
+        cmd_args+=(--skip_connection)
     fi
     
     if [ "$use_normalize" = "true" ]; then
