@@ -705,19 +705,19 @@ class Experiment:
                         total_correct += pred.eq(y).sum().item()
         else:
             # Regular model - standard eval
-        with torch.no_grad():
-            total_correct = 0
-            for graph in loader:
-                graph = graph.to(self.args.device)
-                out = self.model(graph)
-                y = graph.y.to(self.args.device)
-                # check if y contains more than one element
-                if y.dim() > 1:
-                    loss = self.loss_fn(input=out, target=y)
-                    total_correct -= loss
-                else:
-                    _, pred = out.max(dim=1)
-                    total_correct += pred.eq(y).sum().item()
+            with torch.no_grad():
+                total_correct = 0
+                for graph in loader:
+                    graph = graph.to(self.args.device)
+                    out = self.model(graph)
+                    y = graph.y.to(self.args.device)
+                    # check if y contains more than one element
+                    if y.dim() > 1:
+                        loss = self.loss_fn(input=out, target=y)
+                        total_correct -= loss
+                    else:
+                        _, pred = out.max(dim=1)
+                        total_correct += pred.eq(y).sum().item()
 
         return total_correct / sample_size
 
