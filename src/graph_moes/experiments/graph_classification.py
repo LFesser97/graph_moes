@@ -705,19 +705,19 @@ class Experiment:
                         total_correct += pred.eq(y).sum().item()
         else:
             # Regular model - standard eval
-            with torch.no_grad():
-                total_correct = 0
-                for graph in loader:
-                    graph = graph.to(self.args.device)
-                    out = self.model(graph)
-                    y = graph.y.to(self.args.device)
-                    # check if y contains more than one element
-                    if y.dim() > 1:
-                        loss = self.loss_fn(input=out, target=y)
-                        total_correct -= loss
-                    else:
-                        _, pred = out.max(dim=1)
-                        total_correct += pred.eq(y).sum().item()
+        with torch.no_grad():
+            total_correct = 0
+            for graph in loader:
+                graph = graph.to(self.args.device)
+                out = self.model(graph)
+                y = graph.y.to(self.args.device)
+                # check if y contains more than one element
+                if y.dim() > 1:
+                    loss = self.loss_fn(input=out, target=y)
+                    total_correct -= loss
+                else:
+                    _, pred = out.max(dim=1)
+                    total_correct += pred.eq(y).sum().item()
 
         return total_correct / sample_size
 
@@ -794,18 +794,18 @@ class Experiment:
                     out = self.model(base_graph, encoded_graphs)
                     y = base_graph.y.flatten().to(self.args.device)
 
-                # For multi-label, convert single labels to multi-hot if needed
-                if y.dim() == 1:
-                    # Convert to multi-hot encoding for AUPRC
-                    y_multihot = torch.zeros(
-                        out.shape[0], self.args.output_dim, device=self.args.device
-                    )
-                    y_multihot.scatter_(1, y.unsqueeze(1), 1)
-                    y = y_multihot
+                    # For multi-label, convert single labels to multi-hot if needed
+                    if y.dim() == 1:
+                        # Convert to multi-hot encoding for AUPRC
+                        y_multihot = torch.zeros(
+                            out.shape[0], self.args.output_dim, device=self.args.device
+                        )
+                        y_multihot.scatter_(1, y.unsqueeze(1), 1)
+                        y = y_multihot
 
-                metric.update(out, y)
+                    metric.update(out, y)
 
-            return metric.compute().item()
+                return metric.compute().item()
             else:
                 # Use accuracy for multi-class datasets
                 total_correct = 0
