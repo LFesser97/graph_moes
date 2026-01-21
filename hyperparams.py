@@ -164,6 +164,25 @@ def get_args_from_input() -> AttrDict:
         help="router type for EncodingMoE: MLP or GNN (default: MLP)",
     )
     parser.add_argument(
+        "--encoding_moe_router_layer_type",
+        type=str,
+        default="GIN",
+        choices=["GCN", "GIN", "SAGE"],
+        help="GNN layer type for EncodingMoE GNN router (default: GIN)",
+    )
+    parser.add_argument(
+        "--encoding_moe_router_depth",
+        type=int,
+        default=4,
+        help="depth (num layers) of EncodingMoE GNN router (default: 4)",
+    )
+    parser.add_argument(
+        "--encoding_moe_router_dropout",
+        type=float,
+        default=0.1,
+        help="dropout rate for EncodingMoE GNN router (default: 0.1)",
+    )
+    parser.add_argument(
         "--router_hidden_layers",
         type=list,
         default=[64, 64, 64],

@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 # - Hypergraph encodings: all append to original features
 ENCODING_INFO: Dict[str, Dict[str, Any]] = {
     # Graph encodings
-    "g_ldp": {"encoding_dim": 4, "replaces_base": True},
+    "g_ldp": {"encoding_dim": 4, "replaces_base": True},  #
     "g_rwpe_k16": {"encoding_dim": 16, "replaces_base": False},  # walk_length=16
     "g_lape_k8": {"encoding_dim": 8, "replaces_base": False},  # k=8
     "g_orc": {
