@@ -170,6 +170,32 @@ def get_args_from_input() -> AttrDict:
         help="num. hidden layers of the router GNN",
     )
     parser.add_argument(
+        "--router_type",
+        type=str,
+        default="MLP",
+        choices=["MLP", "GNN"],
+        help="router type for MoE: MLP or GNN (default: MLP)",
+    )
+    parser.add_argument(
+        "--router_layer_type",
+        type=str,
+        default="GIN",
+        choices=["GCN", "GIN", "SAGE"],
+        help="GNN layer type for GNN router (default: GIN)",
+    )
+    parser.add_argument(
+        "--router_depth",
+        type=int,
+        default=4,
+        help="depth (num layers) of GNN router (default: 4)",
+    )
+    parser.add_argument(
+        "--router_dropout",
+        type=float,
+        default=0.1,
+        help="dropout rate for GNN router (default: 0.1)",
+    )
+    parser.add_argument(
         "--layer_types",
         type=ast.literal_eval,
         help="the expert GNNs to be used for an MoE",
