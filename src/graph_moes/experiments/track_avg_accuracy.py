@@ -83,6 +83,7 @@ def plot_average_per_graph(
     save_filename: Optional[str] = None,
     layer_types: Optional[list] = None,
     router_type: str = "MLP",
+    is_encoding_moe: bool = False,
 ) -> str:
     """
     Plot average accuracy (classification) or average error (regression) per graph.
@@ -101,9 +102,12 @@ def plot_average_per_graph(
         task_type: "classification" or "regression"
         output_dir: Directory to save the plot
         save_filename: Optional custom filename. If None, auto-generated
+        layer_types: List of expert types for MOE models
+        router_type: Router type for MOE models
+        is_encoding_moe: Whether this is an EncodingMoE model
 
     Returns:
-        Tuple of (original_plot_path, sorted_plot_path) - paths to both saved plot files
+        Path to saved plot file
     """
     fig, ax = plt.subplots(figsize=(12, 6))
 
@@ -173,7 +177,7 @@ def plot_average_per_graph(
     if save_filename is None:
         encoding_str = f"_{encoding}" if encoding else ""
         detailed_model_name = get_detailed_model_name(
-            layer_type, layer_types, router_type, False, num_layers
+            layer_type, layer_types, router_type, is_encoding_moe, num_layers
         )
         save_filename = (
             f"{output_dir}/{num_layers}_layers/"
@@ -268,6 +272,7 @@ def load_and_plot_average_per_graph(
         save_filename=f"{dataset_name}_{detailed_model_name}_{skip_str}_{norm_str}{encoding_suffix}_by_index.png",
         layer_types=layer_types,
         router_type=router_type,
+        is_encoding_moe=is_encoding_moe,
     )
 
     # Create sorted plot (ordered by highest average accuracy)
@@ -291,6 +296,7 @@ def load_and_plot_average_per_graph(
         save_filename=f"{dataset_name}_{detailed_model_name}_{skip_str}_{norm_str}{encoding_suffix}_by_accuracy.png",
         layer_types=layer_types,
         router_type=router_type,
+        is_encoding_moe=is_encoding_moe,
     )
 
     return original_plot_path, sorted_plot_path

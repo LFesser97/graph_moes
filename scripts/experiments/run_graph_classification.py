@@ -60,6 +60,223 @@ except ImportError:
 from hyperparams import get_args_from_input
 
 
+# ============================================================================
+# EncodingMoE Helper Functions
+# ============================================================================
+
+
+def _parse_encoding_moe_encodings(encoding_list: list) -> list:
+    """
+    Parse encoding list from JSON string if needed.
+
+    Args:
+        encoding_list: List of encodings (may contain a single JSON string)
+
+    Returns:
+        Parsed list of encoding names
+    """
+    # Check if it's a single JSON string that needs parsing
+    if len(encoding_list) == 1 and isinstance(encoding_list[0], str):
+        encoding_str = encoding_list[0].strip()
+        # Check if it looks like JSON (starts with [ and ends with ])
+        if encoding_str.startswith("[") and encoding_str.endswith("]"):
+            try:
+                # Replace JSON null with Python None in string before parsing
+                encoding_str_python = encoding_str.replace("null", "None")
+                # Parse as Python literal (handles None correctly)
+                parsed_list = ast.literal_eval(encoding_str_python)
+                # Convert None back to string "None" for consistency
+                encoding_list = [e if e is not None else "None" for e in parsed_list]
+                print(
+                    f"   📝 Parsed JSON encoding list: {encoding_str} -> {encoding_list}"
+                )
+            except (ValueError, SyntaxError) as e:
+                print(f"   ⚠️  Failed to parse JSON encoding list: {e}, using as-is")
+
+    return encoding_list
+
+
+def _load_encoding_moe_datasets(
+    args: AttrDict,
+    datasets: dict,
+    data_directory: str,
+) -> tuple[dict, dict]:
+    """
+    Load base datasets and encoded datasets for EncodingMoE.
+
+    Args:
+        args: Experiment arguments
+        datasets: Original datasets dictionary
+        data_directory: Path to data directory
+
+    Returns:
+        Tuple of (encoding_moe_base_datasets, encoding_moe_encoded_datasets)
+    """
+    encoding_list = args.encoding_moe_encodings
+    encoding_list = _parse_encoding_moe_encodings(encoding_list)
+    args.encoding_moe_encodings = encoding_list
+
+    print(
+        f"\n🎯 EncodingMoE mode: Loading base dataset + {len(encoding_list)} encodings"
+    )
+    print(f"   Encodings: {encoding_list}")
+
+    # Keep original datasets as base (no encoding)
+    encoding_moe_base_datasets = datasets.copy()
+
+    # Load each encoding separately
+    encoding_moe_encoded_datasets = {}
+    for encoding_name in encoding_list:
+        # Handle "None" encoding (no encoding file to load, just use base dataset)
+        if encoding_name == "None" or encoding_name is None:
+            print(f"\n  📦 Encoding: None (using base dataset)")
+            # Store empty dict to indicate no encoding file, will use base dataset
+            encoding_moe_encoded_datasets["None"] = {}
+            continue
+
+        print(f"\n  📦 Loading encoding: {encoding_name}")
+
+        # Determine encoding directory and file pattern (same logic as dataset_encoding)
+        if encoding_name.startswith("hg_"):
+            encoding_suffix = encoding_name[3:]
+            encoded_data_dir = (
+                Path(data_directory).parent / "graph_datasets_with_hg_encodings"
+            )
+            file_pattern = "{dataset_name}_hg_{encoding_suffix}.pt"
+        elif encoding_name.startswith("g_"):
+            encoding_suffix = encoding_name[2:]
+            encoded_data_dir = (
+                Path(data_directory).parent / "graph_datasets_with_g_encodings"
+            )
+            file_pattern = "{dataset_name}_g_{encoding_suffix}.pt"
+        else:
+            raise ValueError(
+                f"Unknown encoding format: {encoding_name}. Must start with 'hg_' or 'g_'"
+            )
+
+        if not encoded_data_dir.exists():
+            raise FileNotFoundError(
+                f"Encoded datasets directory not found: {encoded_data_dir}"
+            )
+
+        # Load encoded datasets for this encoding
+        encoded_datasets_for_encoding = {}
+        datasets_to_check = [args.dataset] if args.dataset else list(datasets.keys())
+
+        for dataset_name in datasets_to_check:
+            filename = file_pattern.format(
+                dataset_name=dataset_name, encoding_suffix=encoding_suffix
+            )
+            encoded_file_path = encoded_data_dir / filename
+
+            if encoded_file_path.exists():
+                try:
+                    print(f"    ⏳ Loading {dataset_name} with {encoding_name}...")
+                    encoded_dataset = torch.load(encoded_file_path, weights_only=False)
+                    encoded_datasets_for_encoding[dataset_name] = encoded_dataset
+                    print(
+                        f"    ✅ {dataset_name} loaded: {len(encoded_dataset)} graphs"
+                    )
+                except Exception as e:
+                    print(
+                        f"    ❌ Failed to load {dataset_name} with {encoding_name}: {e}"
+                    )
+            else:
+                print(f"    ⚠️  Encoded dataset file not found: {encoded_file_path}")
+
+        encoding_moe_encoded_datasets[encoding_name] = encoded_datasets_for_encoding
+        print(
+            f"  ✅ Loaded {len(encoded_datasets_for_encoding)} datasets with {encoding_name}"
+        )
+
+    print(f"\n✅ EncodingMoE datasets loaded successfully!")
+    print(f"   Base datasets: {len(encoding_moe_base_datasets)}")
+    print(
+        f"   Encoded datasets: {len(encoding_moe_encoded_datasets)} encodings × {len(encoding_moe_encoded_datasets.get(encoding_list[0], {}))} datasets"
+    )
+
+    return encoding_moe_base_datasets, encoding_moe_encoded_datasets
+
+
+def _is_encoding_moe_enabled(args: AttrDict) -> bool:
+    """
+    Check if EncodingMoE is enabled.
+
+    Args:
+        args: Experiment arguments
+
+    Returns:
+        True if EncodingMoE is enabled, False otherwise
+    """
+    return (
+        hasattr(args, "encoding_moe_encodings")
+        and args.encoding_moe_encodings is not None
+        and len(args.encoding_moe_encodings) > 0
+    )
+
+
+def _get_encoding_moe_wandb_suffix(args: AttrDict) -> str:
+    """
+    Generate WandB experiment ID suffix for EncodingMoE.
+
+    Args:
+        args: Experiment arguments
+
+    Returns:
+        Suffix string (empty if EncodingMoE not enabled)
+    """
+    if not _is_encoding_moe_enabled(args):
+        return ""
+
+    # Create compact encoding name (e.g., "g_ldp+g_orc")
+    encoding_names_str = "+".join(args.encoding_moe_encodings)
+    router_type = getattr(args, "encoding_moe_router_type", "MLP")
+    return f"_EncMoE_{encoding_names_str}_r{router_type}"
+
+
+def _extract_encoding_moe_datasets_for_key(
+    args: AttrDict,
+    key: str,
+    encoding_moe_encoded_datasets: dict,
+    encoding_moe_base_datasets: dict,
+) -> tuple[dict, any]:
+    """
+    Extract encoded datasets for a specific dataset key and determine which dataset to use.
+
+    Args:
+        args: Experiment arguments
+        key: Dataset key name
+        encoding_moe_encoded_datasets: Dictionary of encoded datasets
+        encoding_moe_base_datasets: Dictionary of base datasets
+
+    Returns:
+        Tuple of (encoding_moe_encoded_datasets_for_key, dataset_to_use)
+    """
+    encoding_moe_encoded_datasets_for_key = None
+    if encoding_moe_encoded_datasets is not None and key in encoding_moe_base_datasets:
+        # Extract encoded datasets for this specific dataset key
+        encoding_moe_encoded_datasets_for_key = {}
+        for encoding_name in args.encoding_moe_encodings:
+            if (
+                encoding_name in encoding_moe_encoded_datasets
+                and key in encoding_moe_encoded_datasets[encoding_name]
+            ):
+                encoding_moe_encoded_datasets_for_key[encoding_name] = (
+                    encoding_moe_encoded_datasets[encoding_name][key]
+                )
+
+    # Use base dataset if EncodingMoE is enabled, otherwise use regular dataset
+    dataset_to_use = (
+        encoding_moe_base_datasets[key]
+        if (
+            encoding_moe_base_datasets is not None and key in encoding_moe_base_datasets
+        )
+        else None
+    )
+
+    return encoding_moe_encoded_datasets_for_key, dataset_to_use
+
+
 def _convert_lrgb(dataset: torch.Tensor) -> Data:
     """Convert LRGB dataset tuple format to PyTorch Geometric Data object.
 
@@ -597,112 +814,9 @@ if hasattr(args, "dataset_encoding") and args.dataset_encoding is not None:
 encoding_moe_base_datasets = None
 encoding_moe_encoded_datasets = None
 
-if (
-    hasattr(args, "encoding_moe_encodings")
-    and args.encoding_moe_encodings is not None
-    and len(args.encoding_moe_encodings) > 0
-):
-    # Parse encoding list: bash script may pass JSON string as single argument
-    encoding_list = args.encoding_moe_encodings
-
-    # Check if it's a single JSON string that needs parsing
-    if len(encoding_list) == 1 and isinstance(encoding_list[0], str):
-        encoding_str = encoding_list[0].strip()
-        # Check if it looks like JSON (starts with [ and ends with ])
-        if encoding_str.startswith("[") and encoding_str.endswith("]"):
-            try:
-                # Replace JSON null with Python None in string before parsing
-                encoding_str_python = encoding_str.replace("null", "None")
-                # Parse as Python literal (handles None correctly)
-                parsed_list = ast.literal_eval(encoding_str_python)
-                # Convert None back to string "None" for consistency
-                encoding_list = [e if e is not None else "None" for e in parsed_list]
-                print(
-                    f"   📝 Parsed JSON encoding list: {encoding_str} -> {encoding_list}"
-                )
-            except (ValueError, SyntaxError) as e:
-                print(f"   ⚠️  Failed to parse JSON encoding list: {e}, using as-is")
-
-    # Store parsed list back in args for consistency with rest of code
-    args.encoding_moe_encodings = encoding_list
-
-    print(
-        f"\n🎯 EncodingMoE mode: Loading base dataset + {len(encoding_list)} encodings"
-    )
-    print(f"   Encodings: {encoding_list}")
-
-    # Keep original datasets as base (no encoding)
-    encoding_moe_base_datasets = datasets.copy()
-
-    # Load each encoding separately
-    encoding_moe_encoded_datasets = {}
-    for encoding_name in encoding_list:
-        # Handle "None" encoding (no encoding file to load, just use base dataset)
-        if encoding_name == "None" or encoding_name is None:
-            print(f"\n  📦 Encoding: None (using base dataset)")
-            # Store empty dict to indicate no encoding file, will use base dataset
-            encoding_moe_encoded_datasets["None"] = {}
-            continue
-
-        print(f"\n  📦 Loading encoding: {encoding_name}")
-
-        # Determine encoding directory and file pattern (same logic as dataset_encoding)
-        if encoding_name.startswith("hg_"):
-            encoding_suffix = encoding_name[3:]
-            encoded_data_dir = (
-                Path(data_directory).parent / "graph_datasets_with_hg_encodings"
-            )
-            file_pattern = "{dataset_name}_hg_{encoding_suffix}.pt"
-        elif encoding_name.startswith("g_"):
-            encoding_suffix = encoding_name[2:]
-            encoded_data_dir = (
-                Path(data_directory).parent / "graph_datasets_with_g_encodings"
-            )
-            file_pattern = "{dataset_name}_g_{encoding_suffix}.pt"
-        else:
-            raise ValueError(
-                f"Unknown encoding format: {encoding_name}. Must start with 'hg_' or 'g_'"
-            )
-
-        if not encoded_data_dir.exists():
-            raise FileNotFoundError(
-                f"Encoded datasets directory not found: {encoded_data_dir}"
-            )
-
-        # Load encoded datasets for this encoding
-        encoded_datasets_for_encoding = {}
-        datasets_to_check = [args.dataset] if args.dataset else list(datasets.keys())
-
-        for dataset_name in datasets_to_check:
-            filename = file_pattern.format(
-                dataset_name=dataset_name, encoding_suffix=encoding_suffix
-            )
-            encoded_file_path = encoded_data_dir / filename
-
-            if encoded_file_path.exists():
-                try:
-                    print(f"    ⏳ Loading {dataset_name} with {encoding_name}...")
-                    encoded_dataset = torch.load(encoded_file_path, weights_only=False)
-                    encoded_datasets_for_encoding[dataset_name] = encoded_dataset
-                    print(
-                        f"    ✅ {dataset_name} loaded: {len(encoded_dataset)} graphs"
-                    )
-                except Exception as e:
-                    print(
-                        f"    ❌ Failed to load {dataset_name} with {encoding_name}: {e}"
-                    )
-            else:
-                print(f"    ⚠️  Encoded dataset file not found: {encoded_file_path}")
-
-        encoding_moe_encoded_datasets[encoding_name] = encoded_datasets_for_encoding
-        print(
-            f"  ✅ Loaded {len(encoded_datasets_for_encoding)} datasets with {encoding_name}"
-        )
-
-    print(f"\n✅ EncodingMoE datasets loaded successfully!")
-    print(f"   Base datasets: {len(encoding_moe_base_datasets)}")
-    print(
-        f"   Encoded datasets: {len(encoding_moe_encoded_datasets)} encodings × {len(encoding_moe_encoded_datasets.get(args.encoding_moe_encodings[0], {}))} datasets"
+if _is_encoding_moe_enabled(args):
+    encoding_moe_base_datasets, encoding_moe_encoded_datasets = (
+        _load_encoding_moe_datasets(args, datasets, data_directory)
     )
 
 if args.dataset:
@@ -859,16 +973,7 @@ for key in datasets:
         )
 
         # Add EncodingMoE suffix if enabled
-        encoding_moe_suffix = ""
-        if (
-            hasattr(args, "encoding_moe_encodings")
-            and args.encoding_moe_encodings is not None
-            and len(args.encoding_moe_encodings) > 0
-        ):
-            # Create compact encoding name (e.g., "g_ldp+g_orc")
-            encoding_names_str = "+".join(args.encoding_moe_encodings)
-            router_type = getattr(args, "encoding_moe_router_type", "MLP")
-            encoding_moe_suffix = f"_EncMoE_{encoding_names_str}_r{router_type}"
+        encoding_moe_suffix = _get_encoding_moe_wandb_suffix(args)
 
         experiment_id = f"{key}_{args.layer_type}{skip_suffix}{norm_suffix}{dataset_encoding_suffix}{encoding_moe_suffix}_{timestamp}"
         if args.wandb_name:
@@ -950,11 +1055,7 @@ for key in datasets:
             }
 
             # Add EncodingMoE configuration if enabled
-            is_encoding_moe = (
-                hasattr(args, "encoding_moe_encodings")
-                and args.encoding_moe_encodings is not None
-                and len(args.encoding_moe_encodings) > 0
-            )
+            is_encoding_moe = _is_encoding_moe_enabled(args)
             if is_encoding_moe:
                 wandb_config["is_encoding_moe"] = True
                 wandb_config["encoding_moe_encodings"] = args.encoding_moe_encodings
@@ -994,31 +1095,17 @@ for key in datasets:
 
         try:
             # Pass encoded datasets to Experiment if EncodingMoE is enabled
-            encoding_moe_encoded_datasets_for_key = None
-            if (
-                encoding_moe_encoded_datasets is not None
-                and key in encoding_moe_base_datasets
-            ):
-                # Extract encoded datasets for this specific dataset key
-                encoding_moe_encoded_datasets_for_key = {}
-                for encoding_name in args.encoding_moe_encodings:
-                    if (
-                        encoding_name in encoding_moe_encoded_datasets
-                        and key in encoding_moe_encoded_datasets[encoding_name]
-                    ):
-                        encoding_moe_encoded_datasets_for_key[encoding_name] = (
-                            encoding_moe_encoded_datasets[encoding_name][key]
-                        )
-
-            # Use base dataset if EncodingMoE is enabled, otherwise use regular dataset
-            dataset_to_use = (
-                encoding_moe_base_datasets[key]
-                if (
-                    encoding_moe_base_datasets is not None
-                    and key in encoding_moe_base_datasets
+            encoding_moe_encoded_datasets_for_key, dataset_to_use = (
+                _extract_encoding_moe_datasets_for_key(
+                    args,
+                    key,
+                    encoding_moe_encoded_datasets,
+                    encoding_moe_base_datasets,
                 )
-                else dataset
             )
+            # Fallback to regular dataset if EncodingMoE not enabled
+            if dataset_to_use is None:
+                dataset_to_use = dataset
 
             train_acc, validation_acc, test_acc, energy, dictionary, test_indices = (
                 Experiment(
@@ -1079,11 +1166,7 @@ for key in datasets:
                     ),
                 }
                 # Add EncodingMoE info if enabled
-                is_encoding_moe = (
-                    hasattr(args, "encoding_moe_encodings")
-                    and args.encoding_moe_encodings is not None
-                    and len(args.encoding_moe_encodings) > 0
-                )
+                is_encoding_moe = _is_encoding_moe_enabled(args)
                 if is_encoding_moe:
                     log_dict["groupby/is_encoding_moe"] = True
                     log_dict["groupby/encoding_moe_encodings"] = "+".join(
@@ -1139,11 +1222,7 @@ for key in datasets:
 
     os.makedirs(f"results/{args.num_layers}_layers", exist_ok=True)
     # Check if EncodingMoE is enabled
-    is_encoding_moe = (
-        hasattr(args, "encoding_moe_encodings")
-        and args.encoding_moe_encodings is not None
-        and len(args.encoding_moe_encodings) > 0
-    )
+    is_encoding_moe = _is_encoding_moe_enabled(args)
 
     # Generate detailed model name for MOE models
     if is_encoding_moe:
@@ -1202,11 +1281,7 @@ for key in datasets:
         normalize_features = getattr(args, "normalize_features", False)
 
         # Check if EncodingMoE is enabled for plot filename
-        is_encoding_moe_plots = (
-            hasattr(args, "encoding_moe_encodings")
-            and args.encoding_moe_encodings is not None
-            and len(args.encoding_moe_encodings) > 0
-        )
+        is_encoding_moe_plots = _is_encoding_moe_enabled(args)
 
         original_plot_path, sorted_plot_path = load_and_plot_average_per_graph(
             graph_dict_filename,
@@ -1275,11 +1350,7 @@ for key in datasets:
     log_to_file(f"plus/minus (CI):  {test_ci}\n")
     log_to_file(f"std deviation: {test_std}\n\n")
     # Check if EncodingMoE is enabled for results tracking
-    is_encoding_moe_results = (
-        hasattr(args, "encoding_moe_encodings")
-        and args.encoding_moe_encodings is not None
-        and len(args.encoding_moe_encodings) > 0
-    )
+    is_encoding_moe_results = _is_encoding_moe_enabled(args)
 
     # Check if regular MoE is enabled
     is_moe_results = args.layer_types is not None and not is_encoding_moe_results
@@ -1431,11 +1502,7 @@ for key in datasets:
 
         # Log aggregate statistics
         # Check if EncodingMoE is enabled (reuse from summary_config section)
-        is_encoding_moe_summary = (
-            hasattr(args, "encoding_moe_encodings")
-            and args.encoding_moe_encodings is not None
-            and len(args.encoding_moe_encodings) > 0
-        )
+        is_encoding_moe_summary = _is_encoding_moe_enabled(args)
 
         # Determine layer combination string (for both MoE and single layer models)
         if is_encoding_moe_summary:
@@ -1555,11 +1622,7 @@ for key in datasets:
     norm_str = "true" if normalize_features else "false"
 
     # Check if EncodingMoE is enabled for CSV filename
-    is_encoding_moe_csv = (
-        hasattr(args, "encoding_moe_encodings")
-        and args.encoding_moe_encodings is not None
-        and len(args.encoding_moe_encodings) > 0
-    )
+    is_encoding_moe_csv = _is_encoding_moe_enabled(args)
 
     # Create more precise CSV filename with skip, normalize, and encoding info
     if is_encoding_moe_csv:
