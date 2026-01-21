@@ -740,41 +740,65 @@ class Experiment:
             loader_size = len(loader.dataset)
             train_size = len(self.train_dataset)
             val_size = len(self.validation_dataset)
-            
+
             # Determine which indices to use
             if loader_size == train_size:
-                split_indices = self.categories[0] if hasattr(self, "categories") else list(range(train_size))
+                split_indices = (
+                    self.categories[0]
+                    if hasattr(self, "categories")
+                    else list(range(train_size))
+                )
             elif loader_size == val_size:
-                split_indices = self.categories[1] if hasattr(self, "categories") else list(range(train_size, train_size + val_size))
+                split_indices = (
+                    self.categories[1]
+                    if hasattr(self, "categories")
+                    else list(range(train_size, train_size + val_size))
+                )
             else:
-                split_indices = self.categories[2] if hasattr(self, "categories") else list(range(train_size + val_size, len(self.dataset)))
-            
+                split_indices = (
+                    self.categories[2]
+                    if hasattr(self, "categories")
+                    else list(range(train_size + val_size, len(self.dataset)))
+                )
+
             # Create encoded loaders for this split
             from torch_geometric.loader import DataLoader as PyGDataLoader
+
             encoded_loaders = {}
-            
+
             if self.encoding_moe_encoded_datasets and dataset_name:
                 for encoding_name in self.args.encoding_moe_encodings:
-                    if (encoding_name in self.encoding_moe_encoded_datasets and
-                        dataset_name in self.encoding_moe_encoded_datasets[encoding_name]):
-                        encoded_dataset = self.encoding_moe_encoded_datasets[encoding_name][dataset_name]
-                        encoded_split = [encoded_dataset[i] for i in split_indices if i < len(encoded_dataset)]
+                    if (
+                        encoding_name in self.encoding_moe_encoded_datasets
+                        and dataset_name
+                        in self.encoding_moe_encoded_datasets[encoding_name]
+                    ):
+                        encoded_dataset = self.encoding_moe_encoded_datasets[
+                            encoding_name
+                        ][dataset_name]
+                        encoded_split = [
+                            encoded_dataset[i]
+                            for i in split_indices
+                            if i < len(encoded_dataset)
+                        ]
                         encoded_loaders[encoding_name] = PyGDataLoader(
                             encoded_split,
                             batch_size=self.args.batch_size,
                             shuffle=False,  # Don't shuffle for test
                         )
-            
+
             # Create iterators for encoded loaders
-            encoded_iterators = {name: iter(loader) for name, loader in encoded_loaders.items()}
-            
+            encoded_iterators = {
+                name: iter(loader) for name, loader in encoded_loaders.items()
+            }
+
             if use_auprc:
                 # Use AUPRC for multi-label datasets (like molpcba with 128 classes)
                 metric = MultilabelAUPRC(num_labels=self.args.output_dim)
 
                 for base_graph in loader:
                     base_graph = base_graph.to(self.args.device)
-                    
+
                     # Get encoded graphs for this batch
                     encoded_graphs = {}
                     for encoding_name in self.args.encoding_moe_encodings:
@@ -785,11 +809,13 @@ class Experiment:
                                 encoded_graphs[encoding_name] = encoded_batch
                             except StopIteration:
                                 # Reset iterator if exhausted (shouldn't happen with aligned datasets)
-                                encoded_iterators[encoding_name] = iter(encoded_loaders[encoding_name])
+                                encoded_iterators[encoding_name] = iter(
+                                    encoded_loaders[encoding_name]
+                                )
                                 encoded_batch = next(encoded_iterators[encoding_name])
                                 encoded_batch = encoded_batch.to(self.args.device)
                                 encoded_graphs[encoding_name] = encoded_batch
-                    
+
                     # Forward pass through EncodingMoE
                     out = self.model(base_graph, encoded_graphs)
                     y = base_graph.y.flatten().to(self.args.device)
@@ -811,7 +837,7 @@ class Experiment:
                 total_correct = 0
                 for base_graph in loader:
                     base_graph = base_graph.to(self.args.device)
-                    
+
                     # Get encoded graphs for this batch
                     encoded_graphs = {}
                     for encoding_name in self.args.encoding_moe_encodings:
@@ -822,11 +848,13 @@ class Experiment:
                                 encoded_graphs[encoding_name] = encoded_batch
                             except StopIteration:
                                 # Reset iterator if exhausted (shouldn't happen with aligned datasets)
-                                encoded_iterators[encoding_name] = iter(encoded_loaders[encoding_name])
+                                encoded_iterators[encoding_name] = iter(
+                                    encoded_loaders[encoding_name]
+                                )
                                 encoded_batch = next(encoded_iterators[encoding_name])
                                 encoded_batch = encoded_batch.to(self.args.device)
                                 encoded_graphs[encoding_name] = encoded_batch
-                    
+
                     # Forward pass through EncodingMoE
                     out = self.model(base_graph, encoded_graphs)
                     y = base_graph.y.flatten().to(self.args.device)
@@ -844,47 +872,47 @@ class Experiment:
                 return total_correct / sample_size
         else:
             # Regular model - standard test
-        if use_auprc:
-            # Use AUPRC for multi-label datasets (like molpcba with 128 classes)
-            metric = MultilabelAUPRC(num_labels=self.args.output_dim)
+            if use_auprc:
+                # Use AUPRC for multi-label datasets (like molpcba with 128 classes)
+                metric = MultilabelAUPRC(num_labels=self.args.output_dim)
 
-            for data in loader:
-                data = data.to(self.args.device)
-                out = self.model(data)
-                y = data.y.to(self.args.device)
-
-                # For multi-label, convert single labels to multi-hot if needed
-                if y.dim() == 1:
-                    # Convert to multi-hot encoding for AUPRC
-                    y_multihot = torch.zeros(
-                        out.shape[0], self.args.output_dim, device=self.args.device
-                    )
-                    y_multihot.scatter_(1, y.unsqueeze(1), 1)
-                    y = y_multihot
-
-                metric.update(out, y)
-
-            return metric.compute().item()
-        else:
-            # Use accuracy for multi-class datasets
-            with torch.no_grad():
-                total_correct = 0
                 for data in loader:
                     data = data.to(self.args.device)
                     out = self.model(data)
                     y = data.y.to(self.args.device)
 
-                    # Handle both multi-class and multi-label cases
-                    if y.dim() > 1:
-                        # Multi-label case - use sigmoid + threshold
-                        pred = (torch.sigmoid(out) > 0.5).float()
-                        total_correct += (pred == y).all(dim=1).sum().item()
-                    else:
-                        # Multi-class case - use argmax
-                        _, pred = out.max(dim=1)
-                        total_correct += pred.eq(y).sum().item()
+                    # For multi-label, convert single labels to multi-hot if needed
+                    if y.dim() == 1:
+                        # Convert to multi-hot encoding for AUPRC
+                        y_multihot = torch.zeros(
+                            out.shape[0], self.args.output_dim, device=self.args.device
+                        )
+                        y_multihot.scatter_(1, y.unsqueeze(1), 1)
+                        y = y_multihot
 
-            return total_correct / sample_size
+                    metric.update(out, y)
+
+                return metric.compute().item()
+            else:
+                # Use accuracy for multi-class datasets
+                with torch.no_grad():
+                    total_correct = 0
+                    for data in loader:
+                        data = data.to(self.args.device)
+                        out = self.model(data)
+                        y = data.y.to(self.args.device)
+
+                        # Handle both multi-class and multi-label cases
+                        if y.dim() > 1:
+                            # Multi-label case - use sigmoid + threshold
+                            pred = (torch.sigmoid(out) > 0.5).float()
+                            total_correct += (pred == y).all(dim=1).sum().item()
+                        else:
+                            # Multi-class case - use argmax
+                            _, pred = out.max(dim=1)
+                            total_correct += pred.eq(y).sum().item()
+
+                return total_correct / sample_size
 
     def check_dirichlet(self, loader: DataLoader) -> float:
         self.model.eval()
