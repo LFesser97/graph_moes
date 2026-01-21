@@ -610,19 +610,114 @@ class Experiment:
     def eval(self, loader: DataLoader) -> float:
         self.model.eval()
         sample_size = len(loader.dataset)
-        with torch.no_grad():
-            total_correct = 0
-            for graph in loader:
-                graph = graph.to(self.args.device)
-                out = self.model(graph)
-                y = graph.y.to(self.args.device)
-                # check if y contains more than one element
-                if y.dim() > 1:
-                    loss = self.loss_fn(input=out, target=y)
-                    total_correct -= loss
-                else:
-                    _, pred = out.max(dim=1)
-                    total_correct += pred.eq(y).sum().item()
+
+        # Handle EncodingMoE - need encoded graphs
+        if self.is_encoding_moe:
+            # Determine which split (train/val/test) based on dataset size
+            loader_size = len(loader.dataset)
+            train_size = len(self.train_dataset)
+            val_size = len(self.validation_dataset)
+
+            # Determine which indices to use
+            if loader_size == train_size:
+                split_indices = (
+                    self.categories[0]
+                    if hasattr(self, "categories")
+                    else list(range(train_size))
+                )
+            elif loader_size == val_size:
+                split_indices = (
+                    self.categories[1]
+                    if hasattr(self, "categories")
+                    else list(range(train_size, train_size + val_size))
+                )
+            else:
+                split_indices = (
+                    self.categories[2]
+                    if hasattr(self, "categories")
+                    else list(range(train_size + val_size, len(self.dataset)))
+                )
+
+            # Create encoded loaders for this split
+            from torch_geometric.loader import DataLoader as PyGDataLoader
+
+            encoded_loaders = {}
+            dataset_name = getattr(self.args, "dataset", None)
+
+            if self.encoding_moe_encoded_datasets and dataset_name:
+                for encoding_name in self.args.encoding_moe_encodings:
+                    if (
+                        encoding_name in self.encoding_moe_encoded_datasets
+                        and dataset_name
+                        in self.encoding_moe_encoded_datasets[encoding_name]
+                    ):
+                        encoded_dataset = self.encoding_moe_encoded_datasets[
+                            encoding_name
+                        ][dataset_name]
+                        encoded_split = [
+                            encoded_dataset[i]
+                            for i in split_indices
+                            if i < len(encoded_dataset)
+                        ]
+                        encoded_loaders[encoding_name] = PyGDataLoader(
+                            encoded_split,
+                            batch_size=self.args.batch_size,
+                            shuffle=False,  # Don't shuffle for eval
+                        )
+
+            # Create iterators for encoded loaders
+            encoded_iterators = {
+                name: iter(loader) for name, loader in encoded_loaders.items()
+            }
+
+            with torch.no_grad():
+                total_correct = 0
+                for base_graph in loader:
+                    base_graph = base_graph.to(self.args.device)
+
+                    # Get encoded graphs for this batch
+                    encoded_graphs = {}
+                    for encoding_name in self.args.encoding_moe_encodings:
+                        if encoding_name in encoded_iterators:
+                            try:
+                                encoded_batch = next(encoded_iterators[encoding_name])
+                                encoded_batch = encoded_batch.to(self.args.device)
+                                encoded_graphs[encoding_name] = encoded_batch
+                            except StopIteration:
+                                # Reset iterator if exhausted (shouldn't happen with aligned datasets)
+                                encoded_iterators[encoding_name] = iter(
+                                    encoded_loaders[encoding_name]
+                                )
+                                encoded_batch = next(encoded_iterators[encoding_name])
+                                encoded_batch = encoded_batch.to(self.args.device)
+                                encoded_graphs[encoding_name] = encoded_batch
+
+                    # Forward pass through EncodingMoE
+                    out = self.model(base_graph, encoded_graphs)
+                    y = base_graph.y.flatten().to(self.args.device)
+
+                    # check if y contains more than one element
+                    if y.dim() > 1:
+                        loss = self.loss_fn(input=out, target=y)
+                        total_correct -= loss
+                    else:
+                        _, pred = out.max(dim=1)
+                        total_correct += pred.eq(y).sum().item()
+        else:
+            # Regular model - standard eval
+            with torch.no_grad():
+                total_correct = 0
+                for graph in loader:
+                    graph = graph.to(self.args.device)
+                    out = self.model(graph)
+                    y = graph.y.to(self.args.device)
+                    # check if y contains more than one element
+                    if y.dim() > 1:
+                        loss = self.loss_fn(input=out, target=y)
+                        total_correct -= loss
+                    else:
+                        _, pred = out.max(dim=1)
+                        total_correct += pred.eq(y).sum().item()
 
         return total_correct / sample_size
 
