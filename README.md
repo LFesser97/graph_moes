@@ -3,7 +3,12 @@
 
 # TODO (12/10)
 
-* REGENERATE ENCODINGS
+- TRY encodings MOE
+
+- splits the bash/ into more meaningul parts too
+
+* REGENERATE ENCODINGS: why do we not get the same result as what we had
+in the NEURIPS paper?
 
 * Investigate tmd -> RE RUN
 
@@ -166,7 +171,7 @@ The node classification script handles the different data loading and evaluation
 **Alternative manual approach:**
 ```bash
 export PYTHONPATH="$(pwd):$(pwd)/src:${PYTHONPATH}"
-python scripts/run_graph_classification.py --dataset ppa --layer_type GCN --num_trials 1
+python scripts/experiments/run_graph_classification.py --dataset ppa --layer_type GCN --num_trials 1
 ```
 (Answer "y" to both prompts when asked)
 
@@ -324,7 +329,7 @@ pip install graphriccicurvature numba tqdm
 
 **Basic Example - MUTAG dataset:**
 ```bash
-python scripts/run_graph_classification.py \
+python scripts/experiments/run_graph_classification.py \
     --dataset mutag \
     --layer_type GCN \
     --num_trials 10 \
@@ -334,7 +339,7 @@ python scripts/run_graph_classification.py \
 
 **Mixture of Experts:**
 ```bash
-python scripts/run_graph_classification.py \
+python scripts/experiments/run_graph_classification.py \
     --dataset enzymes \
     --layer_types '["GCN", "GIN"]' \
     --num_trials 10 \
@@ -344,7 +349,7 @@ python scripts/run_graph_classification.py \
 
 **With Structural Encoding:**
 ```bash
-python scripts/run_graph_classification.py \
+python scripts/experiments/run_graph_classification.py \
     --dataset proteins \
     --layer_type GIN \
     --encoding LCP \
@@ -488,7 +493,7 @@ The Local Curvature Profile (LCP) encoding computes Ollivier-Ricci curvature sta
 
 ### Router Configuration for MoE
 ```bash
-python scripts/run_graph_classification.py \
+python scripts/experiments/run_graph_classification.py \
     --dataset proteins \
     --layer_types '["GCN", "Unitary"]' \
     --router_type GNN \
@@ -499,7 +504,7 @@ python scripts/run_graph_classification.py \
 
 ### Deep Network with Unitary Layers
 ```bash
-python scripts/run_graph_classification.py \
+python scripts/experiments/run_graph_classification.py \
     --dataset enzymes \
     --layer_type Unitary \
     --num_layers 8 \

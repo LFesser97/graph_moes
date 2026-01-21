@@ -81,3 +81,6 @@ dmypy.json
 *.backup
 temp/
 tmp/
+
+# Local utility scripts (not tracked)
+scripts/utils/analyze_trial_requirements.py

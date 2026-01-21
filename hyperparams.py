@@ -150,10 +150,69 @@ def get_args_from_input() -> AttrDict:
         help="pre-computed dataset encoding to use: None (normal), hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8 (hypergraph), or g_ldp, g_rwpe_k16, g_lape_k8, g_orc (graph)",
     )
     parser.add_argument(
+        "--encoding_moe_encodings",
+        type=str,
+        nargs="+",
+        default=None,
+        help="list of encodings for EncodingMoE (e.g., --encoding_moe_encodings g_ldp g_orc). If specified, enables EncodingMoE model that routes between encodings.",
+    )
+    parser.add_argument(
+        "--encoding_moe_router_type",
+        type=str,
+        default="MLP",
+        choices=["MLP", "GNN"],
+        help="router type for EncodingMoE: MLP or GNN (default: MLP)",
+    )
+    parser.add_argument(
+        "--encoding_moe_router_layer_type",
+        type=str,
+        default="GIN",
+        choices=["GCN", "GIN", "SAGE"],
+        help="GNN layer type for EncodingMoE GNN router (default: GIN)",
+    )
+    parser.add_argument(
+        "--encoding_moe_router_depth",
+        type=int,
+        default=4,
+        help="depth (num layers) of EncodingMoE GNN router (default: 4)",
+    )
+    parser.add_argument(
+        "--encoding_moe_router_dropout",
+        type=float,
+        default=0.1,
+        help="dropout rate for EncodingMoE GNN router (default: 0.1)",
+    )
+    parser.add_argument(
         "--router_hidden_layers",
         type=list,
         default=[64, 64, 64],
         help="num. hidden layers of the router GNN",
+    )
+    parser.add_argument(
+        "--router_type",
+        type=str,
+        default="MLP",
+        choices=["MLP", "GNN"],
+        help="router type for MoE: MLP or GNN (default: MLP)",
+    )
+    parser.add_argument(
+        "--router_layer_type",
+        type=str,
+        default="GIN",
+        choices=["GCN", "GIN", "SAGE"],
+        help="GNN layer type for GNN router (default: GIN)",
+    )
+    parser.add_argument(
+        "--router_depth",
+        type=int,
+        default=4,
+        help="depth (num layers) of GNN router (default: 4)",
+    )
+    parser.add_argument(
+        "--router_dropout",
+        type=float,
+        default=0.1,
+        help="dropout rate for GNN router (default: 0.1)",
     )
     parser.add_argument(
         "--layer_types",

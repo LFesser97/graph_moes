@@ -5,13 +5,13 @@
 # This script runs only the missing combinations from the comprehensive sweep.
 # Generated from analysis of existing results.
 #
-# Total missing experiments: 1729
+# Total missing experiments: 1642
 #
 # Usage: sbatch run_missing_combinations.sh
 # ============================================================================
 
 #SBATCH --job-name=missing_combinations
-#SBATCH --array=1-1729
+#SBATCH --array=1-1642
 #SBATCH --ntasks=1
 #SBATCH --time=192:00:00
 #SBATCH --mem=128GB
@@ -99,29 +99,45 @@ if [ -d "$CONDA_ENVS_PATH/$ENV_NAME/bin" ] && [ -f "$CONDA_ENVS_PATH/$ENV_NAME/b
     if [[ "$python_path" == *"$ENV_NAME"* ]]; then
         log_message "✅ Environment activated"
     else
-        log_message "❌ Failed to activate $ENV_NAME environment"
-        exit 1
+        log_message "⚠️  Warning: Environment path may not be correct"
     fi
 else
-    log_message "❌ $ENV_NAME environment not found"
+    log_message "❌ Environment $ENV_NAME not found"
     exit 1
 fi
 
-# Navigate to project directory
+# Change to project directory
 cd /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes || {
-    log_message "❌ Failed to navigate to project directory"
+    log_message "❌ Failed to change to project directory"
     exit 1
 }
 
-log_message "📁 Project directory: $(pwd)"
+# Install/verify project dependencies
+log_message "📦 Verifying project installation..."
+if python -c "import graph_moes" 2>/dev/null; then
+    log_message "✅ graph_moes already installed"
+else
+    if pip install -e . --no-deps --quiet 2>/dev/null; then
+        log_message "✅ Project installed"
+    elif [ -d "src" ]; then
+        export PYTHONPATH="$(pwd)/src:$PYTHONPATH"
+        log_message "✅ Project accessible via PYTHONPATH"
+    else
+        log_message "❌ Failed to install graph_moes project"
+        exit 1
+    fi
+fi
 
-# Add project root and src to PYTHONPATH
-export PYTHONPATH="$(pwd):$(pwd)/src:${PYTHONPATH}"
+# Quick verification
+python -c "import numpy, pandas, torch, graph_moes; print('✅ Core packages available')" || {
+    log_message "❌ Core packages not available"
+    exit 1
+}
 
 # Load hyperparameter lookup function
 source /n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/bash_interface/cluster/hyperparams_lookup.sh
 
-# Define combinations array (will be populated from Python)
+# Define combinations array
 declare -a combinations=(
   "enzymes:GCN:hg_lape_normalized_k8:false:false:None:None"
   "enzymes:GCN:hg_lape_normalized_k8:true:false:None:None"
@@ -181,15 +197,7 @@ declare -a combinations=(
   "enzymes:MoE:hg_lape_normalized_k8:false:true:GNN:["GCN", "GPS"]"
   "enzymes:MoE:hg_lape_normalized_k8:false:true:MLP:["GIN", "GPS"]"
   "enzymes:MoE:hg_lape_normalized_k8:false:true:GNN:["GIN", "GPS"]"
-  "enzymes:GCN:hg_rwpe_we_k20:false:false:None:None"
-  "enzymes:GCN:hg_rwpe_we_k20:true:false:None:None"
-  "enzymes:GIN:hg_rwpe_we_k20:false:false:None:None"
-  "enzymes:GIN:hg_rwpe_we_k20:true:false:None:None"
-  "enzymes:SAGE:hg_rwpe_we_k20:false:false:None:None"
-  "enzymes:SAGE:hg_rwpe_we_k20:true:false:None:None"
-  "enzymes:MLP:hg_rwpe_we_k20:false:false:None:None"
   "enzymes:Unitary:hg_rwpe_we_k20:false:false:None:None"
-  "enzymes:GPS:hg_rwpe_we_k20:false:false:None:None"
   "enzymes:MoE:hg_rwpe_we_k20:false:false:MLP:["GCN", "GIN"]"
   "enzymes:MoE:hg_rwpe_we_k20:false:false:GNN:["GCN", "GIN"]"
   "enzymes:MoE:hg_rwpe_we_k20:false:false:MLP:["GCN", "SAGE"]"
@@ -210,13 +218,6 @@ declare -a combinations=(
   "enzymes:MoE:hg_rwpe_we_k20:false:false:GNN:["GCN", "GPS"]"
   "enzymes:MoE:hg_rwpe_we_k20:false:false:MLP:["GIN", "GPS"]"
   "enzymes:MoE:hg_rwpe_we_k20:false:false:GNN:["GIN", "GPS"]"
-  "enzymes:GCN:hg_rwpe_we_k20:false:true:None:None"
-  "enzymes:GCN:hg_rwpe_we_k20:true:true:None:None"
-  "enzymes:GIN:hg_rwpe_we_k20:false:true:None:None"
-  "enzymes:GIN:hg_rwpe_we_k20:true:true:None:None"
-  "enzymes:SAGE:hg_rwpe_we_k20:false:true:None:None"
-  "enzymes:SAGE:hg_rwpe_we_k20:true:true:None:None"
-  "enzymes:MLP:hg_rwpe_we_k20:false:true:None:None"
   "enzymes:Unitary:hg_rwpe_we_k20:false:true:None:None"
   "enzymes:GPS:hg_rwpe_we_k20:false:true:None:None"
   "enzymes:MoE:hg_rwpe_we_k20:false:true:MLP:["GCN", "GIN"]"
@@ -239,15 +240,6 @@ declare -a combinations=(
   "enzymes:MoE:hg_rwpe_we_k20:false:true:GNN:["GCN", "GPS"]"
   "enzymes:MoE:hg_rwpe_we_k20:false:true:MLP:["GIN", "GPS"]"
   "enzymes:MoE:hg_rwpe_we_k20:false:true:GNN:["GIN", "GPS"]"
-  "enzymes:GCN:g_rwpe_k16:false:false:None:None"
-  "enzymes:GCN:g_rwpe_k16:true:false:None:None"
-  "enzymes:GIN:g_rwpe_k16:false:false:None:None"
-  "enzymes:GIN:g_rwpe_k16:true:false:None:None"
-  "enzymes:SAGE:g_rwpe_k16:false:false:None:None"
-  "enzymes:SAGE:g_rwpe_k16:true:false:None:None"
-  "enzymes:MLP:g_rwpe_k16:false:false:None:None"
-  "enzymes:Unitary:g_rwpe_k16:false:false:None:None"
-  "enzymes:GPS:g_rwpe_k16:false:false:None:None"
   "enzymes:MoE:g_rwpe_k16:false:false:MLP:["GCN", "GIN"]"
   "enzymes:MoE:g_rwpe_k16:false:false:GNN:["GCN", "GIN"]"
   "enzymes:MoE:g_rwpe_k16:false:false:MLP:["GCN", "SAGE"]"
@@ -267,15 +259,7 @@ declare -a combinations=(
   "enzymes:MoE:g_rwpe_k16:false:false:GNN:["GCN", "GPS"]"
   "enzymes:MoE:g_rwpe_k16:false:false:MLP:["GIN", "GPS"]"
   "enzymes:MoE:g_rwpe_k16:false:false:GNN:["GIN", "GPS"]"
-  "enzymes:GCN:g_rwpe_k16:false:true:None:None"
-  "enzymes:GCN:g_rwpe_k16:true:true:None:None"
-  "enzymes:GIN:g_rwpe_k16:false:true:None:None"
-  "enzymes:GIN:g_rwpe_k16:true:true:None:None"
-  "enzymes:SAGE:g_rwpe_k16:false:true:None:None"
-  "enzymes:SAGE:g_rwpe_k16:true:true:None:None"
-  "enzymes:MLP:g_rwpe_k16:false:true:None:None"
   "enzymes:Unitary:g_rwpe_k16:false:true:None:None"
-  "enzymes:GPS:g_rwpe_k16:false:true:None:None"
   "enzymes:MoE:g_rwpe_k16:false:true:MLP:["GCN", "GIN"]"
   "enzymes:MoE:g_rwpe_k16:false:true:GNN:["GCN", "GIN"]"
   "enzymes:MoE:g_rwpe_k16:false:true:MLP:["GCN", "SAGE"]"
@@ -528,13 +512,10 @@ declare -a combinations=(
   "proteins:MoE:hg_rwpe_we_k20:false:true:MLP:["GIN", "GPS"]"
   "proteins:MoE:hg_rwpe_we_k20:false:true:GNN:["GIN", "GPS"]"
   "proteins:GCN:g_rwpe_k16:false:false:None:None"
-  "proteins:GCN:g_rwpe_k16:true:false:None:None"
   "proteins:GIN:g_rwpe_k16:false:false:None:None"
   "proteins:GIN:g_rwpe_k16:true:false:None:None"
   "proteins:SAGE:g_rwpe_k16:false:false:None:None"
   "proteins:SAGE:g_rwpe_k16:true:false:None:None"
-  "proteins:MLP:g_rwpe_k16:false:false:None:None"
-  "proteins:Unitary:g_rwpe_k16:false:false:None:None"
   "proteins:GPS:g_rwpe_k16:false:false:None:None"
   "proteins:MoE:g_rwpe_k16:false:false:MLP:["GCN", "GIN"]"
   "proteins:MoE:g_rwpe_k16:false:false:GNN:["GCN", "GIN"]"
@@ -699,15 +680,9 @@ declare -a combinations=(
   "proteins:MoE:None:false:true:GNN:["GCN", "GPS"]"
   "proteins:MoE:None:false:true:MLP:["GIN", "GPS"]"
   "proteins:MoE:None:false:true:GNN:["GIN", "GPS"]"
-  "mutag:GCN:hg_lape_normalized_k8:false:false:None:None"
   "mutag:GCN:hg_lape_normalized_k8:true:false:None:None"
-  "mutag:GIN:hg_lape_normalized_k8:false:false:None:None"
   "mutag:GIN:hg_lape_normalized_k8:true:false:None:None"
-  "mutag:SAGE:hg_lape_normalized_k8:false:false:None:None"
   "mutag:SAGE:hg_lape_normalized_k8:true:false:None:None"
-  "mutag:MLP:hg_lape_normalized_k8:false:false:None:None"
-  "mutag:Unitary:hg_lape_normalized_k8:false:false:None:None"
-  "mutag:GPS:hg_lape_normalized_k8:false:false:None:None"
   "mutag:MoE:hg_lape_normalized_k8:false:false:MLP:["GCN", "GIN"]"
   "mutag:MoE:hg_lape_normalized_k8:false:false:GNN:["GCN", "GIN"]"
   "mutag:MoE:hg_lape_normalized_k8:false:false:MLP:["GCN", "SAGE"]"
@@ -728,15 +703,9 @@ declare -a combinations=(
   "mutag:MoE:hg_lape_normalized_k8:false:false:GNN:["GCN", "GPS"]"
   "mutag:MoE:hg_lape_normalized_k8:false:false:MLP:["GIN", "GPS"]"
   "mutag:MoE:hg_lape_normalized_k8:false:false:GNN:["GIN", "GPS"]"
-  "mutag:GCN:hg_lape_normalized_k8:false:true:None:None"
   "mutag:GCN:hg_lape_normalized_k8:true:true:None:None"
-  "mutag:GIN:hg_lape_normalized_k8:false:true:None:None"
   "mutag:GIN:hg_lape_normalized_k8:true:true:None:None"
-  "mutag:SAGE:hg_lape_normalized_k8:false:true:None:None"
   "mutag:SAGE:hg_lape_normalized_k8:true:true:None:None"
-  "mutag:MLP:hg_lape_normalized_k8:false:true:None:None"
-  "mutag:Unitary:hg_lape_normalized_k8:false:true:None:None"
-  "mutag:GPS:hg_lape_normalized_k8:false:true:None:None"
   "mutag:MoE:hg_lape_normalized_k8:false:true:MLP:["GCN", "GIN"]"
   "mutag:MoE:hg_lape_normalized_k8:false:true:GNN:["GCN", "GIN"]"
   "mutag:MoE:hg_lape_normalized_k8:false:true:MLP:["GCN", "SAGE"]"
@@ -763,7 +732,6 @@ declare -a combinations=(
   "mutag:GIN:hg_rwpe_we_k20:true:false:None:None"
   "mutag:SAGE:hg_rwpe_we_k20:false:false:None:None"
   "mutag:SAGE:hg_rwpe_we_k20:true:false:None:None"
-  "mutag:MLP:hg_rwpe_we_k20:false:false:None:None"
   "mutag:Unitary:hg_rwpe_we_k20:false:false:None:None"
   "mutag:GPS:hg_rwpe_we_k20:false:false:None:None"
   "mutag:MoE:hg_rwpe_we_k20:false:false:MLP:["GCN", "GIN"]"
@@ -816,13 +784,10 @@ declare -a combinations=(
   "mutag:MoE:hg_rwpe_we_k20:false:true:MLP:["GIN", "GPS"]"
   "mutag:MoE:hg_rwpe_we_k20:false:true:GNN:["GIN", "GPS"]"
   "mutag:GCN:g_rwpe_k16:false:false:None:None"
-  "mutag:GCN:g_rwpe_k16:true:false:None:None"
   "mutag:GIN:g_rwpe_k16:false:false:None:None"
   "mutag:GIN:g_rwpe_k16:true:false:None:None"
   "mutag:SAGE:g_rwpe_k16:false:false:None:None"
   "mutag:SAGE:g_rwpe_k16:true:false:None:None"
-  "mutag:MLP:g_rwpe_k16:false:false:None:None"
-  "mutag:Unitary:g_rwpe_k16:false:false:None:None"
   "mutag:GPS:g_rwpe_k16:false:false:None:None"
   "mutag:MoE:g_rwpe_k16:false:false:MLP:["GCN", "GIN"]"
   "mutag:MoE:g_rwpe_k16:false:false:GNN:["GCN", "GIN"]"
@@ -987,15 +952,9 @@ declare -a combinations=(
   "mutag:MoE:None:false:true:GNN:["GCN", "GPS"]"
   "mutag:MoE:None:false:true:MLP:["GIN", "GPS"]"
   "mutag:MoE:None:false:true:GNN:["GIN", "GPS"]"
-  "imdb:GCN:hg_lape_normalized_k8:false:false:None:None"
   "imdb:GCN:hg_lape_normalized_k8:true:false:None:None"
-  "imdb:GIN:hg_lape_normalized_k8:false:false:None:None"
   "imdb:GIN:hg_lape_normalized_k8:true:false:None:None"
-  "imdb:SAGE:hg_lape_normalized_k8:false:false:None:None"
   "imdb:SAGE:hg_lape_normalized_k8:true:false:None:None"
-  "imdb:MLP:hg_lape_normalized_k8:false:false:None:None"
-  "imdb:Unitary:hg_lape_normalized_k8:false:false:None:None"
-  "imdb:GPS:hg_lape_normalized_k8:false:false:None:None"
   "imdb:MoE:hg_lape_normalized_k8:false:false:MLP:["GCN", "GIN"]"
   "imdb:MoE:hg_lape_normalized_k8:false:false:GNN:["GCN", "GIN"]"
   "imdb:MoE:hg_lape_normalized_k8:false:false:MLP:["GCN", "SAGE"]"
@@ -1016,15 +975,9 @@ declare -a combinations=(
   "imdb:MoE:hg_lape_normalized_k8:false:false:GNN:["GCN", "GPS"]"
   "imdb:MoE:hg_lape_normalized_k8:false:false:MLP:["GIN", "GPS"]"
   "imdb:MoE:hg_lape_normalized_k8:false:false:GNN:["GIN", "GPS"]"
-  "imdb:GCN:hg_lape_normalized_k8:false:true:None:None"
   "imdb:GCN:hg_lape_normalized_k8:true:true:None:None"
-  "imdb:GIN:hg_lape_normalized_k8:false:true:None:None"
   "imdb:GIN:hg_lape_normalized_k8:true:true:None:None"
-  "imdb:SAGE:hg_lape_normalized_k8:false:true:None:None"
   "imdb:SAGE:hg_lape_normalized_k8:true:true:None:None"
-  "imdb:MLP:hg_lape_normalized_k8:false:true:None:None"
-  "imdb:Unitary:hg_lape_normalized_k8:false:true:None:None"
-  "imdb:GPS:hg_lape_normalized_k8:false:true:None:None"
   "imdb:MoE:hg_lape_normalized_k8:false:true:MLP:["GCN", "GIN"]"
   "imdb:MoE:hg_lape_normalized_k8:false:true:GNN:["GCN", "GIN"]"
   "imdb:MoE:hg_lape_normalized_k8:false:true:MLP:["GCN", "SAGE"]"
@@ -1104,13 +1057,10 @@ declare -a combinations=(
   "imdb:MoE:hg_rwpe_we_k20:false:true:MLP:["GIN", "GPS"]"
   "imdb:MoE:hg_rwpe_we_k20:false:true:GNN:["GIN", "GPS"]"
   "imdb:GCN:g_rwpe_k16:false:false:None:None"
-  "imdb:GCN:g_rwpe_k16:true:false:None:None"
   "imdb:GIN:g_rwpe_k16:false:false:None:None"
   "imdb:GIN:g_rwpe_k16:true:false:None:None"
   "imdb:SAGE:g_rwpe_k16:false:false:None:None"
   "imdb:SAGE:g_rwpe_k16:true:false:None:None"
-  "imdb:MLP:g_rwpe_k16:false:false:None:None"
-  "imdb:Unitary:g_rwpe_k16:false:false:None:None"
   "imdb:GPS:g_rwpe_k16:false:false:None:None"
   "imdb:MoE:g_rwpe_k16:false:false:MLP:["GCN", "GIN"]"
   "imdb:MoE:g_rwpe_k16:false:false:GNN:["GCN", "GIN"]"
@@ -1275,13 +1225,9 @@ declare -a combinations=(
   "imdb:MoE:None:false:true:GNN:["GCN", "GPS"]"
   "imdb:MoE:None:false:true:MLP:["GIN", "GPS"]"
   "imdb:MoE:None:false:true:GNN:["GIN", "GPS"]"
-  "collab:GCN:hg_lape_normalized_k8:false:false:None:None"
   "collab:GCN:hg_lape_normalized_k8:true:false:None:None"
-  "collab:GIN:hg_lape_normalized_k8:false:false:None:None"
   "collab:GIN:hg_lape_normalized_k8:true:false:None:None"
-  "collab:SAGE:hg_lape_normalized_k8:false:false:None:None"
   "collab:SAGE:hg_lape_normalized_k8:true:false:None:None"
-  "collab:MLP:hg_lape_normalized_k8:false:false:None:None"
   "collab:Unitary:hg_lape_normalized_k8:false:false:None:None"
   "collab:GPS:hg_lape_normalized_k8:false:false:None:None"
   "collab:MoE:hg_lape_normalized_k8:false:false:MLP:["GCN", "GIN"]"
@@ -1304,13 +1250,9 @@ declare -a combinations=(
   "collab:MoE:hg_lape_normalized_k8:false:false:GNN:["GCN", "GPS"]"
   "collab:MoE:hg_lape_normalized_k8:false:false:MLP:["GIN", "GPS"]"
   "collab:MoE:hg_lape_normalized_k8:false:false:GNN:["GIN", "GPS"]"
-  "collab:GCN:hg_lape_normalized_k8:false:true:None:None"
   "collab:GCN:hg_lape_normalized_k8:true:true:None:None"
-  "collab:GIN:hg_lape_normalized_k8:false:true:None:None"
   "collab:GIN:hg_lape_normalized_k8:true:true:None:None"
-  "collab:SAGE:hg_lape_normalized_k8:false:true:None:None"
   "collab:SAGE:hg_lape_normalized_k8:true:true:None:None"
-  "collab:MLP:hg_lape_normalized_k8:false:true:None:None"
   "collab:Unitary:hg_lape_normalized_k8:false:true:None:None"
   "collab:GPS:hg_lape_normalized_k8:false:true:None:None"
   "collab:MoE:hg_lape_normalized_k8:false:true:MLP:["GCN", "GIN"]"
@@ -1392,12 +1334,10 @@ declare -a combinations=(
   "collab:MoE:hg_rwpe_we_k20:false:true:MLP:["GIN", "GPS"]"
   "collab:MoE:hg_rwpe_we_k20:false:true:GNN:["GIN", "GPS"]"
   "collab:GCN:g_rwpe_k16:false:false:None:None"
-  "collab:GCN:g_rwpe_k16:true:false:None:None"
   "collab:GIN:g_rwpe_k16:false:false:None:None"
   "collab:GIN:g_rwpe_k16:true:false:None:None"
   "collab:SAGE:g_rwpe_k16:false:false:None:None"
   "collab:SAGE:g_rwpe_k16:true:false:None:None"
-  "collab:MLP:g_rwpe_k16:false:false:None:None"
   "collab:Unitary:g_rwpe_k16:false:false:None:None"
   "collab:GPS:g_rwpe_k16:false:false:None:None"
   "collab:MoE:g_rwpe_k16:false:false:MLP:["GCN", "GIN"]"
@@ -1564,13 +1504,9 @@ declare -a combinations=(
   "collab:MoE:None:false:true:GNN:["GCN", "GPS"]"
   "collab:MoE:None:false:true:MLP:["GIN", "GPS"]"
   "collab:MoE:None:false:true:GNN:["GIN", "GPS"]"
-  "reddit:GCN:hg_lape_normalized_k8:false:false:None:None"
   "reddit:GCN:hg_lape_normalized_k8:true:false:None:None"
-  "reddit:GIN:hg_lape_normalized_k8:false:false:None:None"
   "reddit:GIN:hg_lape_normalized_k8:true:false:None:None"
-  "reddit:SAGE:hg_lape_normalized_k8:false:false:None:None"
   "reddit:SAGE:hg_lape_normalized_k8:true:false:None:None"
-  "reddit:MLP:hg_lape_normalized_k8:false:false:None:None"
   "reddit:Unitary:hg_lape_normalized_k8:false:false:None:None"
   "reddit:GPS:hg_lape_normalized_k8:false:false:None:None"
   "reddit:MoE:hg_lape_normalized_k8:false:false:MLP:["GCN", "GIN"]"
@@ -1593,13 +1529,9 @@ declare -a combinations=(
   "reddit:MoE:hg_lape_normalized_k8:false:false:GNN:["GCN", "GPS"]"
   "reddit:MoE:hg_lape_normalized_k8:false:false:MLP:["GIN", "GPS"]"
   "reddit:MoE:hg_lape_normalized_k8:false:false:GNN:["GIN", "GPS"]"
-  "reddit:GCN:hg_lape_normalized_k8:false:true:None:None"
   "reddit:GCN:hg_lape_normalized_k8:true:true:None:None"
-  "reddit:GIN:hg_lape_normalized_k8:false:true:None:None"
   "reddit:GIN:hg_lape_normalized_k8:true:true:None:None"
-  "reddit:SAGE:hg_lape_normalized_k8:false:true:None:None"
   "reddit:SAGE:hg_lape_normalized_k8:true:true:None:None"
-  "reddit:MLP:hg_lape_normalized_k8:false:true:None:None"
   "reddit:Unitary:hg_lape_normalized_k8:false:true:None:None"
   "reddit:GPS:hg_lape_normalized_k8:false:true:None:None"
   "reddit:MoE:hg_lape_normalized_k8:false:true:MLP:["GCN", "GIN"]"
@@ -1681,13 +1613,10 @@ declare -a combinations=(
   "reddit:MoE:hg_rwpe_we_k20:false:true:MLP:["GIN", "GPS"]"
   "reddit:MoE:hg_rwpe_we_k20:false:true:GNN:["GIN", "GPS"]"
   "reddit:GCN:g_rwpe_k16:false:false:None:None"
-  "reddit:GCN:g_rwpe_k16:true:false:None:None"
   "reddit:GIN:g_rwpe_k16:false:false:None:None"
   "reddit:GIN:g_rwpe_k16:true:false:None:None"
   "reddit:SAGE:g_rwpe_k16:false:false:None:None"
   "reddit:SAGE:g_rwpe_k16:true:false:None:None"
-  "reddit:MLP:g_rwpe_k16:false:false:None:None"
-  "reddit:Unitary:g_rwpe_k16:false:false:None:None"
   "reddit:GPS:g_rwpe_k16:false:false:None:None"
   "reddit:MoE:g_rwpe_k16:false:false:MLP:["GCN", "GIN"]"
   "reddit:MoE:g_rwpe_k16:false:false:GNN:["GCN", "GIN"]"
@@ -1898,40 +1827,34 @@ try:
     if isinstance(data, (tuple, list)):
         print(json.dumps(list(data)))
     else:
-        print('[\"GCN\", \"GIN\"]')
+        print('["GCN", "GIN"]')
 except:
     # Fallback: assume it's already JSON
     try:
         data = json.loads(sys.stdin.read())
-        print(json.dumps(data) if isinstance(data, list) else '[\"GCN\", \"GIN\"]')
+        print(json.dumps(data) if isinstance(data, list) else '["GCN", "GIN"]')
     except:
-        print('[\"GCN\", \"GIN\"]')
+        print('["GCN", "GIN"]')
 " 2>/dev/null || echo '["GCN", "GIN"]')
     else
-        layer_combo='["GCN", "GIN"]'  # Default
+        layer_combo='["GCN", "GIN"]'
     fi
     
-    # Set router type
-    if [ "$router_type" != "None" ] && [ "$router_type" != "null" ]; then
-        router_type_val="$router_type"
-        if [ "$router_type_val" = "GNN" ]; then
-            router_layer_type="GIN"
-        else
-            router_layer_type="MLP"
-        fi
-    else
-        router_type_val="MLP"
+    router_type_val="$router_type"
+    if [ "$router_type_val" = "None" ] || [ -z "$router_type_val" ]; then
+        router_type_val="GNN"  # Default router for MoE
+    fi
+    
+    # Default router layer type (GIN for GNN router)
+    router_layer_type="GIN"
+    if [ "$router_type_val" = "MLP" ]; then
         router_layer_type="MLP"
     fi
     
-    # Extract first layer for hyperparameters
+    log_message "🧪 MoE Experiment: ${dataset}_MoE_${layer_combo} (router=${router_type_val}, skip=${use_skip}, normalize=${use_normalize}, encoding=${encoding})"
+    
+    # Get hyperparameters from first layer type
     first_layer=$(echo "$layer_combo" | python3 -c "import sys, json; layers=json.load(sys.stdin); print(layers[0] if isinstance(layers, list) and len(layers) > 0 else 'GCN')" 2>/dev/null || echo "GCN")
-    
-    log_message "🧪 MoE Experiment: ${dataset}_MoE (router=${router_type_val}, normalize=${use_normalize}, encoding=${encoding})"
-    log_message "   Layer combo: $layer_combo"
-    log_message "   First layer (for hyperparams): $first_layer"
-    
-    # Get hyperparameters
     get_hyperparams "$dataset" "$first_layer"
     
     learning_rate=$HYPERPARAM_LEARNING_RATE
@@ -1945,7 +1868,8 @@ except:
     encoding_suffix=$([ "$encoding" != "None" ] && echo "_${encoding}" || echo "")
     router_suffix="_${router_type_val}"
     norm_suffix=$([ "$use_normalize" = "true" ] && echo "_norm" || echo "")
-    wandb_run_name="${dataset}_MoE_${clean_combo}${router_suffix}${norm_suffix}${encoding_suffix}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
+    skip_suffix=$([ "$use_skip" = "true" ] && echo "_skip" || echo "")
+    wandb_run_name="${dataset}_MoE_router_${router_type_val}_${clean_combo}${skip_suffix}${norm_suffix}${encoding_suffix}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
     
     # Build command arguments for MoE
     cmd_args=(
@@ -1968,11 +1892,15 @@ except:
         cmd_args+=(--dataset_encoding "$encoding")
     fi
     
+    if [ "$use_skip" = "true" ]; then
+        cmd_args+=(--skip_connection)
+    fi
+    
     if [ "$use_normalize" = "true" ]; then
         cmd_args+=(--normalize_features)
     fi
     
-    python scripts/run_graph_classification.py "${cmd_args[@]}"
+    python scripts/experiments/run_graph_classification.py "${cmd_args[@]}"
     
 else
     experiment_type="single"
@@ -2020,7 +1948,7 @@ else
         cmd_args+=(--normalize_features)
     fi
     
-    python scripts/run_graph_classification.py "${cmd_args[@]}"
+    python scripts/experiments/run_graph_classification.py "${cmd_args[@]}"
 fi
 
 # Check exit status

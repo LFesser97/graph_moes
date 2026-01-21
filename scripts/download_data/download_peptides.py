@@ -17,7 +17,7 @@ import torch
 from torch_geometric.datasets import LRGBDataset
 
 # Set project root
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 data_directory = project_root / "data"
 
 # Create data directory if it doesn't exist

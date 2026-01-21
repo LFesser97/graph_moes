@@ -237,7 +237,7 @@ fi
 # Run the encoding computation
 log_message "🚀 Running encoding computation..."
 
-python scripts/compute_encodings_for_datasets.py \
+python scripts/compute_encodings/compute_encodings_for_datasets.py \
     --level "$level" \
     --encoding "$encoding" \
     --dataset "$dataset"

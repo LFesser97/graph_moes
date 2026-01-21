@@ -22,7 +22,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 # Add project root to path
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "src"))
 
@@ -436,6 +436,86 @@ def generate_all_comparisons(results_dir: Path) -> None:
     if not configs:
         print("❌ No valid configurations found!")
         sys.exit(1)
+
+    # Deduplicate: create unique key for each config and keep only one instance
+    # Prefer files not in nested results/results directory
+    # Sort configs so non-nested files are processed first
+    configs.sort(
+        key=lambda c: (
+            "results/results" in str(Path(c["filepath"])),
+            c["filepath"],
+        )
+    )
+
+    seen_configs = {}
+    skipped_nested = 0
+    for config in configs:
+        # Create unique key based on all configuration parameters
+        config_key = (
+            config["dataset"],
+            config["layer_type"],
+            config.get("encoding") or "None",
+            config.get("num_layers"),
+            config.get("skip_connection", False),
+            config.get("normalize_features", False),
+            config.get("router_type", "MLP"),
+            (
+                tuple(sorted(config.get("layer_types", [])))
+                if config.get("layer_types")
+                else None
+            ),
+        )
+
+        # If we haven't seen this config, store it
+        if config_key not in seen_configs:
+            seen_configs[config_key] = config
+        else:
+            # Already have this config - skip if current is nested
+            current_is_nested = "results/results" in str(Path(config["filepath"]))
+            existing_is_nested = "results/results" in str(
+                Path(seen_configs[config_key]["filepath"])
+            )
+
+            if current_is_nested and not existing_is_nested:
+                # Current is nested, existing is not - skip current (keep existing)
+                skipped_nested += 1
+                continue
+            elif not current_is_nested and existing_is_nested:
+                # Current is not nested, existing is - replace
+                seen_configs[config_key] = config
+            # else: both nested or both not nested - keep first (which is non-nested due to sorting)
+
+    configs = list(seen_configs.values())
+    print(
+        f"📊 After deduplication: {len(configs)} unique configurations (skipped {skipped_nested} nested duplicates)"
+    )
+
+    # Verify no duplicates by checking for duplicate keys
+    verify_keys = set()
+    duplicate_count = 0
+    for config in configs:
+        verify_key = (
+            config["dataset"],
+            config["layer_type"],
+            config.get("encoding") or "None",
+            config.get("num_layers"),
+            config.get("skip_connection", False),
+            config.get("normalize_features", False),
+            config.get("router_type", "MLP"),
+            (
+                tuple(sorted(config.get("layer_types", [])))
+                if config.get("layer_types")
+                else None
+            ),
+        )
+        if verify_key in verify_keys:
+            duplicate_count += 1
+        verify_keys.add(verify_key)
+
+    if duplicate_count > 0:
+        print(f"⚠️  Warning: Found {duplicate_count} duplicates after deduplication!")
+    else:
+        print(f"✅ Verified: No duplicates found")
 
     datasets = sorted(set(c["dataset"] for c in configs))
     print(f"📊 Found {len(configs)} configurations across {len(datasets)} datasets")

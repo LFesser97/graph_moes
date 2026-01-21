@@ -37,26 +37,38 @@ def compute_average_per_graph(
 
 
 def get_detailed_model_name(
-    layer_type: str, layer_types: Optional[list] = None, router_type: str = "MLP"
+    layer_type: str,
+    layer_types: Optional[list] = None,
+    router_type: str = "MLP",
+    is_encoding_moe: bool = False,
+    num_layers: Optional[int] = None,
 ) -> str:
     """
-    Generate a detailed model name that includes MOE specifics.
+    Generate a detailed model name that includes MOE specifics and depth.
 
     Args:
         layer_type: Base layer type (MoE, MoE_E, GCN, etc.)
         layer_types: List of expert types for MOE models
         router_type: Router type for MOE models (MLP or GNN)
+        is_encoding_moe: Whether this is an EncodingMoE model
+        num_layers: Number of layers (depth) in the model
 
     Returns:
-        Detailed model name string
+        Detailed model name string with depth included
     """
-    if layer_types is not None:
-        # MOE model - include router type and expert combination
+    # Add depth suffix if provided
+    depth_suffix = f"_L{num_layers}" if num_layers is not None else ""
+
+    if is_encoding_moe:
+        # EncodingMoE model - include router type explicitly
+        return f"{layer_type}_router_{router_type}{depth_suffix}"
+    elif layer_types is not None:
+        # Regular MOE model - include router type explicitly and expert combination
         expert_combo = "_".join(layer_types)
-        return f"{layer_type}_{router_type}_{expert_combo}"
+        return f"{layer_type}_router_{router_type}_{expert_combo}{depth_suffix}"
     else:
-        # Non-MOE model - just return the layer type
-        return layer_type
+        # Non-MOE model - include depth if provided
+        return f"{layer_type}{depth_suffix}" if num_layers is not None else layer_type
 
 
 def plot_average_per_graph(
@@ -71,6 +83,7 @@ def plot_average_per_graph(
     save_filename: Optional[str] = None,
     layer_types: Optional[list] = None,
     router_type: str = "MLP",
+    is_encoding_moe: bool = False,
 ) -> str:
     """
     Plot average accuracy (classification) or average error (regression) per graph.
@@ -89,9 +102,12 @@ def plot_average_per_graph(
         task_type: "classification" or "regression"
         output_dir: Directory to save the plot
         save_filename: Optional custom filename. If None, auto-generated
+        layer_types: List of expert types for MOE models
+        router_type: Router type for MOE models
+        is_encoding_moe: Whether this is an EncodingMoE model
 
     Returns:
-        Tuple of (original_plot_path, sorted_plot_path) - paths to both saved plot files
+        Path to saved plot file
     """
     fig, ax = plt.subplots(figsize=(12, 6))
 
@@ -161,7 +177,7 @@ def plot_average_per_graph(
     if save_filename is None:
         encoding_str = f"_{encoding}" if encoding else ""
         detailed_model_name = get_detailed_model_name(
-            layer_type, layer_types, router_type
+            layer_type, layer_types, router_type, is_encoding_moe, num_layers
         )
         save_filename = (
             f"{output_dir}/{num_layers}_layers/"
@@ -190,6 +206,7 @@ def load_and_plot_average_per_graph(
     router_type: str = "MLP",
     skip_connection: bool = False,
     normalize_features: bool = False,
+    is_encoding_moe: bool = False,
 ) -> Tuple[str, str]:
     """
     Load graph_dict from pickle file and create average accuracy/error plots.
@@ -206,6 +223,8 @@ def load_and_plot_average_per_graph(
         layer_types: List of expert types for MOE models
         router_type: Router type for MOE models
         skip_connection: Whether skip connections were used
+        normalize_features: Whether feature normalization was used
+        is_encoding_moe: Whether this is an EncodingMoE model
 
     Returns:
         Tuple of (original_plot_path, sorted_plot_path)
@@ -238,7 +257,9 @@ def load_and_plot_average_per_graph(
         encoding if encoding else "none"
     )  # encoding should be full detailed name like "hg_rwpe_we_k20"
     encoding_suffix = f"_encodings_{encoding_str}"
-    detailed_model_name = get_detailed_model_name(layer_type, layer_types, router_type)
+    detailed_model_name = get_detailed_model_name(
+        layer_type, layer_types, router_type, is_encoding_moe, num_layers
+    )
     original_plot_path = plot_average_per_graph(
         graph_indices,
         average_values,
@@ -251,6 +272,7 @@ def load_and_plot_average_per_graph(
         save_filename=f"{dataset_name}_{detailed_model_name}_{skip_str}_{norm_str}{encoding_suffix}_by_index.png",
         layer_types=layer_types,
         router_type=router_type,
+        is_encoding_moe=is_encoding_moe,
     )
 
     # Create sorted plot (ordered by highest average accuracy)
@@ -274,6 +296,7 @@ def load_and_plot_average_per_graph(
         save_filename=f"{dataset_name}_{detailed_model_name}_{skip_str}_{norm_str}{encoding_suffix}_by_accuracy.png",
         layer_types=layer_types,
         router_type=router_type,
+        is_encoding_moe=is_encoding_moe,
     )
 
     return original_plot_path, sorted_plot_path
