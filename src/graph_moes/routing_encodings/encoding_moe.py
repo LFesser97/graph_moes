@@ -69,9 +69,11 @@ class EncodingMoE(nn.Module):
                 "router_hidden_layers": getattr(
                     args, "router_hidden_layers", [64, 64, 64]
                 ),
-                "router_layer_type": getattr(args, "router_layer_type", "GIN"),
-                "router_depth": getattr(args, "router_depth", 4),
-                "router_dropout": getattr(args, "router_dropout", 0.1),
+                "router_layer_type": getattr(
+                    args, "encoding_moe_router_layer_type", "GIN"
+                ),
+                "router_depth": getattr(args, "encoding_moe_router_depth", 4),
+                "router_dropout": getattr(args, "encoding_moe_router_dropout", 0.1),
             },
         )()
 
@@ -94,14 +96,34 @@ class EncodingMoE(nn.Module):
                 self.expected_input_dim = first_layer.lin.weight.shape[1]
             elif hasattr(first_layer, "weight"):
                 # Some layers might have weight directly
-                self.expected_input_dim = (
-                    first_layer.weight.shape[1]
-                    if len(first_layer.weight.shape) > 1
-                    else args.base_input_dim + max(self.encoding_dims)
-                )
+                if len(first_layer.weight.shape) > 1:
+                    self.expected_input_dim = first_layer.weight.shape[1]
+                else:
+                    # Fallback: calculate from args (max across all encoding combinations)
+                    max_input_dims = []
+                    for config in encoding_configs:
+                        if config.get("replaces_base", False):
+                            max_input_dims.append(config["encoding_dim"])
+                        else:
+                            max_input_dims.append(
+                                args.base_input_dim + config["encoding_dim"]
+                            )
+                    self.expected_input_dim = (
+                        max(max_input_dims) if max_input_dims else args.base_input_dim
+                    )
             else:
-                # Fallback: calculate from args
-                self.expected_input_dim = args.base_input_dim + max(self.encoding_dims)
+                # Fallback: calculate from args (max across all encoding combinations)
+                max_input_dims = []
+                for config in encoding_configs:
+                    if config.get("replaces_base", False):
+                        max_input_dims.append(config["encoding_dim"])
+                    else:
+                        max_input_dims.append(
+                            args.base_input_dim + config["encoding_dim"]
+                        )
+                self.expected_input_dim = (
+                    max(max_input_dims) if max_input_dims else args.base_input_dim
+                )
         elif hasattr(gnn_model, "args"):
             # Get from GNN model args
             self.expected_input_dim = gnn_model.args.input_dim
@@ -141,45 +163,27 @@ class EncodingMoE(nn.Module):
         encoded_dim = encoded_graph.x.shape[1]
         encoding_dim = encoding_config["encoding_dim"]
 
-        if encoding_config.get("replaces_base", False):
-            # Encoding replaces base - extract the encoding part (last encoding_dim dims)
-            # Even though file has base + encoding, we only use the encoding part
-            if encoded_dim >= base_dim + encoding_dim:
-                # File has base + encoding: extract just the encoding part (after base)
-                result = torch.as_tensor(
-                    encoded_graph.x[:, base_dim : base_dim + encoding_dim],
-                    dtype=torch.float32,
-                )
-                return result
-            elif encoded_dim == encoding_dim:
-                # File has just encoding (unlikely but handle it)
-                result = torch.as_tensor(encoded_graph.x, dtype=torch.float32)
-                return result
-            else:
-                # Fallback: assume last encoding_dim dims are encoding
-                result = torch.as_tensor(
-                    encoded_graph.x[:, -encoding_dim:], dtype=torch.float32
-                )
-                return result
+        # NOTE: Encoding files are saved as [original features] + [encodings]
+        # So encoded_graph.x has shape [num_nodes, base_dim + encoding_dim]
+        # We always extract the encoding part (after base dims), regardless of replaces_base
+        # The replaces_base flag only affects how we use the encoding in the forward pass
+        if encoded_dim >= base_dim + encoding_dim:
+            # File has base + encoding: extract just the encoding part (after base)
+            result = torch.as_tensor(
+                encoded_graph.x[:, base_dim : base_dim + encoding_dim],
+                dtype=torch.float32,
+            )
+            return result
+        elif encoded_dim == encoding_dim:
+            # File has just encoding (unlikely but handle it)
+            result = torch.as_tensor(encoded_graph.x, dtype=torch.float32)
+            return result
         else:
-            # Encoding appends to base - extract the encoding part (after base dims)
-            if encoded_dim >= base_dim + encoding_dim:
-                # Extract just the encoding part (after base dims)
-                result = torch.as_tensor(
-                    encoded_graph.x[:, base_dim : base_dim + encoding_dim],
-                    dtype=torch.float32,
-                )
-                return result
-            elif encoded_dim == encoding_dim:
-                # Encoded graph has just encoding (unlikely but handle it)
-                result = torch.as_tensor(encoded_graph.x, dtype=torch.float32)
-                return result
-            else:
-                # Fallback: assume last encoding_dim dims are encoding
-                result = torch.as_tensor(
-                    encoded_graph.x[:, -encoding_dim:], dtype=torch.float32
-                )
-                return result
+            # Fallback: assume last encoding_dim dims are encoding
+            result = torch.as_tensor(
+                encoded_graph.x[:, -encoding_dim:], dtype=torch.float32
+            )
+            return result
 
     def forward(
         self,
@@ -207,7 +211,9 @@ class EncodingMoE(nn.Module):
             weights (optional): Routing weights shape [batch_size, num_encodings]
         """
         # Normalize base features if requested (before routing)
+        # Clone to avoid in-place modification
         if self.normalize_features:
+            base_graph = base_graph.clone()
             x_norm = torch.norm(base_graph.x.float(), p=2, dim=1, keepdim=True)
             base_graph.x = base_graph.x / (x_norm + 1e-8)
 

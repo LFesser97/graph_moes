@@ -286,7 +286,7 @@ def compute_single_hypergraph_encoding(
                 dataset_name=None,
             )
         elif encoding_type == "rwpe":
-            hypergraph_dict = encoder.add_randowm_walks_encodings(
+            hypergraph_dict = encoder.add_random_walks_encodings(
                 hypergraph_dict.copy(),
                 verbose=False,
                 rw_type=encoding_params.get("rw_type", "WE"),
@@ -525,8 +525,8 @@ def process_dataset_with_hypergraph_encodings(
                     import traceback
 
                     traceback.print_exc()
-                # Keep original graph if encoding fails
-                augmented_dataset.append(graph)
+                # Keep original graph if encoding fails (clone to avoid mutation)
+                augmented_dataset.append(graph.clone())
 
         if failed_count > 0:
             print(f"  ⚠️  {failed_count} graphs failed {encoding_type.upper()} encoding")
@@ -653,8 +653,8 @@ def process_dataset_with_graph_encodings(
                     import traceback
 
                     traceback.print_exc()
-                # Keep original graph if encoding fails
-                augmented_dataset.append(graph)
+                # Keep original graph if encoding fails (clone to avoid mutation)
+                augmented_dataset.append(graph.clone())
 
         if failed_count > 0:
             print(f"  ⚠️  {failed_count} graphs failed {encoding_type.upper()} encoding")

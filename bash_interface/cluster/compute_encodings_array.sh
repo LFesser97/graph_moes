@@ -114,7 +114,7 @@ num_datasets=${#datasets[@]}
 
 # Define encoding levels and their encodings
 # Graph encodings: ldp, rwpe, lape, orc
-graph_encodings=("ldp")
+graph_encodings=("ldp" "rwpe" "lape" "orc")
 num_graph_encodings=${#graph_encodings[@]}
 
 # Hypergraph encodings: ldp, frc, rwpe, lape, orc
