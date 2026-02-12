@@ -1,59 +1,8 @@
 [![Ruff](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml/badge.svg)](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml)
 [![pytest](https://github.com/LFesser97/graph_moes/actions/workflows/pytest.yml/badge.svg)](https://github.com/LFesser97/graph_moes/actions/workflows/pytest.yml)
 
-# TODO (12/10)
-
-- TRY encodings MOE
-
-- splits the bash/ into more meaningul parts too
-
-* REGENERATE ENCODINGS: why do we not get the same result as what we had
-in the NEURIPS paper?
-
-* Investigate tmd -> RE RUN
-
-top priorities:
-* try to increase accuracies to match "Can ... be strong baseline for"
-[ with Skip connections or potentially encodings]
-check the Can ... be strong baseline for
-what we should expect. They also use ENCODINGS!
-Look at the paper (main text table 5)
 
 
-add hencodings
-Read GPS paper and instead of 50% 50% weight, let an Router decide.
-add peptides
-
-
-- Also look at normalization [Section 3 in the paper].
-
-- Compute the hg encodings once and make sure they are fully correct and then upload them.
-
-
-- Add global attention as an expert: ASK LUKAS
- Try to add Global attention layer as router (imagine MOE as 
-extension of GPS)
-
-
-Later: check that sage does not do better than
-all moe connections. 
-
-4 - encodings + hg encodings
-
-(no tmd, no rewiring...)
-
-
-
-
-* Add test suite for accuracies / pytest for all that
-* Merge current PR
-* Run a new PR with black/isort/ruff
-
-
-- Redo plotting + TMD
-- Adding a few datasets + architectures 
-- MoE: foresee how well this is working - look at training curves and that it trains well and accuracy in comparaison with other baselines.
-Aiming end of Jan 
 
 
 # Dataset Status Summary
@@ -72,46 +21,12 @@ MAKE SURE I CAN RERUN ON THE CLUSTER. CLEAN UP.
 **Note:** ogbg-code2 is in classification script but has `output_dim=1` (regression) - verify task type.
 
 
-IN PROGRESS: TO CODE REVIEW AND CHECK
-Vizualisations:
-for each dataset and each MOE configurations:
-+ code lost for the histograms/TmD
-do enough experiments so that each graph is in 10 test datasets.
-
-
-Maybe idea for later:
-- encodings + hg encodings
-
-
-# END OF TODO (12/10)
-
-
 # README
 
 # Graph Mixture of Experts (Graph MoE)
 
 A PyTorch implementation of Graph Neural Networks with Mixture of Experts (MoE) architectures and heterogeneous layer types for graph classification and regression tasks.
 
-## TODO
-
-- run locally again and run mamba env export > environment_SAVED.yml
-- Get parameters from the paper [DONE]
-- Run on the cluster [ABLE!]
- 
-- TODO / IDEAS:
-- Hypergraph encodings > add something to store them too
-- Not doing rewiring anymore
-
-
-Immediate TODOs:
-- Reorganise the repo into src/ and scripts/ + split the scripts into smaller files?
-for example src/models/moe/routers, src/models/layers, src/models/architectures
-src/encodings/curtom_encodings etc. This will help make the repo much more organised and easy to use.
-- Add plotting functionality: super important. See the losses (or extract them from wandb),
-see the performance of each model of each graph (repeated ten times)
-- Fix the missing dataset (ogb causing trouble becuase of sklearn > scipy)
-- Todo: add pylint/mypy github action
-- Todo: lower priority: add tests
 
 **CURRENT STATUS (December 28, 2025):**
 
