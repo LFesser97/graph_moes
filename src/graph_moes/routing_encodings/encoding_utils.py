@@ -2,7 +2,6 @@
 
 from typing import Any, Dict, Optional
 
-
 # Mapping of encoding names to their dimensions and whether they replace base features.
 #
 # **Graph encodings** are computed by ``compute_single_graph_encoding``

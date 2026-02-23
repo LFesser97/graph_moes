@@ -105,7 +105,7 @@ def _initialize_encoding_moe_model(
     )
 
     # Debug logging
-    print(f"🔧 EncodingMoE GNN initialization:")
+    print("🔧 EncodingMoE GNN initialization:")
     print(f"   base_input_dim: {base_input_dim}")
     print(f"   max_encoding_dim: {max_encoding_dim}")
     print(f"   any_replaces_base: {any_replaces_base}")

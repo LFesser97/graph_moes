@@ -21,11 +21,6 @@ from typing import List, Optional, Tuple
 import numpy as np
 import plotly.graph_objects as go
 
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-sys.path.insert(0, str(project_root / "src"))
-
 from graph_moes.experiments.track_avg_accuracy import compute_average_per_graph
 
 
@@ -515,7 +510,7 @@ def generate_all_comparisons(results_dir: Path) -> None:
     if duplicate_count > 0:
         print(f"⚠️  Warning: Found {duplicate_count} duplicates after deduplication!")
     else:
-        print(f"✅ Verified: No duplicates found")
+        print("✅ Verified: No duplicates found")
 
     datasets = sorted(set(c["dataset"] for c in configs))
     print(f"📊 Found {len(configs)} configurations across {len(datasets)} datasets")

@@ -20,7 +20,6 @@ from tqdm import tqdm
 import wandb
 from graph_moes.architectures.graph_model import GNN, GPS, OrthogonalGCN, UnitaryGCN
 from graph_moes.moes.graph_moe import MoE, MoE_E
-from graph_moes.routing_encodings.encoding_moe import EncodingMoE
 from graph_moes.routing_encodings.helper import (
     _create_encoding_moe_loaders,
     _create_encoding_moe_loaders_for_split,
@@ -528,9 +527,7 @@ class Experiment:
                 # Create encoded loaders for test set
                 encoded_loaders_test: Dict[str, DataLoader] = {}
                 if self.encoding_moe_encoded_datasets:
-                    from torch_geometric.loader import (
-                        DataLoader as PyGDataLoader,
-                    )
+                    from torch_geometric.loader import DataLoader as PyGDataLoader
 
                     for encoding_name in self.args.encoding_moe_encodings:
                         if encoding_name in self.encoding_moe_encoded_datasets:

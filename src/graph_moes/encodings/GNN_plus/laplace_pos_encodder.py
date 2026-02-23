@@ -7,7 +7,6 @@ TODO: Integrate in scripts/compute_encodings/compute_encodings_for_datasets.py t
 
 import torch
 import torch.nn as nn
-import torch_geometric.graphgym.register as register
 from torch_geometric.graphgym.config import cfg
 from torch_geometric.graphgym.register import register_node_encoder
 

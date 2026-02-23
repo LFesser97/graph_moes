@@ -10,16 +10,15 @@ from copy import deepcopy
 import numpy as np
 import torch
 import torch.nn.functional as F
-from numpy.linalg import eigvals
+from GNNPlus.encoder.graphormer_encoder import graphormer_pre_processing
 from torch_geometric.utils import (
     get_laplacian,
+    scatter,
+    to_dense_adj,
     to_scipy_sparse_matrix,
     to_undirected,
-    to_dense_adj,
-    scatter,
 )
 from torch_geometric.utils.num_nodes import maybe_num_nodes
-from GNNPlus.encoder.graphormer_encoder import graphormer_pre_processing
 
 
 def compute_posenc_stats(data, pe_types, is_undirected, cfg):
@@ -126,7 +125,7 @@ def compute_posenc_stats(data, pe_types, is_undirected, cfg):
         ]:
             pass
         else:
-            if data.edge_attr != None:
+            if data.edge_attr is not None:
                 if data.edge_attr.dim() == 1:
                     data.edge_attr = torch.cat(
                         [data.edge_attr.unsqueeze(dim=-1), edge_features], dim=1
