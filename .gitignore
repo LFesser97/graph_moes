@@ -85,3 +85,5 @@ tmp/
 # Local utility scripts (not tracked)
 scripts/utils/analyze_trial_requirements.py
 bash_interface/cluster/download_graphbench_datasets.sh
+bash_interface/cluster/download_ppa.sh
+bash_interface/cluster/monitor_sweep_jobs.sh
