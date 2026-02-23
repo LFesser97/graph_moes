@@ -436,7 +436,7 @@ def process_dataset_with_hypergraph_encodings(
     print("     compute encodings on hypergraph structure, then expand back to graphs.")
 
     # Log dataset statistics
-    print(f"  Dataset info:")
+    print("  Dataset info:")
     print(f"    Number of graphs: {len(dataset)}")
     if len(dataset) > 0:
         sample_graph = dataset[0]
@@ -446,7 +446,7 @@ def process_dataset_with_hypergraph_encodings(
         if sample_graph.x is not None:
             print(f"    Sample features shape: {sample_graph.x.shape}")
         else:
-            print(f"    Sample features: None")
+            print("    Sample features: None")
 
     # Define encodings to compute (each separately)
     # NOTE: ORC is very slow (~17 min for 188 graphs), so skipping for now
@@ -572,7 +572,7 @@ def process_dataset_with_graph_encodings(
     print("     (no hypergraph transformation step).")
 
     # Log dataset statistics
-    print(f"  Dataset info:")
+    print("  Dataset info:")
     print(f"    Number of graphs: {len(dataset)}")
     if len(dataset) > 0:
         sample_graph = dataset[0]
@@ -582,7 +582,7 @@ def process_dataset_with_graph_encodings(
         if sample_graph.x is not None:
             print(f"    Sample features shape: {sample_graph.x.shape}")
         else:
-            print(f"    Sample features: None")
+            print("    Sample features: None")
 
     # Define encodings to compute (each separately)
     # Format: (encoding_type, params_dict, description, filename_suffix)

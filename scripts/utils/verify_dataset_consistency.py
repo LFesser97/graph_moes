@@ -12,9 +12,6 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List
-
-import numpy as np
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
@@ -128,7 +125,6 @@ def main():
     print("=" * 80)
 
     # Check consistency for each dataset
-    all_consistent = True
     inconsistent_datasets = []
 
     for dataset in sorted(dataset_groups.keys()):
@@ -160,7 +156,7 @@ def main():
             config_labels.append((label, num_graphs, pickle_file))
 
         if not graph_counts:
-            print(f"   ⚠️  No valid configurations found!")
+            print("   ⚠️  No valid configurations found!")
             continue
 
         # Check if all counts are the same
@@ -172,9 +168,8 @@ def main():
                 f"   ✅ All {len(config_labels)} configurations have {expected_count} graphs"
             )
         else:
-            all_consistent = False
             inconsistent_datasets.append(dataset)
-            print(f"   ❌ INCONSISTENCY DETECTED!")
+            print("   ❌ INCONSISTENCY DETECTED!")
             print(f"   Expected: {expected_count} graphs")
             print(
                 f"   Found {len(unique_counts)} different graph counts: {sorted(unique_counts)}"
@@ -196,7 +191,7 @@ def main():
     print(f"   ❌ Inconsistent datasets: {len(inconsistent_datasets)}")
 
     if inconsistent_datasets:
-        print(f"\n⚠️  Inconsistent datasets:")
+        print("\n⚠️  Inconsistent datasets:")
         for dataset in inconsistent_datasets:
             print(f"   - {dataset}")
         print("\n💡 These may indicate:")

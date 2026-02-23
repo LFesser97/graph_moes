@@ -11,11 +11,6 @@ import re
 import sys
 from pathlib import Path
 
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-sys.path.insert(0, str(project_root / "src"))
-
 from graph_moes.experiments.track_avg_accuracy import load_and_plot_average_per_graph
 
 
@@ -149,8 +144,6 @@ def main():
             encoding_suffix = f"_encodings_{encoding_str}"
 
             # Build model name with explicit router type and depth
-            # Check if this is EncodingMoE (would have "EncodingMoE" in layer_type)
-            is_encoding_moe = "EncodingMoE" in str(layer_type)
             num_layers = config.get("num_layers")
             depth_suffix = f"_L{num_layers}" if num_layers is not None else ""
 
@@ -203,7 +196,7 @@ def main():
                 print(f"   ✅ Generated: {Path(sorted_plot_path).name}")
                 processed += 1
             else:
-                print(f"   ⚠️  Failed to generate plots")
+                print("   ⚠️  Failed to generate plots")
                 errors += 1
 
         except Exception as e:

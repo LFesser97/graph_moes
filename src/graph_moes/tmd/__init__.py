@@ -1,12 +1,12 @@
 """Tree Mover's Distance (TMD) module for graph similarity computation."""
 
-from graph_moes.tmd.tmd import TMD, get_neighbors
 from graph_moes.tmd.compute_tmd import (
-    compute_tmd_matrix,
     compute_class_distance_ratios,
+    compute_tmd_matrix,
     extract_labels,
     save_tmd_results,
 )
+from graph_moes.tmd.tmd import TMD, get_neighbors
 
 __all__ = [
     "TMD",

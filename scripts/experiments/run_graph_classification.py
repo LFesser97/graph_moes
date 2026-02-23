@@ -59,7 +59,6 @@ except ImportError:
 
 from hyperparams import get_args_from_input
 
-
 # ============================================================================
 # EncodingMoE Helper Functions
 # ============================================================================
@@ -129,7 +128,7 @@ def _load_encoding_moe_datasets(
     for encoding_name in encoding_list:
         # Handle "None" encoding (no encoding file to load, just use base dataset)
         if encoding_name == "None" or encoding_name is None:
-            print(f"\n  📦 Encoding: None (using base dataset)")
+            print("\n  📦 Encoding: None (using base dataset)")
             # Store empty dict to indicate no encoding file, will use base dataset
             encoding_moe_encoded_datasets["None"] = {}
             continue
@@ -189,7 +188,7 @@ def _load_encoding_moe_datasets(
             f"  ✅ Loaded {len(encoded_datasets_for_encoding)} datasets with {encoding_name}"
         )
 
-    print(f"\n✅ EncodingMoE datasets loaded successfully!")
+    print("\n✅ EncodingMoE datasets loaded successfully!")
     print(f"   Base datasets: {len(encoding_moe_base_datasets)}")
     print(
         f"   Encoded datasets: {len(encoding_moe_encoded_datasets)} encodings × {len(encoding_moe_encoded_datasets.get(encoding_list[0], {}))} datasets"
@@ -795,7 +794,7 @@ if hasattr(args, "dataset_encoding") and args.dataset_encoding is not None:
     # Check if we have any encoded datasets
     if len(encoded_datasets) == 0:
         print(f"  ❌ No encoded datasets found for encoding: {dataset_encoding}")
-        print(f"     Skipping experiment - at least one encoded dataset is required")
+        print("     Skipping experiment - at least one encoded dataset is required")
         import sys
 
         sys.exit(0)  # Exit gracefully, skip this experiment

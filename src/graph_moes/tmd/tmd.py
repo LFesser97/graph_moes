@@ -43,7 +43,7 @@ def TMD(g1: Data, g2: Data, w: Union[float, List[float]], L: int = 4) -> float:
     ----------
     g1, g2 : two torch_geometric graphs
     w : weighting constant for each depth
-         if it is a list, then w[l] is the weight for depth-(l+1) tree
+         if it is a list, then w[level_idx] is the weight for depth-(l+1) tree
          if it is a constant, then every layer shares the same weight
     L    : Depth of computation trees for calculating TMD
 
@@ -80,8 +80,8 @@ def TMD(g1: Data, g2: Data, w: Union[float, List[float]], L: int = 4) -> float:
     M[:n1, n2] = torch.norm(feat1, dim=1)
     M[n1, :n2] = torch.norm(feat2, dim=1)
 
-    # level l (tree OT)
-    for l in range(L - 1):
+    # level level_idx (tree OT)
+    for level_idx in range(L - 1):
         M1 = copy.deepcopy(M)
         M = np.zeros((n1 + 1, n2 + 1))
 
@@ -104,12 +104,12 @@ def TMD(g1: Data, g2: Data, w: Union[float, List[float]], L: int = 4) -> float:
                     wass = 0.0
                     for jj in range(degree_j):
                         wass += M1[n1, adj2[j][jj]]
-                    M[i, j] = D[i, j] + w[l] * wass
+                    M[i, j] = D[i, j] + w[level_idx] * wass
                 elif degree_j == 0:
                     wass = 0.0
                     for ii in range(degree_i):
                         wass += M1[adj1[i][ii], n2]
-                    M[i, j] = D[i, j] + w[l] * wass
+                    M[i, j] = D[i, j] + w[level_idx] * wass
                 # otherwise, calculate the tree distance
                 else:
                     max_degree = max(degree_i, degree_j)
@@ -128,8 +128,8 @@ def TMD(g1: Data, g2: Data, w: Union[float, List[float]], L: int = 4) -> float:
                             cost[ii, jj] = M1[adj1[i][ii], adj2[j][jj]]
                     wass = ot.emd2(dist_1, dist_2, cost)
 
-                    # summarize TMD at level l
-                    M[i, j] = D[i, j] + w[l] * wass
+                    # summarize TMD at current level
+                    M[i, j] = D[i, j] + w[level_idx] * wass
 
         # fill in dist w.r.t. blank node
         for i in range(n1):
@@ -144,7 +144,7 @@ def TMD(g1: Data, g2: Data, w: Union[float, List[float]], L: int = 4) -> float:
                 wass = 0.0
                 for ii in range(degree_i):
                     wass += M1[adj1[i][ii], n2]
-                M[i, n2] = torch.norm(feat1[i]) + w[l] * wass
+                M[i, n2] = torch.norm(feat1[i]) + w[level_idx] * wass
 
         for j in range(n2):
             try:
@@ -157,7 +157,7 @@ def TMD(g1: Data, g2: Data, w: Union[float, List[float]], L: int = 4) -> float:
                 wass = 0.0
                 for jj in range(degree_j):
                     wass += M1[n1, adj2[j][jj]]
-                M[n1, j] = torch.norm(feat2[j]) + w[l] * wass
+                M[n1, j] = torch.norm(feat2[j]) + w[level_idx] * wass
 
     # final OT cost
     max_n = max(n1, n2)

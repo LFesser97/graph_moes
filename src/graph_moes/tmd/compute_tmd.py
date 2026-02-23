@@ -150,7 +150,7 @@ def compute_tmd_matrix(
         if n_jobs > 1:
             print(f"   Using {n_jobs} parallel workers...")
         else:
-            print(f"   Running sequentially (n_jobs=1)...")
+            print("   Running sequentially (n_jobs=1)...")
 
     # Compute pairwise TMD
     if n_jobs == 1:

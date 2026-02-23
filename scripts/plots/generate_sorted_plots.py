@@ -19,10 +19,10 @@ if src_path.exists() and str(src_path) not in sys.path:
 
 try:
     import matplotlib.pyplot as plt
-    from matplotlib.colors import BoundaryNorm
     import numpy as np
     import torch
-    from torch_geometric.datasets import TUDataset, GNNBenchmarkDataset
+    from matplotlib.colors import BoundaryNorm
+    from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
 
     from graph_moes.experiments.track_avg_accuracy import (
         compute_average_per_graph,

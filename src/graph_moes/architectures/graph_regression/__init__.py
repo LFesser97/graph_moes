@@ -1,8 +1,6 @@
 """Graph regression models."""
 
-from graph_moes.architectures.graph_regression.graph_regression_model import (
-    GINE,
-)
+from graph_moes.architectures.graph_regression.graph_regression_model import GINE
 from graph_moes.architectures.graph_regression.graph_regression_model import (
     GNN as RegressionGNN,
 )

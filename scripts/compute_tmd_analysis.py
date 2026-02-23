@@ -4,16 +4,11 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List
 
 import numpy as np
-import pandas as pd
 import torch
 from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset
-
-# Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
 
 from graph_moes.tmd import (
     compute_class_distance_ratios,
@@ -209,6 +204,7 @@ def main() -> None:
         data_directory = args.data_dir
     else:
         # Try local first, then cluster
+        project_root = Path(__file__).parent.parent
         local_dir = os.path.join(project_root, "graph_datasets")
         cluster_dir = (
             "/n/holylabs/LABS/mweber_lab/Everyone/rpellegrin/graph_moes/graph_datasets"
@@ -284,7 +280,7 @@ def main() -> None:
             traceback.print_exc()
             continue
 
-    print(f"\n🎉 All datasets processed!")
+    print("\n🎉 All datasets processed!")
 
 
 if __name__ == "__main__":
