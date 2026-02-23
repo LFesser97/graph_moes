@@ -3,20 +3,31 @@
 from typing import Any, Dict, Optional
 
 
-# Mapping of encoding names to their dimensions and whether they replace base features
-# Based on compute_encodings_for_datasets.py behavior:
-# - Graph encodings: LDP replaces (4 dims), RWPE/LAPE/ORC append
-# - Hypergraph encodings: all append to original features
+# Mapping of encoding names to their dimensions and whether they replace base features.
+#
+# **Graph encodings** are computed by ``compute_single_graph_encoding``
+# (in ``scripts/compute_encodings/compute_encodings_for_datasets.py``).
+# All of them *append* features to the original node features – none replace them.
+#   - LDP  → PyG ``LocalDegreeProfile``: 5 features (deg, min/max/mean/std neighbour deg)
+#   - RWPE → PyG ``AddRandomWalkPE``: *k* features (walk_length=16 → 16)
+#   - LAPE → PyG ``AddLaplacianEigenvectorPE``: *k* features (k=8 → 8)
+#   - ORC  → ``LocalCurvatureProfile.compute_orc``: 5 features (min/max/mean/std/median ORC)
+#
+# **Hypergraph encodings** are computed via ``HypergraphEncodings`` and also append.
+# Dimensions marked "approximate" should be verified against the hypergraph encoder.
 ENCODING_INFO: Dict[str, Dict[str, Any]] = {
-    # Graph encodings
-    "g_ldp": {"encoding_dim": 4, "replaces_base": True},  #
+    # Graph encodings — all append to original features (replaces_base=False)
+    "g_ldp": {
+        "encoding_dim": 5,
+        "replaces_base": False,
+    },  # PyG LocalDegreeProfile: deg, min/max/mean/std neighbour deg
     "g_rwpe_k16": {"encoding_dim": 16, "replaces_base": False},  # walk_length=16
     "g_lape_k8": {"encoding_dim": 8, "replaces_base": False},  # k=8
     "g_orc": {
-        "encoding_dim": 2,
+        "encoding_dim": 5,
         "replaces_base": False,
-    },  # LocalCurvatureProfile returns 2 dims
-    # Hypergraph encodings (dimensions need to be verified)
+    },  # LocalCurvatureProfile.compute_orc: min/max/mean/std/median ORC
+    # Hypergraph encodings (dimensions need to be verified against HypergraphEncodings)
     # These typically append to original features
     "hg_ldp": {
         "encoding_dim": 4,
@@ -55,7 +66,8 @@ def get_encoding_info(encoding_name: str) -> Dict[str, Any]:
 
     # Fallback: try to infer from name
     if encoding_name.startswith("g_ldp") or encoding_name.startswith("hg_ldp"):
-        return {"encoding_dim": 4, "replaces_base": encoding_name.startswith("g_ldp")}
+        # Both graph and hypergraph LDP append features (never replace)
+        return {"encoding_dim": 5, "replaces_base": False}
     elif "rwpe" in encoding_name.lower():
         # Extract k/walk_length from name if possible
         if "k16" in encoding_name or "walk_length=16" in encoding_name:
@@ -71,7 +83,8 @@ def get_encoding_info(encoding_name: str) -> Dict[str, Any]:
         else:
             return {"encoding_dim": 8, "replaces_base": False}  # Default
     elif "orc" in encoding_name.lower():
-        return {"encoding_dim": 2, "replaces_base": False}
+        # LocalCurvatureProfile.compute_orc returns 5 features (min/max/mean/std/median)
+        return {"encoding_dim": 5, "replaces_base": False}
     elif "frc" in encoding_name.lower():
         return {"encoding_dim": 1, "replaces_base": False}
     else:

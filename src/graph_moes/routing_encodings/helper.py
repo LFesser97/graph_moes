@@ -25,10 +25,11 @@ These functions handle the complexity of:
 # ============================================================================
 
 import copy
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from torch.utils.data import Dataset
+from torch_geometric.data import Batch, Data
 from torch_geometric.loader import DataLoader
 
 try:
@@ -45,39 +46,36 @@ def _initialize_encoding_moe_model(
     args: AttrDict,
     base_input_dim: int,
     dataset: Dataset,
-    encoding_moe_encoded_datasets: Optional[Dict[str, Dict[str, List]]],
+    encoding_moe_encoded_datasets: Optional[Dict[str, List[Data]]],
 ) -> Tuple[EncodingMoE, bool]:
-    """
-    Initialize EncodingMoE model with proper configuration.
+    """Initialize EncodingMoE model with proper configuration.
 
     Args:
-        args: Experiment arguments
-        base_input_dim: Dimension of base input features
-        dataset: Base dataset (for validation)
-        encoding_moe_encoded_datasets: Dictionary of encoded datasets
+        args: Experiment arguments.
+        base_input_dim: Dimension of base input features.
+        dataset: Base dataset (for validation).
+        encoding_moe_encoded_datasets:
+            Mapping from encoding name to the list of encoded ``Data`` objects
+            for the current dataset (already extracted per-dataset upstream).
 
     Returns:
-        Tuple of (model, is_encoding_moe_flag)
+        Tuple of (model, is_encoding_moe_flag).
     """
     # Create encoding configurations
-    encoding_configs = []
+    encoding_configs: List[Dict[str, Any]] = []
     for encoding_name in args.encoding_moe_encodings:
         # Determine base input dim from dataset (for validation)
-        base_dim = dataset[0].x.shape[1] if len(dataset) > 0 else base_input_dim
+        base_dim: int = dataset[0].x.shape[1] if len(dataset) > 0 else base_input_dim
 
         # Try to get encoded dim from encoded_datasets if available
-        encoded_dim = None
+        encoded_dim: Optional[int] = None
         if (
             encoding_moe_encoded_datasets
             and encoding_name in encoding_moe_encoded_datasets
         ):
-            # Find dataset name (should match current dataset)
-            for dataset_name, encoded_dataset in encoding_moe_encoded_datasets[
-                encoding_name
-            ].items():
-                if len(encoded_dataset) > 0:
-                    encoded_dim = encoded_dataset[0].x.shape[1]
-                    break
+            encoded_dataset = encoding_moe_encoded_datasets[encoding_name]
+            if len(encoded_dataset) > 0:
+                encoded_dim = encoded_dataset[0].x.shape[1]
 
         config = create_encoding_config(
             encoding_name,
@@ -178,58 +176,65 @@ def _create_encoding_moe_loaders(
     args: AttrDict,
     train_dataset: Dataset,
     train_indices: Optional[List[int]],
-    encoding_moe_encoded_datasets: Optional[Dict[str, Dict[str, List]]],
+    encoding_moe_encoded_datasets: Optional[Dict[str, List[Data]]],
     dataset_name: Optional[str],
     shuffle: bool = True,
 ) -> Dict[str, DataLoader]:
-    """
-    Create DataLoaders for encoded datasets for EncodingMoE training.
+    """Create DataLoaders for encoded datasets for EncodingMoE training.
+
+    ``encoding_moe_encoded_datasets`` maps encoding names directly to the
+    list of encoded ``Data`` objects for the current dataset (already
+    extracted per-dataset by ``_extract_encoding_moe_datasets_for_key``).
 
     Args:
-        args: Experiment arguments
-        train_dataset: Training dataset (for size reference)
-        train_indices: Training indices (if available)
-        encoding_moe_encoded_datasets: Dictionary of encoded datasets
-        dataset_name: Name of the dataset
-        shuffle: Whether to shuffle the loaders
+        args: Experiment arguments.
+        train_dataset: Training dataset (for size reference).
+        train_indices: Training indices (if available).
+        encoding_moe_encoded_datasets:
+            Mapping ``{encoding_name: List[Data]}`` for the current dataset.
+        dataset_name: Name of the dataset (used only for logging).
+        shuffle: Whether to shuffle the loaders.
 
     Returns:
-        Dictionary mapping encoding names to DataLoaders
+        Dictionary mapping encoding names to DataLoaders.
     """
-    from torch_geometric.loader import DataLoader as PyGDataLoader
+    _ = dataset_name  # kept for API compatibility; extraction is done upstream
 
-    encoded_loaders = {}
+    encoded_loaders: Dict[str, DataLoader] = {}
 
-    if (
-        encoding_moe_encoded_datasets
-        and dataset_name
-        and dataset_name
-        in (train_dataset.dataset if hasattr(train_dataset, "dataset") else {})
-    ):
-        if dataset_name:
-            for encoding_name in args.encoding_moe_encodings:
-                if (
-                    encoding_name in encoding_moe_encoded_datasets
-                    and dataset_name in encoding_moe_encoded_datasets[encoding_name]
-                ):
-                    encoded_dataset = encoding_moe_encoded_datasets[encoding_name][
-                        dataset_name
-                    ]
-                    # Split encoded dataset same way as base (use same indices)
-                    encoded_train = (
-                        [
-                            encoded_dataset[i]
-                            for i in range(len(encoded_dataset))
-                            if i in train_indices
-                        ]
-                        if train_indices is not None
-                        else encoded_dataset[: len(train_dataset)]
-                    )
-                    encoded_loaders[encoding_name] = PyGDataLoader(
-                        encoded_train,
-                        batch_size=args.batch_size,
-                        shuffle=shuffle,
-                    )
+    if not encoding_moe_encoded_datasets:
+        return encoded_loaders
+
+    # Convert train_indices to a set for O(1) membership checks
+    train_indices_set: Optional[frozenset[int]] = (
+        frozenset(train_indices) if train_indices is not None else None
+    )
+
+    for encoding_name in args.encoding_moe_encodings:
+        if encoding_name not in encoding_moe_encoded_datasets:
+            continue
+
+        encoded_dataset = encoding_moe_encoded_datasets[encoding_name]
+
+        # Split encoded dataset the same way as the base dataset
+        if train_indices_set is not None:
+            encoded_train = [
+                encoded_dataset[i]
+                for i in range(len(encoded_dataset))
+                if i in train_indices_set
+            ]
+        else:
+            encoded_train = list(encoded_dataset[: len(train_dataset)])
+
+        if len(encoded_train) == 0:
+            print(f"  ⚠️  No training samples for encoding {encoding_name}, skipping")
+            continue
+
+        encoded_loaders[encoding_name] = DataLoader(
+            encoded_train,
+            batch_size=args.batch_size,
+            shuffle=shuffle,
+        )
 
     return encoded_loaders
 
@@ -239,31 +244,31 @@ def _get_encoding_moe_encoded_graphs_for_batch(
     encoded_iterators: Dict[str, Any],
     encoded_loaders: Dict[str, DataLoader],
     device: torch.device,
-) -> Optional[torch.Tensor]:
-    """
-    Get encoded graph batch for a specific encoding.
+) -> Optional[Union[Data, Batch]]:
+    """Get encoded graph batch for a specific encoding.
 
     Args:
-        encoding_name: Name of the encoding
-        encoded_iterators: Dictionary of iterators for encoded loaders
-        encoded_loaders: Dictionary of encoded loaders
-        device: Device to move data to
+        encoding_name: Name of the encoding.
+        encoded_iterators: Dictionary of iterators for encoded loaders.
+        encoded_loaders: Dictionary of encoded loaders.
+        device: Device to move data to.
 
     Returns:
-        Encoded graph batch or None if not available
+        Encoded graph ``Batch`` (or single ``Data``) moved to *device*,
+        or ``None`` if the encoding is not present in the iterators.
     """
-    if encoding_name in encoded_iterators:
-        try:
-            encoded_batch = next(encoded_iterators[encoding_name])
-            encoded_batch = encoded_batch.to(device)
-            return encoded_batch
-        except StopIteration:
-            # Reset iterator if exhausted (shouldn't happen with aligned datasets)
-            encoded_iterators[encoding_name] = iter(encoded_loaders[encoding_name])
-            encoded_batch = next(encoded_iterators[encoding_name])
-            encoded_batch = encoded_batch.to(device)
-            return encoded_batch
-    return None
+    if encoding_name not in encoded_iterators:
+        return None
+
+    try:
+        encoded_batch = next(encoded_iterators[encoding_name])
+    except StopIteration:
+        # Reset iterator if exhausted (shouldn't happen with aligned datasets)
+        encoded_iterators[encoding_name] = iter(encoded_loaders[encoding_name])
+        encoded_batch = next(encoded_iterators[encoding_name])
+
+    encoded_batch = encoded_batch.to(device)
+    return encoded_batch
 
 
 def _create_encoding_moe_loaders_for_split(
@@ -272,32 +277,39 @@ def _create_encoding_moe_loaders_for_split(
     train_dataset: Dataset,
     validation_dataset: Dataset,
     categories: Optional[List[List[int]]],
-    encoding_moe_encoded_datasets: Optional[Dict[str, Dict[str, List]]],
+    encoding_moe_encoded_datasets: Optional[Dict[str, List[Data]]],
     dataset_name: Optional[str],
 ) -> Dict[str, DataLoader]:
-    """
-    Create DataLoaders for encoded datasets for a specific split (train/val/test).
+    """Create DataLoaders for encoded datasets for a specific split (train/val/test).
+
+    The correct split is inferred by comparing *loader*'s dataset size against
+    the training and validation dataset sizes.
 
     Args:
-        args: Experiment arguments
-        loader: The loader for the split (to determine which split)
-        train_dataset: Training dataset
-        validation_dataset: Validation dataset
-        categories: List of indices for [train, val, test] splits
-        encoding_moe_encoded_datasets: Dictionary of encoded datasets
-        dataset_name: Name of the dataset
+        args: Experiment arguments.
+        loader: The loader for the split (used to infer which split via size).
+        train_dataset: Training dataset.
+        validation_dataset: Validation dataset.
+        categories: List of index lists ``[train_idx, val_idx, test_idx]``.
+        encoding_moe_encoded_datasets:
+            Mapping ``{encoding_name: List[Data]}`` for the current dataset.
+        dataset_name: Name of the dataset (used only for logging).
 
     Returns:
-        Dictionary mapping encoding names to DataLoaders
+        Dictionary mapping encoding names to DataLoaders.
     """
-    from torch_geometric.loader import DataLoader as PyGDataLoader
+    _ = dataset_name  # kept for API compatibility; extraction is done upstream
+
+    if not encoding_moe_encoded_datasets:
+        return {}
 
     # Determine which split (train/val/test) based on dataset size
-    loader_size = len(loader.dataset)
-    train_size = len(train_dataset)
-    val_size = len(validation_dataset)
+    loader_size: int = len(loader.dataset)
+    train_size: int = len(train_dataset)
+    val_size: int = len(validation_dataset)
 
     # Determine which indices to use
+    split_indices: List[int]
     if loader_size == train_size:
         split_indices = (
             categories[0] if categories is not None else list(range(train_size))
@@ -309,42 +321,36 @@ def _create_encoding_moe_loaders_for_split(
             else list(range(train_size, train_size + val_size))
         )
     else:
-        split_indices = (
-            categories[2]
-            if categories is not None
-            else list(
-                range(
-                    train_size + val_size,
-                    (
-                        len(train_dataset.dataset)
-                        if hasattr(train_dataset, "dataset")
-                        else train_size + val_size
-                    ),
-                )
+        # Test split — fall back to computing the range from the full dataset
+        if categories is not None:
+            split_indices = categories[2]
+        else:
+            full_size: int = (
+                len(train_dataset.dataset)
+                if hasattr(train_dataset, "dataset")
+                else train_size + val_size + loader_size
             )
-        )
+            split_indices = list(range(train_size + val_size, full_size))
 
     # Create encoded loaders for this split
-    encoded_loaders = {}
+    encoded_loaders: Dict[str, DataLoader] = {}
 
-    if encoding_moe_encoded_datasets and dataset_name:
-        for encoding_name in args.encoding_moe_encodings:
-            if (
-                encoding_name in encoding_moe_encoded_datasets
-                and dataset_name in encoding_moe_encoded_datasets[encoding_name]
-            ):
-                encoded_dataset = encoding_moe_encoded_datasets[encoding_name][
-                    dataset_name
-                ]
-                encoded_split = [
-                    encoded_dataset[i]
-                    for i in split_indices
-                    if i < len(encoded_dataset)
-                ]
-                encoded_loaders[encoding_name] = PyGDataLoader(
-                    encoded_split,
-                    batch_size=args.batch_size,
-                    shuffle=False,  # Don't shuffle for eval/test
-                )
+    for encoding_name in args.encoding_moe_encodings:
+        if encoding_name not in encoding_moe_encoded_datasets:
+            continue
+
+        encoded_dataset = encoding_moe_encoded_datasets[encoding_name]
+        encoded_split = [
+            encoded_dataset[i] for i in split_indices if i < len(encoded_dataset)
+        ]
+
+        if len(encoded_split) == 0:
+            continue
+
+        encoded_loaders[encoding_name] = DataLoader(
+            encoded_split,
+            batch_size=args.batch_size,
+            shuffle=False,  # Don't shuffle for eval/test
+        )
 
     return encoded_loaders

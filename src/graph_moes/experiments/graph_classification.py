@@ -2,7 +2,7 @@
 
 import copy
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 
@@ -77,7 +77,7 @@ class Experiment:
         train_dataset: Optional[Dataset] = None,
         validation_dataset: Optional[Dataset] = None,
         test_dataset: Optional[Dataset] = None,
-        encoding_moe_encoded_datasets: Optional[Dict[str, Dict[str, List]]] = None,
+        encoding_moe_encoded_datasets: Optional[Dict[str, List[Any]]] = None,
     ) -> None:
         self.args = default_args + args
         self.dataset = dataset
@@ -402,38 +402,35 @@ class Experiment:
                             test_indices = self.categories[2] if self.categories else []
 
                             # Create encoded loaders for test set
-                            encoded_loaders_test = {}
-                            if self.encoding_moe_encoded_datasets and dataset_name:
+                            encoded_loaders_test: Dict[str, DataLoader] = {}
+                            if self.encoding_moe_encoded_datasets:
+                                from torch_geometric.loader import (
+                                    DataLoader as PyGDataLoader,
+                                )
+
                                 for encoding_name in self.args.encoding_moe_encodings:
                                     if (
                                         encoding_name
                                         in self.encoding_moe_encoded_datasets
-                                        and dataset_name
-                                        in self.encoding_moe_encoded_datasets[
-                                            encoding_name
-                                        ]
                                     ):
                                         encoded_dataset = (
                                             self.encoding_moe_encoded_datasets[
                                                 encoding_name
-                                            ][dataset_name]
+                                            ]
                                         )
                                         encoded_test = [
                                             encoded_dataset[i]
                                             for i in test_indices
                                             if i < len(encoded_dataset)
                                         ]
-                                        from torch_geometric.loader import (
-                                            DataLoader as PyGDataLoader,
-                                        )
-
-                                        encoded_loaders_test[encoding_name] = (
-                                            PyGDataLoader(
-                                                encoded_test,
-                                                batch_size=1,  # One graph at a time
-                                                shuffle=False,
+                                        if encoded_test:
+                                            encoded_loaders_test[encoding_name] = (
+                                                PyGDataLoader(
+                                                    encoded_test,
+                                                    batch_size=1,
+                                                    shuffle=False,
+                                                )
                                             )
-                                        )
 
                             encoded_iterators_test = {
                                 name: iter(loader)
@@ -529,31 +526,28 @@ class Experiment:
                 test_indices = self.categories[2]
 
                 # Create encoded loaders for test set
-                encoded_loaders_test = {}
-                if self.encoding_moe_encoded_datasets and dataset_name:
+                encoded_loaders_test: Dict[str, DataLoader] = {}
+                if self.encoding_moe_encoded_datasets:
+                    from torch_geometric.loader import (
+                        DataLoader as PyGDataLoader,
+                    )
+
                     for encoding_name in self.args.encoding_moe_encodings:
-                        if (
-                            encoding_name in self.encoding_moe_encoded_datasets
-                            and dataset_name
-                            in self.encoding_moe_encoded_datasets[encoding_name]
-                        ):
+                        if encoding_name in self.encoding_moe_encoded_datasets:
                             encoded_dataset = self.encoding_moe_encoded_datasets[
                                 encoding_name
-                            ][dataset_name]
+                            ]
                             encoded_test = [
                                 encoded_dataset[i]
                                 for i in test_indices
                                 if i < len(encoded_dataset)
                             ]
-                            from torch_geometric.loader import (
-                                DataLoader as PyGDataLoader,
-                            )
-
-                            encoded_loaders_test[encoding_name] = PyGDataLoader(
-                                encoded_test,
-                                batch_size=1,  # One graph at a time
-                                shuffle=False,
-                            )
+                            if encoded_test:
+                                encoded_loaders_test[encoding_name] = PyGDataLoader(
+                                    encoded_test,
+                                    batch_size=1,
+                                    shuffle=False,
+                                )
 
                 encoded_iterators_test = {
                     name: iter(loader) for name, loader in encoded_loaders_test.items()
