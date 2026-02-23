@@ -65,8 +65,8 @@ else
     log_message "⚠️  Could not find conda.sh, activation may not work properly"
 fi
 
-# Activate environment (use moe_fresh - the fresh environment)
-ENV_NAME="moe_fresh"
+# Activate environment (use moe_fresh_2 - the fresh environment)
+ENV_NAME="moe_fresh_2"
 log_message "🔧 Activating $ENV_NAME environment..."
 log_message "   CONDA_ENVS_PATH: $CONDA_ENVS_PATH"
 log_message "   Python before activation: $(which python)"

@@ -35,11 +35,18 @@ echo "🚀 Setting up WandB environment for Additional Comprehensive Graph MoE e
 
 export WANDB_API_KEY="ea7c6eeb5a095b531ef60cc784bfeb87d47ea0b0"
 export WANDB_ENTITY="weber-geoml-harvard-university"
-export WANDB_PROJECT="MOE_new"
-export WANDB_DIR="./wandb"
-export WANDB_CACHE_DIR="./wandb/.cache"
+export WANDB_PROJECT="MOE_4"
+# Use temp directory for WandB files (gets cleaned up automatically on cluster)
+# This avoids filling up home directory with wandb files
+WANDB_TMP_DIR="${TMPDIR:-/tmp}/wandb_${SLURM_JOB_ID:-$$}"
+export WANDB_DIR="${WANDB_TMP_DIR}"
+export WANDB_CACHE_DIR="${WANDB_TMP_DIR}/.cache"
+# Disable code saving to reduce disk usage
+export WANDB_DISABLE_CODE=true
+# Sync immediately instead of caching (minimizes local storage)
+export WANDB_SYNC_MODE="now"
 
-mkdir -p ./wandb logs logs_comprehensive
+mkdir -p "${WANDB_TMP_DIR}" logs logs_comprehensive
 
 # Disable user site-packages to prevent conflicts (also set in activation, but set here too)
 export PYTHONNOUSERSITE=1
@@ -387,7 +394,7 @@ if [ "$task_id" -le 20 ]; then
     wandb_run_name="${dataset}_${layer_type}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
 
     # Run single layer experiment
-    python scripts/run_graph_classification.py \
+    python scripts/experiments/run_graph_classification.py \
         --num_trials 200 \
         --dataset "$dataset" \
         --layer_type "$layer_type" \
@@ -431,7 +438,7 @@ else
     wandb_run_name="${dataset}_MoE_${clean_combo}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
 
     # Run MoE experiment
-    python scripts/run_graph_classification.py \
+    python scripts/experiments/run_graph_classification.py \
         --num_trials 200 \
         --dataset "$dataset" \
         --layer_types "$layer_combo" \

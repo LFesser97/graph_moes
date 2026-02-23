@@ -135,14 +135,84 @@ def get_args_from_input() -> AttrDict:
     )
     parser.add_argument("--borf_batch_add", type=int, help="BORF batch addition size")
     parser.add_argument("--borf_batch_remove", type=int, help="BORF batch removal size")
+    # DEPRECATED: On-the-fly encoding computation is deprecated in favor of pre-computed
+    # dataset encodings via --dataset_encoding. This argument is kept for backwards
+    # compatibility but should not be used in new experiments. Use --dataset_encoding instead.
     parser.add_argument(
-        "--encoding", type=str, help="type of encoding to use for node features"
+        "--encoding",
+        type=str,
+        help="type of encoding to use for node features (DEPRECATED: use --dataset_encoding instead)",
+    )
+    parser.add_argument(
+        "--dataset_encoding",
+        type=str,
+        default=None,
+        help="pre-computed dataset encoding to use: None (normal), hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8 (hypergraph), or g_ldp, g_rwpe_k16, g_lape_k8, g_orc (graph)",
+    )
+    parser.add_argument(
+        "--encoding_moe_encodings",
+        type=str,
+        nargs="+",
+        default=None,
+        help="list of encodings for EncodingMoE (e.g., --encoding_moe_encodings g_ldp g_orc). If specified, enables EncodingMoE model that routes between encodings.",
+    )
+    parser.add_argument(
+        "--encoding_moe_router_type",
+        type=str,
+        default="MLP",
+        choices=["MLP", "GNN"],
+        help="router type for EncodingMoE: MLP or GNN (default: MLP)",
+    )
+    parser.add_argument(
+        "--encoding_moe_router_layer_type",
+        type=str,
+        default="GIN",
+        choices=["GCN", "GIN", "SAGE"],
+        help="GNN layer type for EncodingMoE GNN router (default: GIN)",
+    )
+    parser.add_argument(
+        "--encoding_moe_router_depth",
+        type=int,
+        default=4,
+        help="depth (num layers) of EncodingMoE GNN router (default: 4)",
+    )
+    parser.add_argument(
+        "--encoding_moe_router_dropout",
+        type=float,
+        default=0.1,
+        help="dropout rate for EncodingMoE GNN router (default: 0.1)",
     )
     parser.add_argument(
         "--router_hidden_layers",
         type=list,
         default=[64, 64, 64],
         help="num. hidden layers of the router GNN",
+    )
+    parser.add_argument(
+        "--router_type",
+        type=str,
+        default="MLP",
+        choices=["MLP", "GNN"],
+        help="router type for MoE: MLP or GNN (default: MLP)",
+    )
+    parser.add_argument(
+        "--router_layer_type",
+        type=str,
+        default="GIN",
+        choices=["GCN", "GIN", "SAGE"],
+        help="GNN layer type for GNN router (default: GIN)",
+    )
+    parser.add_argument(
+        "--router_depth",
+        type=int,
+        default=4,
+        help="depth (num layers) of GNN router (default: 4)",
+    )
+    parser.add_argument(
+        "--router_dropout",
+        type=float,
+        default=0.1,
+        help="dropout rate for GNN router (default: 0.1)",
     )
     parser.add_argument(
         "--layer_types",
@@ -155,6 +225,12 @@ def get_args_from_input() -> AttrDict:
         default=False,
         help="whether to use skip/residual connections (for GCN, GIN, SAGE)",
     )
+    parser.add_argument(
+        "--normalize_features",
+        action="store_true",
+        default=False,
+        help="whether to normalize node features (L2 normalization per node)",
+    )
 
     # WandB arguments
     parser.add_argument(
@@ -164,7 +240,7 @@ def get_args_from_input() -> AttrDict:
         help="enable wandb logging",
     )
     parser.add_argument(
-        "--wandb_project", type=str, default="MOE_new", help="wandb project name"
+        "--wandb_project", type=str, default="MOE_4", help="wandb project name"
     )
     parser.add_argument(
         "--wandb_entity",

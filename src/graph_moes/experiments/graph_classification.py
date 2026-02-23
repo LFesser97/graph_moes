@@ -2,7 +2,7 @@
 
 import copy
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 
@@ -20,6 +20,13 @@ from tqdm import tqdm
 import wandb
 from graph_moes.architectures.graph_model import GNN, GPS, OrthogonalGCN, UnitaryGCN
 from graph_moes.moes.graph_moe import MoE, MoE_E
+from graph_moes.routing_encodings.encoding_moe import EncodingMoE
+from graph_moes.routing_encodings.helper import (
+    _create_encoding_moe_loaders,
+    _create_encoding_moe_loaders_for_split,
+    _get_encoding_moe_encoded_graphs_for_batch,
+    _initialize_encoding_moe_model,
+)
 
 default_args = AttrDict(
     {
@@ -53,7 +60,7 @@ default_args = AttrDict(
         "skip_connection": False,  # Whether to use skip/residual connections (for GCN, GIN, SAGE)
         # WandB defaults
         "wandb_enabled": False,
-        "wandb_project": "MOE_new",
+        "wandb_project": "MOE_4",
         "wandb_entity": "weber-geoml-harvard-university",
         "wandb_name": None,
         "wandb_dir": "./wandb",
@@ -70,12 +77,14 @@ class Experiment:
         train_dataset: Optional[Dataset] = None,
         validation_dataset: Optional[Dataset] = None,
         test_dataset: Optional[Dataset] = None,
+        encoding_moe_encoded_datasets: Optional[Dict[str, List[Any]]] = None,
     ) -> None:
         self.args = default_args + args
         self.dataset = dataset
         self.train_dataset = train_dataset
         self.validation_dataset = validation_dataset
         self.test_dataset = test_dataset
+        self.encoding_moe_encoded_datasets = encoding_moe_encoded_datasets
         self.loss_fn = torch.nn.CrossEntropyLoss()
         self.categories = None
         self.wandb_active = wandb.run is not None
@@ -101,18 +110,40 @@ class Experiment:
             else:
                 self.args.num_relations = 2
 
-        if self.args.layer_type == "GPS":
+        # Check if EncodingMoE should be used
+        is_encoding_moe = (
+            hasattr(self.args, "encoding_moe_encodings")
+            and self.args.encoding_moe_encodings is not None
+            and len(self.args.encoding_moe_encodings) > 0
+        )
+
+        if is_encoding_moe:
+            # EncodingMoE: Initialize with base dataset dimensions + encoding configs
+            base_input_dim = self.args.input_dim
+            self.model, self.is_encoding_moe = _initialize_encoding_moe_model(
+                self.args,
+                base_input_dim,
+                self.dataset,
+                self.encoding_moe_encoded_datasets,
+            )
+        elif self.args.layer_type == "GPS":
             self.model = GPS(self.args).to(self.args.device)
+            self.is_encoding_moe = False
         elif self.args.layer_type == "Orthogonal":
             self.model = OrthogonalGCN(self.args).to(self.args.device)
+            self.is_encoding_moe = False
         elif self.args.layer_type == "Unitary":
             self.model = UnitaryGCN(self.args).to(self.args.device)
+            self.is_encoding_moe = False
         elif self.args.layer_type == "MoE":
             self.model = MoE(self.args).to(self.args.device)
+            self.is_encoding_moe = False
         elif self.args.layer_type == "MoE_E":
             self.model = MoE_E(self.args).to(self.args.device)
+            self.is_encoding_moe = False
         else:
             self.model = GNN(self.args).to(self.args.device)
+            self.is_encoding_moe = False
 
         if self.test_dataset is None:
             dataset_size = len(self.dataset)
@@ -182,22 +213,60 @@ class Experiment:
             routing_weights = []
             is_moe_model = isinstance(self.model, (MoE, MoE_E))
 
-            for graph in train_loader:
-                graph = graph.to(self.args.device)
-                # y = graph.y.to(self.args.device)
+            # For EncodingMoE, we need to load encoded datasets and create batches
+            if self.is_encoding_moe:
+                dataset_name = getattr(self.args, "dataset", None)
+                train_indices = (
+                    self.categories[0] if self.categories is not None else None
+                )
+                encoded_loaders = _create_encoding_moe_loaders(
+                    self.args,
+                    self.train_dataset,
+                    train_indices,
+                    self.encoding_moe_encoded_datasets,
+                    dataset_name,
+                    shuffle=True,
+                )
+                # Create iterator for encoded loaders
+                encoded_iterators = {
+                    name: iter(loader) for name, loader in encoded_loaders.items()
+                }
+
+            for batch_idx, base_graph in enumerate(train_loader):
+                base_graph = base_graph.to(self.args.device)
+                # y = base_graph.y.to(self.args.device)
 
                 # for OGB
-                y = graph.y.flatten()
+                y = base_graph.y.flatten()
                 y.to(self.args.device)
 
+                # Handle EncodingMoE forward pass
+                if self.is_encoding_moe:
+                    # Get encoded graphs for this batch
+                    encoded_graphs = {}
+                    for encoding_name in self.args.encoding_moe_encodings:
+                        encoded_batch = _get_encoding_moe_encoded_graphs_for_batch(
+                            encoding_name,
+                            encoded_iterators,
+                            encoded_loaders,
+                            self.args.device,
+                        )
+                        if encoded_batch is not None:
+                            encoded_graphs[encoding_name] = encoded_batch
+
+                    # Forward pass through EncodingMoE
+                    out, weights = self.model(
+                        base_graph, encoded_graphs, return_weights=True
+                    )
+                    routing_weights.append(weights.detach().cpu())
                 # Get routing weights if MoE model
                 # weights shape: [batch_size, num_experts] where each row sums to 1.0
                 # Example: weights[0] = [0.7, 0.3] means first graph uses 70% expert 0, 30% expert 1
-                if is_moe_model:
-                    out, weights = self.model(graph, return_weights=True)
+                elif is_moe_model:
+                    out, weights = self.model(base_graph, return_weights=True)
                     routing_weights.append(weights.detach().cpu())
                 else:
-                    out = self.model(graph)
+                    out = self.model(base_graph)
 
                 loss = self.loss_fn(input=out, target=y)
                 total_loss += loss
@@ -326,13 +395,93 @@ class Experiment:
                         assert (
                             best_model != self.model
                         ), "Best model is the same as the current model"
-                        for graph, i in zip(complete_loader, range(len(self.dataset))):
-                            if i in self.categories[2]:  # Only track test set graphs
-                                graph = graph.to(self.args.device)
-                                y = graph.y.to(self.args.device)
-                                out = best_model(graph)
-                                _, pred = out.max(dim=1)
-                                graph_dict[i] = pred.eq(y).sum().item()
+
+                        # Handle EncodingMoE for best_model evaluation
+                        if self.is_encoding_moe:
+                            dataset_name = getattr(self.args, "dataset", None)
+                            test_indices = self.categories[2] if self.categories else []
+
+                            # Create encoded loaders for test set
+                            encoded_loaders_test: Dict[str, DataLoader] = {}
+                            if self.encoding_moe_encoded_datasets:
+                                from torch_geometric.loader import (
+                                    DataLoader as PyGDataLoader,
+                                )
+
+                                for encoding_name in self.args.encoding_moe_encodings:
+                                    if (
+                                        encoding_name
+                                        in self.encoding_moe_encoded_datasets
+                                    ):
+                                        encoded_dataset = (
+                                            self.encoding_moe_encoded_datasets[
+                                                encoding_name
+                                            ]
+                                        )
+                                        encoded_test = [
+                                            encoded_dataset[i]
+                                            for i in test_indices
+                                            if i < len(encoded_dataset)
+                                        ]
+                                        if encoded_test:
+                                            encoded_loaders_test[encoding_name] = (
+                                                PyGDataLoader(
+                                                    encoded_test,
+                                                    batch_size=1,
+                                                    shuffle=False,
+                                                )
+                                            )
+
+                            encoded_iterators_test = {
+                                name: iter(loader)
+                                for name, loader in encoded_loaders_test.items()
+                            }
+
+                            for graph, i in zip(
+                                complete_loader, range(len(self.dataset))
+                            ):
+                                if (
+                                    i in self.categories[2]
+                                ):  # Only track test set graphs
+                                    graph = graph.to(self.args.device)
+                                    y = graph.y.to(self.args.device)
+
+                                    # Get encoded graphs for this single graph
+                                    encoded_graphs = {}
+                                    for (
+                                        encoding_name
+                                    ) in self.args.encoding_moe_encodings:
+                                        if encoding_name in encoded_iterators_test:
+                                            try:
+                                                encoded_graph = next(
+                                                    encoded_iterators_test[
+                                                        encoding_name
+                                                    ]
+                                                )
+                                                encoded_graph = encoded_graph.to(
+                                                    self.args.device
+                                                )
+                                                encoded_graphs[encoding_name] = (
+                                                    encoded_graph
+                                                )
+                                            except StopIteration:
+                                                pass
+
+                                    out = best_model(graph, encoded_graphs)
+                                    _, pred = out.max(dim=1)
+                                    graph_dict[i] = pred.eq(y).sum().item()
+                        else:
+                            for graph, i in zip(
+                                complete_loader, range(len(self.dataset))
+                            ):
+                                if (
+                                    i in self.categories[2]
+                                ):  # Only track test set graphs
+                                    graph = graph.to(self.args.device)
+                                    y = graph.y.to(self.args.device)
+                                    out = best_model(graph)
+                                    _, pred = out.max(dim=1)
+                                    graph_dict[i] = pred.eq(y).sum().item()
                         print("Computed correctness for each graph in the test dataset")
 
                         # save the model
@@ -371,13 +520,68 @@ class Experiment:
         energy = 0
         # If we reach max epochs, still evaluate test set graphs
         if hasattr(self, "categories") and self.categories is not None:
-            for graph, i in zip(complete_loader, range(len(self.dataset))):
-                if i in self.categories[2]:  # Only track test set graphs
-                    graph = graph.to(self.args.device)
-                    y = graph.y.to(self.args.device)
-                    out = self.model(graph)
-                    _, pred = out.max(dim=1)
-                    graph_dict[i] = pred.eq(y).sum().item()
+            # Handle EncodingMoE for final model evaluation
+            if self.is_encoding_moe:
+                dataset_name = getattr(self.args, "dataset", None)
+                test_indices = self.categories[2]
+
+                # Create encoded loaders for test set
+                encoded_loaders_test: Dict[str, DataLoader] = {}
+                if self.encoding_moe_encoded_datasets:
+                    from torch_geometric.loader import (
+                        DataLoader as PyGDataLoader,
+                    )
+
+                    for encoding_name in self.args.encoding_moe_encodings:
+                        if encoding_name in self.encoding_moe_encoded_datasets:
+                            encoded_dataset = self.encoding_moe_encoded_datasets[
+                                encoding_name
+                            ]
+                            encoded_test = [
+                                encoded_dataset[i]
+                                for i in test_indices
+                                if i < len(encoded_dataset)
+                            ]
+                            if encoded_test:
+                                encoded_loaders_test[encoding_name] = PyGDataLoader(
+                                    encoded_test,
+                                    batch_size=1,
+                                    shuffle=False,
+                                )
+
+                encoded_iterators_test = {
+                    name: iter(loader) for name, loader in encoded_loaders_test.items()
+                }
+
+                for graph, i in zip(complete_loader, range(len(self.dataset))):
+                    if i in self.categories[2]:  # Only track test set graphs
+                        graph = graph.to(self.args.device)
+                        y = graph.y.to(self.args.device)
+
+                        # Get encoded graphs for this single graph
+                        encoded_graphs = {}
+                        for encoding_name in self.args.encoding_moe_encodings:
+                            if encoding_name in encoded_iterators_test:
+                                try:
+                                    encoded_graph = next(
+                                        encoded_iterators_test[encoding_name]
+                                    )
+                                    encoded_graph = encoded_graph.to(self.args.device)
+                                    encoded_graphs[encoding_name] = encoded_graph
+                                except StopIteration:
+                                    pass
+
+                        out = self.model(graph, encoded_graphs)
+                        _, pred = out.max(dim=1)
+                        graph_dict[i] = pred.eq(y).sum().item()
+            else:
+                for graph, i in zip(complete_loader, range(len(self.dataset))):
+                    if i in self.categories[2]:  # Only track test set graphs
+                        graph = graph.to(self.args.device)
+                        y = graph.y.to(self.args.device)
+                        out = self.model(graph)
+                        _, pred = out.max(dim=1)
+                        graph_dict[i] = pred.eq(y).sum().item()
             test_indices = self.categories[2]
         else:
             test_indices = []
@@ -393,19 +597,67 @@ class Experiment:
     def eval(self, loader: DataLoader) -> float:
         self.model.eval()
         sample_size = len(loader.dataset)
-        with torch.no_grad():
-            total_correct = 0
-            for graph in loader:
-                graph = graph.to(self.args.device)
-                out = self.model(graph)
-                y = graph.y.to(self.args.device)
-                # check if y contains more than one element
-                if y.dim() > 1:
-                    loss = self.loss_fn(input=out, target=y)
-                    total_correct -= loss
-                else:
-                    _, pred = out.max(dim=1)
-                    total_correct += pred.eq(y).sum().item()
+
+        # Handle EncodingMoE - need encoded graphs
+        if self.is_encoding_moe:
+            dataset_name = getattr(self.args, "dataset", None)
+            encoded_loaders = _create_encoding_moe_loaders_for_split(
+                self.args,
+                loader,
+                self.train_dataset,
+                self.validation_dataset,
+                self.categories,
+                self.encoding_moe_encoded_datasets,
+                dataset_name,
+            )
+            # Create iterators for encoded loaders
+            encoded_iterators = {
+                name: iter(loader) for name, loader in encoded_loaders.items()
+            }
+
+            with torch.no_grad():
+                total_correct = 0
+                for base_graph in loader:
+                    base_graph = base_graph.to(self.args.device)
+
+                    # Get encoded graphs for this batch
+                    encoded_graphs = {}
+                    for encoding_name in self.args.encoding_moe_encodings:
+                        encoded_batch = _get_encoding_moe_encoded_graphs_for_batch(
+                            encoding_name,
+                            encoded_iterators,
+                            encoded_loaders,
+                            self.args.device,
+                        )
+                        if encoded_batch is not None:
+                            encoded_graphs[encoding_name] = encoded_batch
+
+                    # Forward pass through EncodingMoE
+                    out = self.model(base_graph, encoded_graphs)
+                    y = base_graph.y.flatten().to(self.args.device)
+
+                    # check if y contains more than one element
+                    if y.dim() > 1:
+                        loss = self.loss_fn(input=out, target=y)
+                        total_correct -= loss
+                    else:
+                        _, pred = out.max(dim=1)
+                        total_correct += pred.eq(y).sum().item()
+        else:
+            # Regular model - standard eval
+            with torch.no_grad():
+                total_correct = 0
+                for graph in loader:
+                    graph = graph.to(self.args.device)
+                    out = self.model(graph)
+                    y = graph.y.to(self.args.device)
+                    # check if y contains more than one element
+                    if y.dim() > 1:
+                        loss = self.loss_fn(input=out, target=y)
+                        total_correct -= loss
+                    else:
+                        _, pred = out.max(dim=1)
+                        total_correct += pred.eq(y).sum().item()
 
         return total_correct / sample_size
 
@@ -422,47 +674,135 @@ class Experiment:
             dataset_name in multi_label_datasets or self.args.output_dim > 50
         )  # Fallback for high-dim outputs
 
-        if use_auprc:
-            # Use AUPRC for multi-label datasets (like molpcba with 128 classes)
-            metric = MultilabelAUPRC(num_labels=self.args.output_dim)
+        # Handle EncodingMoE - need encoded graphs
+        if self.is_encoding_moe:
+            dataset_name = getattr(self.args, "dataset", None)
+            encoded_loaders = _create_encoding_moe_loaders_for_split(
+                self.args,
+                loader,
+                self.train_dataset,
+                self.validation_dataset,
+                self.categories,
+                self.encoding_moe_encoded_datasets,
+                dataset_name,
+            )
+            # Create iterators for encoded loaders
+            encoded_iterators = {
+                name: iter(loader) for name, loader in encoded_loaders.items()
+            }
 
-            for data in loader:
-                data = data.to(self.args.device)
-                out = self.model(data)
-                y = data.y.to(self.args.device)
+            if use_auprc:
+                # Use AUPRC for multi-label datasets (like molpcba with 128 classes)
+                metric = MultilabelAUPRC(num_labels=self.args.output_dim)
 
-                # For multi-label, convert single labels to multi-hot if needed
-                if y.dim() == 1:
-                    # Convert to multi-hot encoding for AUPRC
-                    y_multihot = torch.zeros(
-                        out.shape[0], self.args.output_dim, device=self.args.device
-                    )
-                    y_multihot.scatter_(1, y.unsqueeze(1), 1)
-                    y = y_multihot
+                for base_graph in loader:
+                    base_graph = base_graph.to(self.args.device)
 
-                metric.update(out, y)
+                    # Get encoded graphs for this batch
+                    encoded_graphs = {}
+                    for encoding_name in self.args.encoding_moe_encodings:
+                        encoded_batch = _get_encoding_moe_encoded_graphs_for_batch(
+                            encoding_name,
+                            encoded_iterators,
+                            encoded_loaders,
+                            self.args.device,
+                        )
+                        if encoded_batch is not None:
+                            encoded_graphs[encoding_name] = encoded_batch
 
-            return metric.compute().item()
+                    # Forward pass through EncodingMoE
+                    out = self.model(base_graph, encoded_graphs)
+                    y = base_graph.y.flatten().to(self.args.device)
+
+                    # For multi-label, convert single labels to multi-hot if needed
+                    if y.dim() == 1:
+                        # Convert to multi-hot encoding for AUPRC
+                        y_multihot = torch.zeros(
+                            out.shape[0], self.args.output_dim, device=self.args.device
+                        )
+                        y_multihot.scatter_(1, y.unsqueeze(1), 1)
+                        y = y_multihot
+
+                    metric.update(out, y)
+
+                return metric.compute().item()
+            else:
+                # Use accuracy for multi-class datasets
+                with torch.no_grad():
+                    total_correct = 0
+                    for base_graph in loader:
+                        base_graph = base_graph.to(self.args.device)
+
+                        # Get encoded graphs for this batch
+                        encoded_graphs = {}
+                        for encoding_name in self.args.encoding_moe_encodings:
+                            encoded_batch = _get_encoding_moe_encoded_graphs_for_batch(
+                                encoding_name,
+                                encoded_iterators,
+                                encoded_loaders,
+                                self.args.device,
+                            )
+                            if encoded_batch is not None:
+                                encoded_graphs[encoding_name] = encoded_batch
+
+                        # Forward pass through EncodingMoE
+                        out = self.model(base_graph, encoded_graphs)
+                        y = base_graph.y.flatten().to(self.args.device)
+
+                        # Handle both multi-class and multi-label cases
+                        if y.dim() > 1:
+                            # Multi-label case - use sigmoid + threshold
+                            pred = (torch.sigmoid(out) > 0.5).float()
+                            total_correct += (pred == y).all(dim=1).sum().item()
+                        else:
+                            # Multi-class case - use argmax
+                            _, pred = out.max(dim=1)
+                            total_correct += pred.eq(y).sum().item()
+
+                return total_correct / sample_size
         else:
-            # Use accuracy for multi-class datasets
-            with torch.no_grad():
-                total_correct = 0
+            # Regular model - standard test
+            if use_auprc:
+                # Use AUPRC for multi-label datasets (like molpcba with 128 classes)
+                metric = MultilabelAUPRC(num_labels=self.args.output_dim)
+
                 for data in loader:
                     data = data.to(self.args.device)
                     out = self.model(data)
                     y = data.y.to(self.args.device)
 
-                    # Handle both multi-class and multi-label cases
-                    if y.dim() > 1:
-                        # Multi-label case - use sigmoid + threshold
-                        pred = (torch.sigmoid(out) > 0.5).float()
-                        total_correct += (pred == y).all(dim=1).sum().item()
-                    else:
-                        # Multi-class case - use argmax
-                        _, pred = out.max(dim=1)
-                        total_correct += pred.eq(y).sum().item()
+                    # For multi-label, convert single labels to multi-hot if needed
+                    if y.dim() == 1:
+                        # Convert to multi-hot encoding for AUPRC
+                        y_multihot = torch.zeros(
+                            out.shape[0], self.args.output_dim, device=self.args.device
+                        )
+                        y_multihot.scatter_(1, y.unsqueeze(1), 1)
+                        y = y_multihot
 
-            return total_correct / sample_size
+                    metric.update(out, y)
+
+                return metric.compute().item()
+            else:
+                # Use accuracy for multi-class datasets
+                with torch.no_grad():
+                    total_correct = 0
+                    for data in loader:
+                        data = data.to(self.args.device)
+                        out = self.model(data)
+                        y = data.y.to(self.args.device)
+
+                        # Handle both multi-class and multi-label cases
+                        if y.dim() > 1:
+                            # Multi-label case - use sigmoid + threshold
+                            pred = (torch.sigmoid(out) > 0.5).float()
+                            total_correct += (pred == y).all(dim=1).sum().item()
+                        else:
+                            # Multi-class case - use argmax
+                            _, pred = out.max(dim=1)
+                            total_correct += pred.eq(y).sum().item()
+
+                return total_correct / sample_size
 
     def check_dirichlet(self, loader: DataLoader) -> float:
         self.model.eval()

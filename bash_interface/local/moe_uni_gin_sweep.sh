@@ -28,7 +28,7 @@ echo "🚀 Setting up WandB environment for Graph MoE experiments..."
 # Set WandB environment variables
 export WANDB_API_KEY="ea7c6eeb5a095b531ef60cc784bfeb87d47ea0b0"
 export WANDB_ENTITY="weber-geoml-harvard-university"
-export WANDB_PROJECT="MOE_new"
+export WANDB_PROJECT="MOE_4"
 
 # Optional: Set other WandB configurations
 export WANDB_DIR="./wandb"
@@ -57,7 +57,7 @@ echo "🎉 WandB setup complete!"
 # conv_types=(gcn dir-gcn uni dir-uni)
 datasets=(proteins mutag)
 
-# # All available datasets from scripts/run_graph_classification.py
+# # All available datasets from scripts/experiments/run_graph_classification.py
 # datasets=(mutag enzymes proteins imdb collab reddit mnist cifar pattern cluster pascalvoc coco molhiv molpcba)
 
 
@@ -78,7 +78,7 @@ for dataset in "${datasets[@]}"; do
                     echo "Running MoE with WandB, lr=${learning_rate}, hidden_dim=${hidden_dim}, num_layers=${num_layer}, dropout=${dropout} on ${dataset}"
                     echo "WandB run name: $wandb_run_name"
                     
-                    python scripts/run_graph_classification.py \
+                    python scripts/experiments/run_graph_classification.py \
                         --num_trials 5 \
                         --dataset "$dataset" \
                         --learning_rate "$learning_rate" \

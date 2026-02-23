@@ -34,7 +34,7 @@ echo "🚀 Setting up WandB environment for Graph MoE experiments..."
 # Set WandB environment variables
 export WANDB_API_KEY="ea7c6eeb5a095b531ef60cc784bfeb87d47ea0b0"
 export WANDB_ENTITY="weber-geoml-harvard-university"
-export WANDB_PROJECT="MOE_new"
+export WANDB_PROJECT="MOE_4"
 
 # Optional: Set other WandB configurations
 export WANDB_DIR="./wandb"
@@ -97,11 +97,11 @@ fi
 cd /n/holylabs/mweber_lab/Everyone/rpellegrin/graph_moes
 
 # Verify we're in the right directory
-if [[ -f "scripts/run_graph_classification.py" ]]; then
+if [[ -f "scripts/experiments/run_graph_classification.py" ]]; then
     log_message "✅ Successfully navigated to project directory: $(pwd)"
 else
     log_message "❌ Failed to find project files in: $(pwd)"
-    log_message "🔍 Looking for scripts/run_graph_classification.py"
+    log_message "🔍 Looking for scripts/experiments/run_graph_classification.py"
     exit 1
 fi
 
@@ -114,7 +114,7 @@ python -c "import numpy, pandas, torch; print('✅ Core packages available')" ||
 
 # Define hyperparameter combinations
 datasets=(enzymes proteins mutag imdb collab reddit mnist cifar pattern cluster)
-# # All available datasets from scripts/run_graph_classification.py
+# # All available datasets from scripts/experiments/run_graph_classification.py
 # datasets=(mutag enzymes proteins imdb collab reddit mnist cifar pattern cluster pascalvoc coco molhiv molpcba)
 
 learning_rates=(0.001 0.0001)
@@ -163,7 +163,7 @@ wandb_run_name="${dataset}_GCN_GIN_L${num_layer}_H${hidden_dim}_lr${learning_rat
 log_message "WandB run name: $wandb_run_name"
 
 # Run the experiment with wandb enabled
-python scripts/run_graph_classification.py \
+python scripts/experiments/run_graph_classification.py \
     --num_trials 10 \
     --dataset "$dataset" \
     --learning_rate "$learning_rate" \

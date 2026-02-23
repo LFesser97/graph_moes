@@ -30,7 +30,8 @@ class Router(nn.Module):
         """
         super().__init__()
         if router_type == "MLP":
-            self.model = MLPRouter(input_dim, args.router_hidden_layers, num_experts)
+            hidden_layers = getattr(args, "router_hidden_layers", [64, 64, 64])
+            self.model = MLPRouter(input_dim, hidden_layers, num_experts)
         elif router_type == "GNN":
             hidden_dim = 64
             self.model = GNNRouter(

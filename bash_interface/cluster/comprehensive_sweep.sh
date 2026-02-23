@@ -34,7 +34,7 @@ echo "🚀 Setting up WandB environment for Comprehensive Graph MoE experiments.
 
 export WANDB_API_KEY="ea7c6eeb5a095b531ef60cc784bfeb87d47ea0b0"
 export WANDB_ENTITY="weber-geoml-harvard-university"
-export WANDB_PROJECT="MOE_new"
+export WANDB_PROJECT="MOE_4"
 export WANDB_DIR="./wandb"
 export WANDB_CACHE_DIR="./wandb/.cache"
 
@@ -120,7 +120,7 @@ for layer_type in "${single_layer_types[@]}"; do
         log_message "🧪 Experiment $experiment_id: $wandb_run_name"
         
         # Run single layer experiment with research-based hyperparameters
-        python scripts/run_graph_classification.py \
+        python scripts/experiments/run_graph_classification.py \
             --num_trials 5 \
             --dataset "$dataset" \
             --layer_type "$layer_type" \
@@ -166,7 +166,7 @@ for layer_combo in "${moe_combinations[@]}"; do
         log_message "🧪 Experiment $experiment_id: $wandb_run_name"
         
         # Run MoE experiment with research-based hyperparameters
-        python scripts/run_graph_classification.py \
+        python scripts/experiments/run_graph_classification.py \
             --num_trials 5 \
             --dataset "$dataset" \
             --layer_types "$layer_combo" \

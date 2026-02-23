@@ -4,32 +4,38 @@
 # ============================================================================
 # This script runs a comprehensive hyperparameter sweep for graph neural network
 # experiments using SLURM array jobs for parallel execution. It tests both single
-# layer architectures (GCN, GIN, SAGE, MLP, Unitary) and MoE (Mixture of Experts)
+# layer architectures (GCN, GIN, SAGE, MLP, Unitary, GPS) and MoE (Mixture of Experts)
 # combinations across multiple datasets.
 #
 # The script uses optimal hyperparameters from research papers for each dataset
 # and model combination, loaded from hyperparams_lookup.sh.
 #
-# Total experiments: 104
-#   - 64 single layer experiments:
-#     - GCN: 8 datasets × 2 (skip/no-skip) = 16
-#     - GIN: 8 datasets × 2 (skip/no-skip) = 16
-#     - SAGE: 8 datasets × 2 (skip/no-skip) = 16
-#     - MLP: 8 datasets × 1 (no skip) = 8
-#     - Unitary: 8 datasets × 1 (no skip) = 8
-#   - 40 MoE experiments: 6 combinations × 8 datasets
+# Total experiments: 1728
+#   - Base experiments per encoding variant: 432 (216 × 2 normalization variants)
+#     - 144 single layer experiments (72 × 2 normalization variants):
+#       - GCN: 8 datasets × 2 (skip/no-skip) × 2 (norm/no-norm) = 32
+#       - GIN: 8 datasets × 2 (skip/no-skip) × 2 (norm/no-norm) = 32
+#       - SAGE: 8 datasets × 2 (skip/no-skip) × 2 (norm/no-norm) = 32
+#       - MLP: 8 datasets × 1 (no skip) × 2 (norm/no-norm) = 16
+#       - Unitary: 8 datasets × 1 (no skip) × 2 (norm/no-norm) = 16
+#       - GPS: 8 datasets × 1 (no skip) × 2 (norm/no-norm) = 16
+#     - 288 MoE experiments (144 × 2 normalization variants): 9 combinations × 8 datasets × 2 router types (MLP, GNN) × 2 (norm/no-norm)
+#   - Encoding variants: 4 (hg_lape_normalized_k8, g_rwpe_k16, g_lape_k8, None)
+#   - Total: 432 × 4 = 1728 experiments
+#     Encoding types: hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc
 # Note: GraphBench/PATTERN/cluster excluded (node classification or disabled)
 # Each experiment runs 200 trials to ensure proper test set coverage
 # Skip connections are only applied to GCN, GIN, and SAGE
+# Feature normalization is applied to all models as a variant
 #
 # Usage: sbatch comprehensive_sweep_parallel.sh
 # ============================================================================
 
 #SBATCH --job-name=comprehensive_sweep
-#SBATCH --array=1-104             # Total experiments: 64 single layer + 40 MoE = 104
+#SBATCH --array=1-1728            # Total experiments: 432 base × 4 encoding variants = 1728
 #SBATCH --ntasks=1
-#SBATCH --time=48:00:00           # Long time for comprehensive sweep
-#SBATCH --mem=64GB               # Sufficient memory
+#SBATCH --time=192:00:00           # Long time for comprehensive sweep
+#SBATCH --mem=128GB               # Sufficient memory
 #SBATCH --output=logs_comprehensive/Parallel_comprehensive_sweep_%A_%a.log  # %A = array job ID, %a = task ID
 #SBATCH --partition=mweber_gpu
 #SBATCH --gpus=1
@@ -39,11 +45,18 @@ echo "🚀 Setting up WandB environment for Comprehensive Graph MoE experiments.
 
 export WANDB_API_KEY="ea7c6eeb5a095b531ef60cc784bfeb87d47ea0b0"
 export WANDB_ENTITY="weber-geoml-harvard-university"
-export WANDB_PROJECT="MOE_new"
-export WANDB_DIR="./wandb"
-export WANDB_CACHE_DIR="./wandb/.cache"
+export WANDB_PROJECT="MOE_4"
+# Use temp directory for WandB files (gets cleaned up automatically on cluster)
+# This avoids filling up home directory with wandb files
+WANDB_TMP_DIR="${TMPDIR:-/tmp}/wandb_${SLURM_JOB_ID:-$$}"
+export WANDB_DIR="${WANDB_TMP_DIR}"
+export WANDB_CACHE_DIR="${WANDB_TMP_DIR}/.cache"
+# Disable code saving to reduce disk usage
+export WANDB_DISABLE_CODE=true
+# Sync immediately instead of caching (minimizes local storage)
+export WANDB_SYNC_MODE="now"
 
-mkdir -p ./wandb logs logs_comprehensive
+mkdir -p "${WANDB_TMP_DIR}" logs logs_comprehensive
 
 # Disable user site-packages to prevent conflicts (also set in activation, but set here too)
 export PYTHONNOUSERSITE=1
@@ -335,6 +348,7 @@ declare -a single_layer_types=(
     "SAGE"
     "MLP"
     "Unitary"
+    "GPS"
 )
 
 declare -a moe_combinations=(
@@ -344,6 +358,10 @@ declare -a moe_combinations=(
     '["GIN", "SAGE"]'
     '["GIN", "Unitary"]'
     '["SAGE", "Unitary"]'
+    '["SAGE", "GPS"]'
+    '["Unitary", "GPS"]'
+    '["GCN", "GPS"]'
+    '["GIN", "GPS"]'
 )
 
 # Load hyperparameter lookup function
@@ -357,25 +375,45 @@ datasets=(enzymes proteins mutag imdb collab reddit mnist cifar)
 # Calculate which experiment this array task should run
 task_id=${SLURM_ARRAY_TASK_ID:-1}
 
-# Total single layer experiments: 
-#   - GCN, GIN, SAGE: 3 × 8 datasets × 2 (skip/no-skip) = 48
-#   - MLP, Unitary: 2 × 8 datasets × 1 (no skip) = 16
-#   Total: 64 single layer experiments
-# Total MoE experiments: 6 combinations × 8 datasets = 40
-# Total: 104 experiments
+# Encoding variants: None, hg_ldp, hg_frc, hg_rwpe_we_k20, hg_lape_normalized_k8, g_ldp, g_rwpe_k16, g_lape_k8, g_orc
+declare -a dataset_encodings=("hg_lape_normalized_k8" "g_rwpe_k16" "g_lape_k8" "None")
+num_encoding_variants=${#dataset_encodings[@]}
 
-if [ "$task_id" -le 64 ]; then
+# Base experiments per encoding variant: 432 (216 × 2 normalization variants)
+#   - 144 single layer experiments (72 × 2 normalization variants):
+#     - GCN, GIN, SAGE: 3 × 8 datasets × 2 (skip/no-skip) × 2 (norm/no-norm) = 96
+#     - MLP, Unitary, GPS: 3 × 8 datasets × 1 (no skip) × 2 (norm/no-norm) = 48
+#   - 288 MoE experiments (144 × 2 normalization variants): 9 combinations × 8 datasets × 2 router types (MLP, GNN) × 2 (norm/no-norm)
+base_experiments_per_variant=432
+
+# Calculate which encoding variant and base experiment this task corresponds to
+encoding_variant_idx=$(((task_id - 1) / base_experiments_per_variant))
+base_experiment_id=$(((task_id - 1) % base_experiments_per_variant + 1))
+
+dataset_encoding=${dataset_encodings[$encoding_variant_idx]}
+
+log_message "📦 Task $task_id: Using dataset_encoding=$dataset_encoding (variant $((encoding_variant_idx + 1))/$num_encoding_variants), base_experiment=$base_experiment_id"
+
+# Calculate normalization variant (0 = no norm, 1 = norm) and adjust base experiment ID
+# Normalization variant cycles through base experiments
+normalize_variant=$(( (base_experiment_id - 1) % 2 ))
+actual_base_experiment_id=$(( (base_experiment_id - 1) / 2 + 1 ))
+
+use_normalize=$([ "$normalize_variant" -eq 1 ] && echo "true" || echo "false")
+log_message "📦 Normalization variant: $normalize_variant (normalize=$use_normalize), actual_base_experiment=$actual_base_experiment_id"
+
+if [ "$actual_base_experiment_id" -le 72 ]; then
     # Single layer experiment
     experiment_type="single"
-    adjusted_id=$((task_id - 1))
+    adjusted_id=$((actual_base_experiment_id - 1))
     
     # Calculate dataset, layer type, and skip connection flag
     num_datasets=${#datasets[@]}
     
     # Determine which layer type and skip variant
-    # Layer order: GCN (0-15), GIN (16-31), SAGE (32-47), MLP (48-55), Unitary (56-63)
+    # Layer order: GCN (0-15), GIN (16-31), SAGE (32-47), MLP (48-55), Unitary (56-63), GPS (64-71)
     # For GCN, GIN, SAGE: each has 16 tasks (8 datasets × 2 skip variants)
-    # For MLP, Unitary: each has 8 tasks (8 datasets × 1 skip variant = no skip)
+    # For MLP, Unitary, GPS: each has 8 tasks (8 datasets × 1 skip variant = no skip)
     
     if [ "$adjusted_id" -lt 16 ]; then
         # GCN: tasks 0-15
@@ -401,18 +439,24 @@ if [ "$task_id" -le 64 ]; then
         layer_base_id=$((adjusted_id - 48))
         dataset_idx=$((layer_base_id % num_datasets))
         skip_variant=0  # MLP doesn't support skip connections
-    else
+    elif [ "$adjusted_id" -lt 64 ]; then
         # Unitary: tasks 56-63
         layer_type="Unitary"
         layer_base_id=$((adjusted_id - 56))
         dataset_idx=$((layer_base_id % num_datasets))
         skip_variant=0  # Unitary doesn't support skip connections
+    else
+        # GPS: tasks 64-71
+        layer_type="GPS"
+        layer_base_id=$((adjusted_id - 64))
+        dataset_idx=$((layer_base_id % num_datasets))
+        skip_variant=0  # GPS doesn't support skip connections
     fi
     
     dataset=${datasets[$dataset_idx]}
     use_skip=$([ "$skip_variant" -eq 1 ] && [ "$layer_type" in "GCN GIN SAGE" ] && echo "true" || echo "false")
     
-    log_message "🧪 Single Layer Experiment $task_id: ${dataset}_${layer_type} (skip=${use_skip})"
+    log_message "🧪 Single Layer Experiment $task_id (base=$base_experiment_id, actual_base=$actual_base_experiment_id): ${dataset}_${layer_type} (skip=${use_skip}, normalize=${use_normalize}, encoding=${dataset_encoding})"
     
     # Get optimal hyperparameters
     get_hyperparams "$dataset" "$layer_type"
@@ -425,7 +469,9 @@ if [ "$task_id" -le 64 ]; then
     patience=$HYPERPARAM_PATIENCE
     
     skip_suffix=$([ "$use_skip" = "true" ] && echo "_skip" || echo "")
-    wandb_run_name="${dataset}_${layer_type}${skip_suffix}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
+    norm_suffix=$([ "$use_normalize" = "true" ] && echo "_norm" || echo "")
+    encoding_suffix=$([ "$dataset_encoding" != "None" ] && echo "_${dataset_encoding}" || echo "")
+    wandb_run_name="${dataset}_${layer_type}${skip_suffix}${norm_suffix}${encoding_suffix}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
     
     # Build command arguments
     cmd_args=(
@@ -439,31 +485,59 @@ if [ "$task_id" -le 64 ]; then
         --patience "$patience"
         --wandb_enabled
         --wandb_name "$wandb_run_name"
-        --wandb_tags '["cluster", "comprehensive", "single_layer", "research_hyperparams"]'
+        --wandb_tags '["cluster", "comprehensive", "single_layer", "research_hyperparams", "dataset_encoding_'${dataset_encoding}'"]'
     )
+    
+    # Add dataset_encoding if not None
+    if [ "$dataset_encoding" != "None" ]; then
+        cmd_args+=(--dataset_encoding "$dataset_encoding")
+    fi
     
     # Add skip_connection flag if applicable
     if [ "$use_skip" = "true" ]; then
         cmd_args+=(--skip_connection)
     fi
     
+    # Add normalize_features flag if applicable
+    if [ "$use_normalize" = "true" ]; then
+        cmd_args+=(--normalize_features)
+    fi
+    
     # Run single layer experiment
-    python scripts/run_graph_classification.py "${cmd_args[@]}"
+    python scripts/experiments/run_graph_classification.py "${cmd_args[@]}"
 
 else
     # MoE experiment
     experiment_type="moe"
-    moe_id=$((task_id - 65))  # Adjust for 64 single layer experiments instead of 40
+    moe_id=$((actual_base_experiment_id - 73))  # Adjust for 72 single layer experiments (16+16+16+8+8+8 = 72)
+    
+    # Calculate dataset, MoE combination, and router type
+    # MoE experiments are organized as: 9 combinations × 8 datasets × 2 router types
+    num_datasets=${#datasets[@]}
+    num_moe_combinations=${#moe_combinations[@]}
+    num_router_types=2  # MLP and GNN
+    
+    # Calculate router type (0 = MLP, 1 = GNN)
+    router_type_idx=$((moe_id % num_router_types))
+    remaining_id=$((moe_id / num_router_types))
     
     # Calculate dataset and MoE combination
-    num_datasets=${#datasets[@]}
-    dataset_idx=$((moe_id % num_datasets))
-    combo_idx=$((moe_id / num_datasets))
+    dataset_idx=$((remaining_id % num_datasets))
+    combo_idx=$((remaining_id / num_datasets))
     
     dataset=${datasets[$dataset_idx]}
     layer_combo=${moe_combinations[$combo_idx]}
     
-    log_message "🧪 MoE Experiment $task_id: ${dataset}_MoE_${layer_combo}"
+    # Set router type and router layer type
+    if [ "$router_type_idx" -eq 0 ]; then
+        router_type="MLP"
+        router_layer_type="MLP"
+    else
+        router_type="GNN"
+        router_layer_type="GIN"  # Default for GNN router
+    fi
+    
+    log_message "🧪 MoE Experiment $task_id (base=$base_experiment_id, actual_base=$actual_base_experiment_id): ${dataset}_MoE_${layer_combo} (router=${router_type}, normalize=${use_normalize}, encoding=${dataset_encoding})"
     
     # For MoE, use the first layer type in combination as base for hyperparameters
     first_layer=$(echo "$layer_combo" | grep -o '"[^"]*"' | head -1 | tr -d '"')
@@ -478,21 +552,40 @@ else
     
     # Create a clean name from layer combination
     clean_combo=$(echo "$layer_combo" | tr -d '[]",' | tr ' ' '_')
-    wandb_run_name="${dataset}_MoE_${clean_combo}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
+    encoding_suffix=$([ "$dataset_encoding" != "None" ] && echo "_${dataset_encoding}" || echo "")
+    router_suffix="_${router_type}"
+    norm_suffix=$([ "$use_normalize" = "true" ] && echo "_norm" || echo "")
+    wandb_run_name="${dataset}_MoE_${clean_combo}${router_suffix}${norm_suffix}${encoding_suffix}_L${num_layer}_H${hidden_dim}_lr${learning_rate}_d${dropout}_task${task_id}"
+    
+    # Build command arguments for MoE
+    moe_cmd_args=(
+        --num_trials 200
+        --dataset "$dataset"
+        --layer_types "$layer_combo"
+        --router_type "$router_type"
+        --router_layer_type "$router_layer_type"
+        --learning_rate "$learning_rate"
+        --hidden_dim "$hidden_dim"
+        --num_layers "$num_layer"
+        --dropout "$dropout"
+        --patience "$patience"
+        --wandb_enabled
+        --wandb_name "$wandb_run_name"
+        --wandb_tags '["cluster", "comprehensive", "moe", "research_hyperparams", "dataset_encoding_'${dataset_encoding}'", "router_'${router_type}'"]'
+    )
+    
+    # Add dataset_encoding if not None
+    if [ "$dataset_encoding" != "None" ]; then
+        moe_cmd_args+=(--dataset_encoding "$dataset_encoding")
+    fi
+    
+    # Add normalize_features flag if applicable
+    if [ "$use_normalize" = "true" ]; then
+        moe_cmd_args+=(--normalize_features)
+    fi
     
     # Run MoE experiment
-    python scripts/run_graph_classification.py \
-        --num_trials 200 \
-        --dataset "$dataset" \
-        --layer_types "$layer_combo" \
-        --learning_rate "$learning_rate" \
-        --hidden_dim "$hidden_dim" \
-        --num_layers "$num_layer" \
-        --dropout "$dropout" \
-        --patience "$patience" \
-        --wandb_enabled \
-        --wandb_name "$wandb_run_name" \
-        --wandb_tags '["cluster", "comprehensive", "moe", "research_hyperparams"]'
+    python scripts/experiments/run_graph_classification.py "${moe_cmd_args[@]}"
 fi
 
 # Check exit status

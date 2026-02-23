@@ -42,11 +42,17 @@ class MoE(nn.Module):
         ), "args.layer_types must be a list of two expert type strings"
         self.args = args
 
+        # Store normalization flag
+        self.normalize_features = getattr(args, "normalize_features", False)
+
         # Instantiate experts
         self.experts = nn.ModuleList()
         for lt in args.layer_types:
             ex_args = copy.deepcopy(args)
             ex_args.layer_type = lt
+            # Enable skip connections by default for experts that support them (GCN, GIN, SAGE)
+            if lt in ["GCN", "GIN", "SAGE"]:
+                ex_args.skip_connection = True
             self.experts.append(
                 UnitaryGCN(ex_args) if lt == "Unitary" else GNN(ex_args)
             )
@@ -77,6 +83,13 @@ class MoE(nn.Module):
                 Example: weights[0] = [0.7, 0.3] means graph 0 uses 70% expert 0, 30% expert 1.
                 Only returned if return_weights=True
         """
+        # Normalize features if requested (before routing and expert processing)
+        if self.normalize_features:
+            x_norm = torch.norm(graph.x.float(), p=2, dim=1, keepdim=True)
+            graph.x = graph.x / (
+                x_norm + 1e-8
+            )  # Add small epsilon to avoid division by zero
+
         # Router computes logits for each graph in the batch
         logits = self.router(
             graph
@@ -118,14 +131,17 @@ class MoE_E(nn.Module):
         ), "args.layer_types must be a list of two expert type strings"
         self.args = args
 
-        # Instantiate experts
-        self.experts = nn.ModuleList()
+        # Store normalization flag
+        self.normalize_features = getattr(args, "normalize_features", False)
 
         # Instantiate experts
         self.experts = nn.ModuleList()
         for lt in args.layer_types:
             ex_args = copy.deepcopy(args)
             ex_args.layer_type = lt
+            # Enable skip connections by default for experts that support them (GCN, GIN, SAGE)
+            if lt in ["GCN", "GIN", "SAGE"]:
+                ex_args.skip_connection = True
             self.experts.append(
                 UnitaryGCN(ex_args) if lt == "Unitary" else GNN(ex_args)
             )
@@ -158,6 +174,13 @@ class MoE_E(nn.Module):
                 Example: weights[0] = [0.7, 0.3] means graph 0 uses 70% expert 0, 30% expert 1.
                 Only returned if return_weights=True
         """
+        # Normalize features if requested (before routing and expert processing)
+        if self.normalize_features:
+            x_norm = torch.norm(graph.x.float(), p=2, dim=1, keepdim=True)
+            graph.x = graph.x / (
+                x_norm + 1e-8
+            )  # Add small epsilon to avoid division by zero
+
         # Router computes logits for each graph in the batch
         logits = self.router(
             graph

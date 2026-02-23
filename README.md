@@ -3,106 +3,6 @@
 
 
 
-# TODO (1/9)
-
-* Investigate tmd
-
-top priorities:
-try to increase accuracies to match "Can ... be strong baseline for"
-[ with Skip connections or potentially encodings]
-add router type to wandb
-add hencodings
-Read GPS paper and instead of 50% 50% weight, let an Router decide.
-add peptides
-
-1 - add skip connection to eg (GCN, GIN, etc etc)
-[It's just adding input to conv layer and adding it to the output]+ 
-Check if Dropout is included +
-add encodings
-check the Can ... be strong baseline for
-what we should expect. They also use ENCODINGS!
-Look at the paper (main text table 5)
-
-2 - Also look at normalization [Section 3 in the paper].
-
-4 - Compute the hg encodings once and make sure they are fully correct and then upload them.
-
-add to wandb: the router type
-
-2 - Add global attention as an expert.
-
-3 - Try to add Global attention layer as router (imagine MOE as 
-extension of GPS)
-
-
-Later: check that sage does not do better than
-all moe connections. 
-
-4 - encodings + hg encodings
-
-(no tmd, no rewiring...)
-
-
-
-# TODO (12/10)
-
-* Investigate tmd
-
-top priorities:
-* try to increase accuracies to match "Can ... be strong baseline for"
-[ with Skip connections or potentially encodings]
-
-
-add hencodings
-Read GPS paper and instead of 50% 50% weight, let an Router decide.
-add peptides
-
-1 - add skip connection to eg (GCN, GIN, etc etc)
-[It's just adding input to conv layer and adding it to the output]+ 
-Check if Dropout is included +
-add encodings
-check the Can ... be strong baseline for
-what we should expect. They also use ENCODINGS!
-Look at the paper (main text table 5)
-
-2 - Also look at normalization [Section 3 in the paper].
-
-4 - Compute the hg encodings once and make sure they are fully correct and then upload them.
-
-add to wandb: the router type
-
-2 - Add global attention as an expert.
-
-3 - Try to add Global attention layer as router (imagine MOE as 
-extension of GPS)
-
-
-Later: check that sage does not do better than
-all moe connections. 
-
-4 - encodings + hg encodings
-
-(no tmd, no rewiring...)
-
-
-
-* Ask Lukas about the weird plots. WHy do we get a very clear separation by indexing?
-[ IN PROGRESS]
-* Can GNN be strong baselines:
-- take these hyperparameters and these datasets. [TODO: check manually]
-
-* Add test suite for accuracies / pytest for all that
-* Merge current PR
-* Run a new PR with black/isort/ruff
-
-
-
-
-
-- Redo plotting + TMD
-- Adding a few datasets + architectures 
-- MoE: foresee how well this is working - look at training curves and that it trains well and accuracy in comparaison with other baselines.
-Aiming end of Jan 
 
 
 # Dataset Status Summary
@@ -116,24 +16,9 @@ enzymes, peptides-struct, peptides-func
 MAKE SURE I CAN RERUN ON THE CLUSTER. CLEAN UP.
 **Target Datasets (15 total):**
 - ✅ **Available & Loaded (14):** ZINC, MNIST, CIFAR10, PATTERN, CLUSTER, Peptides-func, PascalVOC-SP, COCO-SP, MalNet-Tiny, ogbg-molhiv, ogbg-molpcba, ogbg-ppa, ogbg-code2
-[PASCAL, OGB are huge]
-- ⚠️ **Commented Out (1):** Peptides-struct (needs uncommenting in `run_graph_regression.py`) [TO ADD NEXT 1/9]
+- ⚠️ **Commented Out (1):** Peptides-struct (needs uncommenting in `run_graph_regression.py`)
 
 **Note:** ogbg-code2 is in classification script but has `output_dim=1` (regression) - verify task type.
-
-
-IN PROGRESS: TO CODE REVIEW AND CHECK
-Vizualisations:
-for each dataset and each MOE configurations:
-+ code lost for the histograms/TmD
-do enough experiments so that each graph is in 10 test datasets.
-
-
-Maybe idea for later:
-- encodings + hg encodings
-
-
-# END OF TODO (12/10)
 
 
 # README
@@ -142,31 +27,11 @@ Maybe idea for later:
 
 A PyTorch implementation of Graph Neural Networks with Mixture of Experts (MoE) architectures and heterogeneous layer types for graph classification and regression tasks.
 
-## TODO
-
-- run locally again and run mamba env export > environment_SAVED.yml
-- Get parameters from the paper [DONE]
-- Run on the cluster [ABLE!]
- 
-- TODO / IDEAS:
-- Hypergraph encodings > add something to store them too
-- Not doing rewiring anymore
-
-
-Immediate TODOs:
-- Reorganise the repo into src/ and scripts/ + split the scripts into smaller files?
-for example src/models/moe/routers, src/models/layers, src/models/architectures
-src/encodings/curtom_encodings etc. This will help make the repo much more organised and easy to use.
-- Add plotting functionality: super important. See the losses (or extract them from wandb),
-see the performance of each model of each graph (repeated ten times)
-- Fix the missing dataset (ogb causing trouble becuase of sklearn > scipy)
-- Todo: add pylint/mypy github action
-- Todo: lower priority: add tests
 
 **CURRENT STATUS (December 28, 2025):**
 
 **✅ Currently running in main sweep (8 datasets - Graph Classification)**: enzymes, proteins, mutag, imdb, collab, reddit, mnist, cifar
-**📊 Available on WandB (MOE_new project)**: All 8 main sweep datasets above
+**📊 Available on WandB (MOE_4 project)**: All 8 main sweep datasets above
 **❌ Excluded from graph classification**: pattern (node classification - requires different experimental setup), cluster (disabled LRGB dataset)
 
 **🔄 IN PROGRESS - Additional datasets setup:**
@@ -221,7 +86,7 @@ The node classification script handles the different data loading and evaluation
 **Alternative manual approach:**
 ```bash
 export PYTHONPATH="$(pwd):$(pwd)/src:${PYTHONPATH}"
-python scripts/run_graph_classification.py --dataset ppa --layer_type GCN --num_trials 1
+python scripts/experiments/run_graph_classification.py --dataset ppa --layer_type GCN --num_trials 1
 ```
 (Answer "y" to both prompts when asked)
 
@@ -379,7 +244,7 @@ pip install graphriccicurvature numba tqdm
 
 **Basic Example - MUTAG dataset:**
 ```bash
-python scripts/run_graph_classification.py \
+python scripts/experiments/run_graph_classification.py \
     --dataset mutag \
     --layer_type GCN \
     --num_trials 10 \
@@ -389,7 +254,7 @@ python scripts/run_graph_classification.py \
 
 **Mixture of Experts:**
 ```bash
-python scripts/run_graph_classification.py \
+python scripts/experiments/run_graph_classification.py \
     --dataset enzymes \
     --layer_types '["GCN", "GIN"]' \
     --num_trials 10 \
@@ -399,7 +264,7 @@ python scripts/run_graph_classification.py \
 
 **With Structural Encoding:**
 ```bash
-python scripts/run_graph_classification.py \
+python scripts/experiments/run_graph_classification.py \
     --dataset proteins \
     --layer_type GIN \
     --encoding LCP \
@@ -543,7 +408,7 @@ The Local Curvature Profile (LCP) encoding computes Ollivier-Ricci curvature sta
 
 ### Router Configuration for MoE
 ```bash
-python scripts/run_graph_classification.py \
+python scripts/experiments/run_graph_classification.py \
     --dataset proteins \
     --layer_types '["GCN", "Unitary"]' \
     --router_type GNN \
@@ -554,7 +419,7 @@ python scripts/run_graph_classification.py \
 
 ### Deep Network with Unitary Layers
 ```bash
-python scripts/run_graph_classification.py \
+python scripts/experiments/run_graph_classification.py \
     --dataset enzymes \
     --layer_type Unitary \
     --num_layers 8 \
