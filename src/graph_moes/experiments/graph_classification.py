@@ -728,35 +728,36 @@ class Experiment:
                 return metric.compute().item()
             else:
                 # Use accuracy for multi-class datasets
-                total_correct = 0
-                for base_graph in loader:
-                    base_graph = base_graph.to(self.args.device)
+                with torch.no_grad():
+                    total_correct = 0
+                    for base_graph in loader:
+                        base_graph = base_graph.to(self.args.device)
 
-                    # Get encoded graphs for this batch
-                    encoded_graphs = {}
-                    for encoding_name in self.args.encoding_moe_encodings:
-                        encoded_batch = _get_encoding_moe_encoded_graphs_for_batch(
-                            encoding_name,
-                            encoded_iterators,
-                            encoded_loaders,
-                            self.args.device,
-                        )
-                        if encoded_batch is not None:
-                            encoded_graphs[encoding_name] = encoded_batch
+                        # Get encoded graphs for this batch
+                        encoded_graphs = {}
+                        for encoding_name in self.args.encoding_moe_encodings:
+                            encoded_batch = _get_encoding_moe_encoded_graphs_for_batch(
+                                encoding_name,
+                                encoded_iterators,
+                                encoded_loaders,
+                                self.args.device,
+                            )
+                            if encoded_batch is not None:
+                                encoded_graphs[encoding_name] = encoded_batch
 
-                    # Forward pass through EncodingMoE
-                    out = self.model(base_graph, encoded_graphs)
-                    y = base_graph.y.flatten().to(self.args.device)
+                        # Forward pass through EncodingMoE
+                        out = self.model(base_graph, encoded_graphs)
+                        y = base_graph.y.flatten().to(self.args.device)
 
-                    # Handle both multi-class and multi-label cases
-                    if y.dim() > 1:
-                        # Multi-label case - use sigmoid + threshold
-                        pred = (torch.sigmoid(out) > 0.5).float()
-                        total_correct += (pred == y).all(dim=1).sum().item()
-                    else:
-                        # Multi-class case - use argmax
-                        _, pred = out.max(dim=1)
-                        total_correct += pred.eq(y).sum().item()
+                        # Handle both multi-class and multi-label cases
+                        if y.dim() > 1:
+                            # Multi-label case - use sigmoid + threshold
+                            pred = (torch.sigmoid(out) > 0.5).float()
+                            total_correct += (pred == y).all(dim=1).sum().item()
+                        else:
+                            # Multi-class case - use argmax
+                            _, pred = out.max(dim=1)
+                            total_correct += pred.eq(y).sum().item()
 
                 return total_correct / sample_size
         else:

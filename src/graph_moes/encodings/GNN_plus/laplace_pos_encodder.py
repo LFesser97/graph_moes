@@ -1,6 +1,8 @@
-"""
+"""Laplace positional encoder from the GNN+ (Strong Baselines) paper.
 
 Source: https://github.com/LUOyk1999/GNNPlus/blob/main/GNNPlus/encoder/laplace_pos_encoder.py#L32
+
+TODO: Integrate in scripts/compute_encodings/compute_encodings_for_datasets.py to also try computing encodings with this.
 """
 
 import torch

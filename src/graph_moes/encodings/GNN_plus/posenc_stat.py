@@ -1,6 +1,8 @@
-"""
+"""Positional encoding statistics from the GNN+ (Strong Baselines) paper.
 
 Source: https://github.com/LUOyk1999/GNNPlus/blob/main/GNNPlus/transform/posenc_stats.py
+
+TODO: Integrate in scripts/compute_encodings/compute_encodings_for_datasets.py to also try computing encodings with this.
 """
 
 from copy import deepcopy
