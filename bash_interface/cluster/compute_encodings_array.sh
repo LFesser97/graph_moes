@@ -103,8 +103,8 @@ fi
 export PYTHONPATH="${PROJECT_ROOT}/src:${PYTHONPATH}"
 
 # Define datasets (matching what load_all_datasets loads)
-# TU datasets (short names)
-datasets=("mutag" "enzymes" "proteins" "imdb_binary" "collab" "reddit_binary")
+# TU datasets (short names matching load_all_datasets mapping)
+datasets=("mutag" "enzymes" "proteins" "imdb" "collab" "reddit")
 # GNN Benchmark datasets
 datasets+=("mnist" "cifar10" "pattern")
 # OGB datasets (short names)

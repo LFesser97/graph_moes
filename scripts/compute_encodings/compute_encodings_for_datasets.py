@@ -714,7 +714,7 @@ def main() -> None:
 
     # Paths
     script_dir = Path(__file__).parent
-    repo_root = script_dir.parent
+    repo_root = script_dir.parent.parent
     data_directory = str(repo_root / "graph_datasets")
     output_dir_hg = str(repo_root / "graph_datasets_with_hg_encodings")
     output_dir_g = str(repo_root / "graph_datasets_with_g_encodings")
