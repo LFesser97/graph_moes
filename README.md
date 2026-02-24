@@ -1,3 +1,7 @@
+[NOTE: NOW WORKING ON RESEARCH GROUP REPO (HETEROGENEITY_PROFILE). I COPIED EVERYTHING OVER ON 02/23/2026]
+
+
+
 [![Ruff](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml/badge.svg)](https://github.com/LFesser97/graph_moes/actions/workflows/ruff.yml)
 [![pytest](https://github.com/LFesser97/graph_moes/actions/workflows/pytest.yml/badge.svg)](https://github.com/LFesser97/graph_moes/actions/workflows/pytest.yml)
 
